@@ -1,9 +1,7 @@
 <script lang="ts">
-  // Notifications (ADR 0108, #24), on your profile: a switch for each kind, every one on until you turn it off. The
-  // choice is yours, not a device's: whichever phone or browser you sign in on follows it. A switch answers at once;
-  // the server's reply puts it right if it failed (backend.svelte.ts save). In a browser, first, this device's own
-  // switch (Web Push, app/web-push.ts): permission only ever from its tap; on an iPhone in a Safari tab, the way to
-  // them instead (the app on the Home Screen).
+  // Notifications (ADR 0108), on your profile: a switch for each kind, on until you turn it off, followed on every device
+  // you sign in on. In a browser, first this device's own Web Push switch (app/web-push.ts), asking permission only from
+  // its tap; on an iPhone in a Safari tab, the way to the Home Screen app instead.
   import { chooseNotification } from "../app/backend.svelte";
   import { inApp } from "../app/native";
   import { turnOff, turnOn, webPush, webPushHere } from "../app/web-push";
@@ -16,6 +14,7 @@
   // A topic for one job (the email stopping, a break-glass sign-in) is only for whoever does it to switch
   const topics = $derived(TOPICS.filter((t) => !("action" in t) || can(realGranted(), t.action)));
 
+  // A switch answers at once; the server's reply puts it right if it failed (backend.svelte.ts save)
   function flip(topic: Topic) {
     const on = !db.notifications[topic];
     db.notifications[topic] = on;

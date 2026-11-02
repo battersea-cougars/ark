@@ -1,9 +1,8 @@
 <script lang="ts">
-  // The team app's privacy notice (#30, ADR 0029): what the app holds about members, who sees it, how long it's kept,
-  // and how to get it or delete it. The website's /privacy covers the website only. Shown on the sign-in screen
-  // (anyone, before they sign in) and at /privacy in the app. Every line describes something the code does: change it
+  // The team app's privacy notice (ADR 0029), on the sign-in screen and at /privacy: what the app holds about members,
+  // who sees it, how long it's kept, how to get or delete it. Every line describes something the code does: change it
   // with the behaviour (worker/settings/retention.ts, members/members.erase.ts, ADR 0050 for backups). The club's
-  // address isn't kept in the code: the website's privacy page shows it, from the Studio.
+  // address is the website's privacy page's, from the Studio.
   const CLUB_CONTACT = "https://batterseacougars.com/privacy/";
 </script>
 

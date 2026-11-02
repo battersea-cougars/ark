@@ -1,8 +1,6 @@
 <script lang="ts">
-  // The leaderboards (#47, lib/leaders.ts): who's on top for points, goals, assists and penalty minutes, over one
-  // tournament's games (the board, a past one's page) or every edition's (History). A tab a board, as the app's tabs
-  // are (italic caps, the red slash); the table shows every column, the chosen one bright. On a tournament's own
-  // board, each player's team under their name.
+  // The leaderboards (lib/leaders.ts): points, goals, assists and penalty minutes over one tournament's games or every
+  // edition's (History), a tab a board; on a tournament's own board, each player's team under their name.
   import { PLAYERS } from "../demo/data";
   import { LEADER_STATS, leaders, ranked, type LeaderRow, type LeaderStat } from "./leaders";
   import type { Tournament, TournamentGame } from "../demo/model";
@@ -15,7 +13,7 @@
     label = "Leaders",
   }: {
     games?: TournamentGame[];
-    /** Already counted, in place of the games: every edition's, from the Worker (History, #175). */
+    /** Already counted, in place of the games: every edition's, from the Worker (History). */
     counted?: LeaderRow[];
     /** One tournament's: its teams name each player's. */
     tournament?: Tournament;

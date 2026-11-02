@@ -1,9 +1,7 @@
 <script lang="ts">
-  // The draft's pick order (apps/team/worker/tournaments/README.md), on the Draft page before it opens. The order the captains were named in means
-  // nothing: until it's drawn they're shown without numbers, and Shuffle (whoever runs the draft) draws it at
-  // random on the server. Whoever's on the page as the draw arrives (ADR 0053) sees it happen: the names shuffle a few times and settle into the
-  // drawn order, the numbers stamped on (and, on the Kumite, its seal). Anyone opening the page later just sees the
-  // order; so does anyone who asks for less motion. It's round one's: the snake turns it each round.
+  // The draft's pick order (apps/team/worker/tournaments/README.md), on the Draft page before it opens: unnumbered till
+  // Shuffle draws it on the server, and whoever's on the page as the draw arrives (ADR 0053) sees the names shuffle and
+  // settle (not with less motion). It's round one's: the snake turns it each round.
   import { onDestroy, untrack } from "svelte";
   import { flip } from "svelte/animate";
   import { cubicInOut } from "svelte/easing";

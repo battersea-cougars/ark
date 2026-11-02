@@ -1,8 +1,6 @@
 <script lang="ts" generics="T">
-  // A data grid (AG Grid Community, MIT): sortable, resizable columns, a quick filter, row clicks. Loaded only
-  // when one is shown, so pages without a grid don't download it, and only the modules it uses (sorting, resizing
-  // and pinning are in the core). It fills its container and scrolls inside it, header row in view: the container
-  // sets the height. Themed from the app's tokens, dark only.
+  // A data grid (AG Grid Community, MIT): sortable, resizable columns, a quick filter, row clicks. It fills its
+  // container and scrolls inside it, header row in view (the container sets the height); themed from the app's tokens.
   import type { ColDef, GridApi } from "ag-grid-community";
 
   let {
@@ -29,6 +27,8 @@
     if (!host) return;
     let gone = false;
     let grid: GridApi<T> | undefined;
+    // Loaded only when a grid is shown, so pages without one don't download it, and only the modules it uses
+    // (sorting, resizing and pinning are in the core)
     void import("ag-grid-community").then((ag) => {
       if (gone) return;
       const { createGrid, ModuleRegistry, themeQuartz } = ag;

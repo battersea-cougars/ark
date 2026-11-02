@@ -1,9 +1,7 @@
 <script lang="ts">
-  // A player's card, picked up: it lifts from where it lies, turns over sideways and comes up to the middle of the
-  // screen, showing its dark back: who they are, their number tonight, and a line or two about them. (An admin on
-  // Teammates gets MemberSheet instead.) Closing is the same turn back, in one move. Its actions sit as icons in the card's top band. Someone who runs events can take
-  // the player off the session from here (two taps, so a stray one can't). Without motion it just appears. Once it lands it drops its 3D turn, so fields and
-  // menus on the back behave like any others.
+  // A player's card, picked up: it lifts, turns over and comes to the middle showing who they are and their number
+  // tonight, its actions in its top band (taking them off the session takes two taps). Without motion it just appears;
+  // once it lands it drops its 3D turn, so fields and menus on the back behave like any others.
   import { goesBy, shortName } from "./names";
   import { onMount, tick } from "svelte";
   import { closeOnBack } from "./back";

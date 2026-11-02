@@ -8,14 +8,9 @@
 </script>
 
 <script lang="ts">
-  // One tournament's editor, in the panel its card opens (Settings → Tournaments): what an admin comes here
-  // for. When and where it is, sign-up, its teams (apps/team/worker/tournaments/README.md): teams that entered, or a draft's captains (in no order:
-  // it's drawn as the draft opens) and the draft night, and its rules and awards, on tabs as the training editor lays
-  // out its fields. The tabs are the wizard's steps, by the same names, and each group of fields is the one the wizard
-  // shows (lib/Tournament*Fields), so scheduling one and editing it read as one form (#163). Picking a series copies
-  // its defaults in (apps/team/worker/tournaments/README.md); they can then change for this one. The series' look (icon, colour) stays the series'.
-  // Not here: its stage (Coming up, Sign-up open, …), moved on from its own page (Manage, apps/team/worker/tournaments/README.md), and a team's
-  // name and logo, edited on the team's page (Edit the team).
+  // One tournament's editor, in the panel its card opens (Settings → Tournaments): when and where, sign-up, its teams,
+  // rules and awards, on tabs that are the wizard's steps with the same fields (lib/Tournament*Fields). Picking a series
+  // copies its defaults in; its stage moves on its own page, a team's look on the team's page.
   import { tick } from "svelte";
   import { createTournament, updateTournament } from "../app/backend.svelte";
   import { cancelClashes } from "../app/clashes.backend";
@@ -76,7 +71,7 @@
 
   const type = $derived(db.tournamentTypes.find((t) => t.id === date.typeId));
   /** Already charged: the fee is fixed. */
-  // What it's collected, read from the server (#177): how many were charged fixes its fee; the money, for who sees dues
+  // What it's collected, read from the server: how many were charged fixes its fee; the money, for who sees dues
   let collected = $state<Collected | null>(null);
   $effect(() => {
     void db.dues;
@@ -120,7 +115,7 @@
   );
   // A draft's captains bring their team from the series' last edition they captained in (brought-team.ts)
   const edition = $derived({ id: date.id || undefined, typeId: date.typeId, heldOn: formDay(date) });
-  // ...read from the server (#177), for a draft in a series, again as its series or day changes
+  // ...read from the server, for a draft in a series, again as its series or day changes
   let brought = $state<Record<number, BroughtTeam>>({});
   $effect(() => {
     const wanted = { ...edition };

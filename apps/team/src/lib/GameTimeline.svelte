@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A game's goals and penalties in time order (apps/team/worker/tournaments/README.md): each on its team's side, when down the middle, with the
-  // score a goal made, or a penalty's minutes (a penalty shot, where that's the tournament's rule). Grouped under each
-  // period when the game has more than one. Latest first while it's on; in order once it's played. With `onremove`
-  // (an admin putting a result right), each row has Take off.
+  // A game's goals and penalties in time order (apps/team/worker/tournaments/README.md), each on its team's side,
+  // grouped by period when there's more than one; latest first while it's on. With `onremove` (an admin putting a result
+  // right), each row has Take off.
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "./names";

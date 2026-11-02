@@ -1,9 +1,7 @@
 <script lang="ts">
-  // One step back in a tournament's workflow (apps/team/worker/tournaments/README.md, lib/step-back.ts), from whichever Manage offers it: the
-  // tournament's own, or the Draft page's for the draft's steps. How much it asks follows what's lost: nothing (the
-  // draft reopened, sign-up open again, a draft with no picks yet) goes at once; what can be done again (the fixtures,
-  // the drawn order) is a quiet question; what's gone for good (results and goals, captains' picks) says what, counted,
-  // with the one red fill as the tap that does it. A sheet on a phone, a side drawer on a desktop.
+  // One step back in a tournament's workflow (apps/team/worker/tournaments/README.md, lib/step-back.ts), from its Manage
+  // or the Draft page's. It asks as much as is lost: nothing goes at once, what can be done again is a quiet question,
+  // what's gone for good says what, with the one red fill.
   import { londonToday, plural } from "./dates";
   import type { Tournament, TournamentType } from "../demo/model";
   import { stepBack } from "../app/backend.svelte";

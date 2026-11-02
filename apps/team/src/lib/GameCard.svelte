@@ -29,7 +29,7 @@
   const live = $derived(g.status === "live");
   // You hold its scoresheet: a whistle in the header says so, and the card opens the scoresheet
   const keeping = $derived(g.status !== "done" && g.keeperId === me().id);
-  // Who's scoring it, until it's over (#116): whoever else holds the sheet (yours is the red whistle, not said twice)
+  // Who's scoring it, until it's over: whoever else holds the sheet (yours is the red whistle, not said twice)
   const scorer = $derived.by(() => {
     if (g.status === "done" || !g.keeperId || keeping) return "";
     const p = PLAYERS.find((x) => x.id === g.keeperId);

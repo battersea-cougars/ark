@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A member's dues as a ledger (apps/team/worker/dues/README.md), the way a bank statement reads: every charge and payment by date, newest
-  // first, with what they owe after each. Its header stays in view as it scrolls, under whatever is pinned above it
-  // (--below; on a page, the shell's top bar). Whoever records payments can take back a payment or a quarter charged
-  // by hand, each with a second tap so a stray one can't.
+  // A member's dues as a ledger, read like a bank statement (apps/team/worker/dues/README.md): every charge and payment,
+  // newest first, with what they owe after each, its header in view under --below. Taking back a payment or a quarter
+  // charged by hand takes a second tap, so a stray one can't.
   import { untrack } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { removeCharge, removePayment } from "../app/backend.svelte";
@@ -15,7 +14,7 @@
 
   let { memberId, editable = false }: { memberId: number; editable?: boolean } = $props();
 
-  // Read a page at a time, newest first (#177, app/ledger.svelte.ts): again when dues change, as far as it was read
+  // Read a page at a time, newest first (app/ledger.svelte.ts): again when dues change, as far as it was read
   const book = $derived(ledgerOf(memberId));
   $effect(() => {
     void [db.dues, db.charges];
@@ -229,7 +228,7 @@
       margin: 2px 0 0 calc(1.75rem + var(--s-2));
     }
     /* On a phone what was charged and what was paid share a column, Amount (a payment's in green, by its £), and
-       Take back comes closer in: six columns run past a 320 phone's card (#148) */
+       Take back comes closer in: six columns run past a 320 phone's card */
     .paid-col,
     .wide {
       display: none;

@@ -1,9 +1,7 @@
 <script lang="ts">
-  // Your sign-in email (ADR 0023), a row in the You page's Account tab: shown, and changed by you in a sheet, its
-  // buttons in the footer like every sheet's (ADR 0065). Two codes go out: one to the new address and one to the address you have now, so someone with your phone
-  // alone can't move your account. Both typed here (the current address's first), the new address is yours from then
-  // on, everything you've done stays yours, and your other devices sign in again with it (worker/members/members.email.ts).
-  // With no address yet, only the new one's code. Lost your old inbox? An admin changes it on your member page.
+  // Your sign-in email (ADR 0023), a row in the You page's Account tab, changed in a sheet. Codes go to the new address
+  // and the current one, so someone with your phone alone can't move your account (worker/members/members.email.ts);
+  // with no address yet, only the new one's. A lost inbox is an admin's to change, on your member page.
   import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";
   import { askEmailCode, confirmEmailCode } from "../app/backend.svelte";

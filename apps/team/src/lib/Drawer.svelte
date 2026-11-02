@@ -1,11 +1,7 @@
 <script lang="ts">
-  // The app's one side drawer (ADR 0065): every job that opens over a page on a desktop or tablet, from a
-  // menu (Manage) to a form (Add player) to an editor (lib/EditorPanel, in the page's column). It slides in from the
-  // right; on a phone it's the one overlay every job uses there, lib/Sheet, tall (short for a menu or a question), decided as it opens and kept that
-  // way while it's open. Both keep one close contract (lib/overlay.ts): a native modal dialog, so focus stays in it
-  // and the page under it is inert and doesn't scroll; Escape closes the top one only; a click on the dimmed page
-  // closes it only when it was pressed and let go there; the × closes it; focus goes back to what opened it. Every
-  // one of those asks first when its form has unsaved changes (`edits`, lib/dirty.svelte.ts).
+  // The app's one side drawer (ADR 0065), for every job opened over a page on a desktop or tablet; on a phone it's
+  // lib/Sheet, tall (short for a menu or a question). Both keep one close contract (lib/overlay.ts), asking first when
+  // the form has unsaved changes (`edits`, lib/dirty.svelte.ts).
   import type { Snippet } from "svelte";
   import { fly } from "svelte/transition";
   import { easeOut, prefersReducedMotion } from "../app/motion";

@@ -7,11 +7,9 @@
   import { setTournamentPlayers } from "../app/backend.svelte";
   import { SvelteMap } from "svelte/reactivity";
 
-  // Who's in a tournament, in a drawer over the draft: an admin puts in someone who didn't sign up (sign-up shut or
-  // not, past the limit) or takes someone off, who then comes off their team too. Captains are in automatically and
-  // change in the tournament's settings. Search narrows the list. One list, A to Z: a tap says In or Add at once and
-  // the row stays where it is, so adding a run of people needs no scrolling. Nothing's sent until the drawer closes
-  // (Done, or however it's shut): then every change goes in one save.
+  // Who's in a tournament, in a drawer over the draft: an admin puts someone in (sign-up shut or not, past the limit) or
+  // takes them off, and off their team. One A–Z list where a tap adds or removes in place; nothing's sent till the
+  // drawer closes, then every change goes in one save.
   let {
     tournamentId,
     going,

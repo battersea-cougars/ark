@@ -1,12 +1,7 @@
 <script lang="ts">
-  // One award on the awards page's stage (apps/team/worker/tournaments/README.md): a card, its size fixed, so nothing round it moves. The award's
-  // name big in brass stays put; under it the winner's area, the Kumite's 封 seal stamped over it while it's sealed (a
-  // "?" for a series without the motif). Revealed, the seal beats and its ink drains away (the "?" fades) and the
-  // winner (a team's crest and name, or a player's name and their team) rolls into that area alone, clipped to it,
-  // then the 賞 hanko lands. The champions' card (the award the table decides) is the finale's: bigger, ringed in
-  // brass, the crest and name a size up, 優勝 slammed down, the page darkened round it while it's revealed. `beat` is
-  // what's playing (the page's, from the change of state, lib/afters beatOf); none, it's just as it is. The timing is
-  // lib/award-reveal.css. `small`: the same card a size down, its height its own, for the grid after the last.
+  // One award on the awards page's stage (apps/team/worker/tournaments/README.md): a fixed-size card, sealed till its
+  // reveal, when the winner rolls in and the hanko lands; the champions' card is the bigger finale. `beat` is what's
+  // playing (lib/afters beatOf), its timing lib/award-reveal.css; `small` is the grid's size down.
   import type { Tournament, TournamentType } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import type { revealOf } from "./afters";

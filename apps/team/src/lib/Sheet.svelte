@@ -1,11 +1,8 @@
 <script lang="ts">
   /**
-   * The phone's one overlay (ADR 0065): a sheet up from the bottom, with a handle you can pull down to close it. A short
-   * job (Filters, + Event) is sized to what's in it; a `tall` one (a drawer's list, an editor) rises near the top and
-   * scrolls inside, its header and footer staying put. lib/Drawer and lib/EditorPanel are drawn as this on a phone.
-   * On a desktop it's a centred modal. A native modal dialog, so it sits above everything, traps focus and closes on
-   * Escape (and Android's back); a full click on the dimmed page closes it too. Nothing on the page moves when it opens.
-   * Every way out asks first when its form has unsaved changes (`edits`), as lib/Drawer does (lib/overlay.ts).
+   * The phone's one overlay (ADR 0065): a sheet up from the bottom with a handle to pull it down; a short job sized to
+   * what's in it, a `tall` one rising near the top and scrolling inside. A centred modal on a desktop. It keeps
+   * lib/Drawer's close contract (lib/overlay.ts), asking first over unsaved `edits`.
    */
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";

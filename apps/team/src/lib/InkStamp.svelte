@@ -3,11 +3,9 @@
 </script>
 
 <script lang="ts">
-  // An ink stamp (the Kumite's hanko, apps/team/worker/tournaments/README.md): a kanji pressed in a block of ink, the word beside it in the display
-  // face, the ink a little patchy (a noise mask), the edge uneven, askew. One look for every stamp, so they read as a
-  // family: a tournament's status (lib/TournamentHead), and on its match cards You are next! and the results
-  // (lib/GameCard). Only the ink changes: the club's red for what's yours or on now, bone for what's done, faint for
-  // what's quiet; live, the whole stamp a block of red. A series without the motif gets an icon in the block instead.
+  // An ink stamp (the Kumite's hanko): a kanji in a patchy block of ink, the word beside it in the display face. One look
+  // for every stamp (a tournament's status, a match card's You are next! and results); only the ink changes. A series
+  // without the motif gets an icon in the block.
   import Icon from "../app/shell/Icon.svelte";
   import type { IconName } from "../app/shell/icons";
 

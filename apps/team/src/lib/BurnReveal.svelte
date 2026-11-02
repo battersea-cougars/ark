@@ -3,11 +3,9 @@
 </script>
 
 <script lang="ts">
-  // A pick landing burns in (apps/team/worker/tournaments/README.md): its row starts under a sheet of charcoal and a flame front sweeps it left to
-  // right, burning the sheet away to the name beneath: a ragged, flickering edge (the sheet and its ember rim bent by
-  // noise, an SVG filter on one small row), the rim glowing orange to red-hot to char, a few sparks rising and going
-  // out. The row's text glows hot and cools (the parent's .burning). About 1.2s, transforms and opacity only; the
-  // parent drops it once it's done. Laid over the row it's in, which is position: relative.
+  // A pick landing burns in (apps/team/worker/tournaments/README.md): a flame front sweeps a charcoal sheet off the row,
+  // left to right, sparks rising (an SVG noise filter on one small row). About 1.2s, transforms and opacity only; laid
+  // over the row it's in (position: relative), and the parent drops it once it's done.
   const id = `burn-${++count.n}`;
   // Sparks, where along the row and when the front reaches them
   const sparks = [12, 27, 41, 58, 73, 88];

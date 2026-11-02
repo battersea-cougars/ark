@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Move to… (apps/team/worker/tournaments/README.md, lib/move-to.ts): an admin moves a captains' draft to any of its statuses at once. First the
-  // statuses, the one it's at marked, each saying what moving there will do (or why it can't); tap one and it asks,
-  // listing every step: back, what's undone, with the one red fill as the tap that does it; forward, what'll be
-  // done, on the main button. A sheet on a phone, a side drawer on a desktop.
+  // Move to… (apps/team/worker/tournaments/README.md, lib/move-to.ts): an admin moves a captains' draft to any status at
+  // once, each saying what moving there will do (or why it can't), then asking with every step listed. A sheet on a
+  // phone, a side drawer on a desktop.
   import type { Tournament, TournamentType } from "../demo/model";
   import { moveTournament } from "../app/backend.svelte";
   import { planMove, planWords, type Counts, type MovePlan } from "./move-to";

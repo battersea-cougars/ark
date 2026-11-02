@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Every played edition's leaders in a series (#47), as the Worker counts them (#175, app/history.svelte.ts): no
-  // game of them needs to be in the app. Read again when the club's tournaments change (unchanged, a 304).
+  // Every played edition's leaders in a series, as the Worker counts them (app/history.svelte.ts): no game of them
+  // needs to be in the app. Read again when the club's tournaments change (unchanged, a 304).
   import Leaderboard from "./Leaderboard.svelte";
   import type { LeaderRow } from "./leaders";
   import { allTimeLeaders } from "../app/history.svelte";

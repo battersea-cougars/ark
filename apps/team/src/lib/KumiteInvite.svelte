@@ -1,11 +1,7 @@
 <script lang="ts">
-  // The Kumite's sign-up, as an invitation (apps/team/worker/tournaments/README.md): in Bloodsport the Kumite is underground and by invitation only,
-  // so a member who hasn't answered gets a sealed card, its wax seal the club's red (招, "invite": lib/motif.ts), the
-  // day, the time and the place, and Accept or Decline (the same calls as Friday's In and Out). Accepting breaks the
-  // seal (the halves crack apart and fall; reduced motion: at once) and the card becomes your fighter's pass: your
-  // number (your place in the sign-up order, lib/fighters.ts), your name on it like a poster, the Kumite's kanji, the
-  // day, Tell no one. across its middle, and Punk out on its stub (with a confirm). On the waitlist it's a reserve's pass; declined, a quiet line and Accept.
-  // Every face is stacked in the one cell, so the card is always the size of the biggest and nothing moves.
+  // The Kumite's sign-up as an invitation (apps/team/worker/tournaments/README.md): a sealed card with Accept or Decline;
+  // accepting breaks the seal into your fighter's pass (your number, lib/fighters.ts), a reserve's on the waitlist.
+  // Every face is stacked in one cell, so the card is always the size of the biggest and nothing moves.
   import type { Tournament, TournamentType } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { answerFor } from "../app/backend.svelte";

@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Find a member by typing (a combobox): the list narrows as you type, arrows move, Enter picks, Escape closes. Like
-  // Select, its list is fixed-position at the end of the page so a panel or scroller never clips it. With `value`
-  // it shows who's picked and can change them; without (`clearOnPick`), it's an "add someone" box that empties after
-  // each pick.
+  // Find a member by typing (a combobox): arrows move, Enter picks, Escape closes; the list is fixed-position at the
+  // page's end, like Select's, so nothing clips it. With `value` it shows who's picked; with `clearOnPick` it's an "add
+  // someone" box.
   import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";

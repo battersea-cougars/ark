@@ -1,8 +1,7 @@
 <script lang="ts">
-  // One training's editor, inside the panel a card opens (Settings → Training). A series is a rule (every N weeks on
-  // some days, from a first date, optionally to a last one) plus what every session shares (apps/team/worker/training/README.md). Saving makes
-  // its sessions; each one can then be cancelled on its own. A save that puts nights on over something already on (the
-  // Kumite, another training, a one-off) asks first whether that's off (apps/team/worker/training/README.md, ClashSheet).
+  // One training's editor, in the panel a card opens (Settings → Training): a rule (every N weeks on some days, from a
+  // first date) plus what every session shares (apps/team/worker/training/README.md). Saving makes its sessions, asking
+  // first over anything already on (ClashSheet).
   import type { Edits } from "./dirty.svelte";
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
@@ -152,7 +151,7 @@
       : [],
   );
 
-  // What each collected, read from the server for whoever sees dues (#177), again after a change to dues
+  // What each collected, read from the server for whoever sees dues, again after a change to dues
   let collected = $state<Collected[]>([]);
   $effect(() => {
     void db.dues;

@@ -1,10 +1,7 @@
 <script lang="ts">
-  // A card, opened: the editor every non-player card opens into (Settings → Training, Settings → Tournaments, a
-  // tournament's own pages). The app's side drawer (lib/Drawer) in its editor placement: in the page's own column on
-  // a desktop (ADR 0065), the phone's tall sheet (ADR 0065), with what it is, a close button, a body that scrolls on
-  // its own and the footer's Save (lib/SaveBar). It's open while it's mounted: `close()` (or any way out, which asks
-  // first if `edits` has unsaved changes) slides it away, then `onclose` says it's gone. Player cards flip instead
-  // (PlayerCardZoom, MemberSheet).
+  // A card, opened: the editor every non-player card opens into, the side drawer (lib/Drawer) placed in the page's column
+  // on a desktop and a tall sheet on a phone (ADR 0065), with a scrolling body and the footer's Save. Open while mounted:
+  // `close()` slides it away (asking first over unsaved `edits`), then `onclose` says it's gone.
   import type { Snippet } from "svelte";
   import type { IconName } from "../app/shell/icons";
   import Drawer from "./Drawer.svelte";

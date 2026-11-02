@@ -1,10 +1,7 @@
 <script lang="ts">
-  // One team in a tournament's editor (ADR 0065, apps/team/worker/training/README.md), opened from its row: its captain, and a team that entered its
-  // players, members or names from outside (a draft's come from the draft: Edit the squad, on the team's page). Its
-  // name and logo are the team's own page's (Edit the team, its captain or an admin, saving at once): here they read
-  // as text, with the way there. A team that enters, new here, is registered with its name (and logo) in this sheet,
-  // as it must have one. Changes go into the editor's form and are saved with the editor's Save, never on their own;
-  // Done closes it, Remove takes the team off (asking once when that loses a name, a logo or players).
+  // One team in a tournament's editor (ADR 0065, apps/team/worker/training/README.md), opened from its row: its captain,
+  // and for a team that entered, its players (and its name, as it must have one). Changes are saved with the editor's
+  // Save; Done closes it, Remove takes the team off (asking when that loses something).
   import Sheet from "./Sheet.svelte";
   import { keepFocus } from "./overlay";
   import Icon from "../app/shell/Icon.svelte";
