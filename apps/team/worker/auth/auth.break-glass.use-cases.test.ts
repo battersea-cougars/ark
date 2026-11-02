@@ -1,10 +1,5 @@
-// Break glass (ADR 0023): Gmail is down, every admin has lost their passkeys and none is signed in, so nobody can let
-// anyone in. Someone with the club's Bitwarden and Cloudflare runs `npm run admin:break-glass -- <admin's email>` at
-// a terminal: it writes one sign-in code for that admin (scripts/lib/break-glass.mjs) and prints it there, never by
-// email. The admin types their email and that code on the usual sign-in page. The first browser to ask for that
-// admin's code claims it, and from there it's a code like any other: 15 minutes, once, five wrong tries. Every step
-// is on the record, and every admin hears of it (their phone, their email if it's working, and a line on Home), with
-// a way to sign that session out. Driven through the real handlers in the fake world, the script's own module
+// Break glass (ADR 0023): with Gmail down and no admin signed in, a code written at a terminal signs one admin in, on
+// the record and told to every admin. Driven through the real handlers in the fake world, the script's own module
 // writing to the same D1.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, humanToken, minutes, testWorld } from "../testing";

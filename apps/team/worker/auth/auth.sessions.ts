@@ -1,4 +1,4 @@
-// Ending sign-ins (ADR 0023, #72): signing out this browser, every one of yours, or an admin signing a member out
+// Ending sign-ins (ADR 0023): signing out this browser, every one of yours, or an admin signing a member out
 // everywhere; and what does it on its own (a new sign-in email, being made inactive, deleting the account). An ended
 // session's phones go with it (push_devices, so nothing more is sent to them) and its live streams close at the hub.
 import { all, first, run } from "@cougars/shared/d1";

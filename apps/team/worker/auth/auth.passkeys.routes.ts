@@ -1,7 +1,5 @@
-// Passkeys' routes (ADR 0023). A member's own, under /api/auth/passkeys (handlePasskeys, sent here by auth.routes.ts):
-// signing in with one, and listing, adding and removing yours on the You page. And a member's, from their sheet
-// (ADR 0065): an admin sees them by device and date, and removes them all, say when a phone's lost or sold. Their
-// sign-ins aren't touched (that's Sign out everywhere, beside it); they sign in with a code next time.
+// Passkeys' routes (ADR 0023): a member signs in with one and lists, adds and removes their own on the You page; an
+// admin sees and removes a member's from their sheet (ADR 0065).
 import { ok, type Route } from "../api/api.route";
 import { json } from "../api/api.http";
 import { memberExists } from "../dues/dues";

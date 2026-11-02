@@ -1,7 +1,5 @@
-// Turnstile in front of the two things anyone can do without signing in (#13, ADR 0027): ask for a sign-in code and
-// ask to join. A person's browser passes without noticing (the widget only asks for a tap when Cloudflare isn't sure);
-// a script gets nothing, however many addresses it comes from. Cloudflare's siteverify is faked in the fake world
-// (testing.ts turnstile()); everything else is the real handlers (ADR 0031).
+// Turnstile in front of asking for a sign-in code and asking to join (ADR 0027): a person passes, a script gets
+// nothing. Cloudflare's siteverify is faked (testing.ts turnstile()); everything else is the real handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { captureLogs } from "@cougars/shared/testing/scribe";
 import { NOW, humanToken, minutes, testWorld } from "../testing";

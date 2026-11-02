@@ -1,7 +1,5 @@
-// Sessions ending (#72, ADR 0023): an admin signs a member out everywhere from their sheet, a member does it for
-// themselves on the You page, and a new sign-in email or being made inactive does it on its own. An ended session's
-// phones stop hearing from the club and its live pages close. A session in use gets a new token as it's renewed, and
-// ends a year after signing in however much it's used. Driven through the real handlers (testing.ts, ADR 0031).
+// Sessions ending (ADR 0023): signed out everywhere by an admin or by the member, or on its own; and a session's
+// renewal and lifetime. Driven through the real handlers (testing.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, minutes, testWorld } from "../testing";
 
