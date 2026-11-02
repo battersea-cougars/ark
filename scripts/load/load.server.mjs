@@ -57,7 +57,20 @@ function cpuMs(pid) {
   }
 }
 
-export async function startServer({ members = 120, build = true, roster: seedRoster = true, log = console.log } = {}) {
+/** A club with a past (`--weeks`): what reads and charges cost once there's history behind them. */
+function seedPast(state, weeks, log) {
+  const kumites = String(Math.max(1, Math.ceil(weeks / 13)));
+  sh("node", ["scripts/seed-history.mjs", "--target", state, "--weeks", String(weeks), "--kumites", kumites]);
+  log(`Seeded ${weeks} weeks of training nights and ${kumites} Kumites behind the club (scripts/seed-history.mjs)`);
+}
+
+export async function startServer({
+  members = 120,
+  build = true,
+  roster: seedRoster = true,
+  weeks = 0,
+  log = console.log,
+} = {}) {
   if (build || !existsSync(join(DIST, "index.js"))) {
     log("Building the team app…");
     sh("npm", ["run", "build", "-w", "@cougars/team"]);
@@ -79,6 +92,7 @@ export async function startServer({ members = 120, build = true, roster: seedRos
   log(
     seedRoster ? `Seeded ${members} members into ${state}` : `Seeded the club (no members of the run's) into ${state}`,
   );
+  if (weeks) seedPast(state, weeks, log);
   /** This D1 as load.club.mjs reaches a database: `run` a script, the `rows` of one SELECT. */
   let n = 0;
   const d1db = {

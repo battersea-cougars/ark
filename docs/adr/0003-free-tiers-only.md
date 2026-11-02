@@ -50,7 +50,7 @@ isn't driven, goes over its budget, or costs more for the bigger club. The fake 
 | Workers CPU               | 10 ms per request and per cron run; waiting on I/O is free    | 1–5 ms; watched on the Usage page (ADR 0059)                                       |
 | Workers subrequests       | 50 an invocation, D1 queries included                         | A request a handful; the Kumite simulator's dearest about 42 (ADR 0123)            |
 | Durable Objects           | 100k requests, 13,000 GB-s a day (SQLite classes only)        | One live hub (ADR 0072): a draft night ~900 GB-s                                   |
-| D1                        | 5 GB storage, 5M rows read a day                              | Tiny                                                                               |
+| D1                        | 5 GB storage, 5M rows read and 100k written a day             | Tiny                                                                               |
 | Cron Triggers             | Free                                                          | Friday series, quarterly dues                                                      |
 | Sanity                    | Free plan: 1M CDN, 250k API requests a month; see below       | A handful of editors; live photo reads                                             |
 | Bitwarden Secrets Manager | Free plan, 3 machine accounts                                 | 1                                                                                  |
@@ -111,3 +111,5 @@ Usage page and count in its 70% and 90% check ([ADR 0059](0059-usage-page-and-ch
   time, ADR 0074) or logos (their own cached address). With twelve Kumites a member's open is 71 KB, not 1.5 MB, and
   1.6–1.9 ms of the Worker's own CPU locally with four or twelve (it no longer grows with them); a past one opened and
   a page of History are under 0.5 ms each.
+- 2026-11-02: D1's 100k rows written a day in the budget; the launch-week numbers per limit are in
+  docs/reviews/free-tier-2026-11-02.md (#148).

@@ -145,3 +145,8 @@ free); D1 Free allows 5M rows read and 100k written a day ([0003](0003-free-tier
 - 2026-10-23: An admin's replacement (putOnTeam) decided in its statements: the INSERT only while they're on no team
   of the tournament, a move only from the team read, so two at once (a double tap, two admins) can't leave someone on
   two teams or one twice (5 of 20 seeds did, #148), with their seeds' tests.
+- 2026-11-02: The launch-week review on dev (docs/reviews/free-tier-2026-11-02.md): the register, the after-party and
+  a club-wide send added as runs, and `--weeks` for a club with a past. A sign-up no longer works out the whole
+  club's charges unless its day has come (a year on, 50k rows a tap to 356), and the minute drain prunes by index.
+  Filed: the register and hourly recharge (#222), whole-club reads on a register mark (#223), the after-party's reads
+  (#224), Workers CPU on Cloudflare (#225).

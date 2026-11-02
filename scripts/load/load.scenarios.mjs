@@ -24,9 +24,10 @@ const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 /**
  * A training night of the run's own, made through the API as the admin: one session three days on, 40 skaters'
- * places and 2 keepers', free, off the website. The club's own Fridays are never touched.
+ * places and 2 keepers' (or `capacity`), free (or `pence` a night), off the website. The club's own Fridays are never
+ * touched.
  */
-async function loadNight(admin, club) {
+async function loadNight(admin, club, { capacity = 40, pence = 0 } = {}) {
   const day = inDays(3);
   const like = club.series[0] ?? {};
   const { id: _id, slug: _slug, ...rest } = like;
@@ -43,11 +44,11 @@ async function loadNight(admin, club) {
       endsOn: day,
       startTime: like.startTime ?? "19:00",
       endTime: like.endTime ?? "21:00",
-      capacity: 40,
+      capacity,
       goalieCapacity: 2,
       public: false,
       active: true,
-      fees: [],
+      fees: pence ? [{ pence, from: day }] : [],
     }),
     "training",
   );
@@ -352,6 +353,228 @@ async function scoring({ target, roster, stats, shared, followers = 80, notes, d
   );
 }
 
+/**
+ * The night's register: 40 signed up for a night at £8, `followers` phones (60 by default: the 40 and 20 more) with
+ * the app open on it, following live; whoever takes the register marks each one here a second or two apart, and two
+ * walk-ins. Each mark makes or takes away a charge and moves the night's sign-ups on every phone.
+ */
+async function register({ target, roster, stats, shared, notes, d1, followers = 60 }) {
+  const admin = await adminPhone(target, roster, stats, shared);
+  const session = await loadNight(admin, await admin.boot("setup"), { pence: 800 });
+  const players = await phones(
+    target,
+    roster.slice(1, 41).map((r) => r.email),
+    stats,
+    { shared },
+  );
+  for (const p of players)
+    must(await p.call("setup", "POST", `/api/sessions/${session.id}/answer`, { answer: "in" }), "in");
+  const others = await phones(
+    target,
+    roster.slice(41, 61).map((r) => r.email),
+    stats,
+    { shared },
+  );
+  const watching = [...players, ...others].slice(0, Math.min(followers, 60));
+  await Promise.all(watching.map((p) => p.boot("bootstrap: open the night")));
+  const stops = watching.map((p) => p.follow(["sessions"]));
+  await admin.boot("bootstrap: the register");
+  await sleep(2000);
+  const from = { rows: d1 ? (await d1()).rowsRead : null, requests: stats.rows.length };
+  const marks = [...players.map((p) => p.memberId), ...others.slice(0, 2).map((p) => p.memberId)];
+  for (const memberId of marks) {
+    const r = await admin.change("register: here", "POST", `/api/sessions/${session.id}/register`, {
+      memberId,
+      here: true,
+    });
+    if (r.status !== 200) notes.push(`A mark refused: ${r.status} ${JSON.stringify(r.body)}`);
+    await sleep(1000 + Math.random() * 1000);
+  }
+  await sleep(4000);
+  const during = stats.rows.slice(from.requests);
+  const reads = during.filter((r) => r.label.startsWith("live: read")).length;
+  const rows = d1 ? (await d1()).rowsRead - from.rows : null;
+  notes.push(
+    `The register, ${watching.length} watching: ${marks.length} marks; a mark ${(during.filter((r) => !r.label.startsWith("live: event") && r.label !== "live: change to screen").length / marks.length).toFixed(1)} requests, ` +
+      `${(reads / marks.length).toFixed(1)} reads on the phones` +
+      (rows === null ? "" : `, ${Math.round(rows / marks.length)} D1 rows read`),
+  );
+  await Promise.all(stops.map((s) => s()));
+}
+
+/** The after-party's awards: the judges' call, a stat, a draw and the champions, revealed in this order. */
+const AWARDS = [
+  { name: "The Judges' Call", about: "", decidedBy: { kind: "live", options: ["Most Dramatic Fall"] } },
+  { name: "Top scorer", about: "", decidedBy: { kind: "stat", stat: "goals" } },
+  { name: "Dim Mak", about: "", decidedBy: { kind: "random" } },
+  { name: "Champions", about: "", decidedBy: { kind: "stat", stat: "table" } },
+];
+
+/**
+ * A Kumite of four teams of the run's members, made, played out (results typed in) and its awards confirmed, through
+ * the API as the admin: the evening up to the reveal. Returns its id.
+ */
+async function playedKumite(admin, roster) {
+  await admin.boot("setup");
+  const club = await admin.page("setup", ["members"]);
+  const idOf = new Map(club.members.map((m) => [m.name, m.id]));
+  const captains = roster.slice(1, 5);
+  const squads = [0, 1, 2, 3].map((t) => roster.slice(5 + t * 5, 10 + t * 5));
+  const t = must(
+    await admin.call("setup", "POST", "/api/tournaments", {
+      name: `Load Kumite ${MARK}`,
+      public: false,
+      location: "Battersea Park",
+      heldOn: today(),
+      startTime: "10:00",
+      endTime: "15:00",
+      status: "planned",
+      feePence: 0,
+      kind: "teams",
+      playoffs: [],
+      awards: AWARDS,
+      teams: captains.map((c, i) => ({
+        name: `Team ${i + 1}`,
+        logo: null,
+        captainMemberId: idOf.get(c.name),
+        players: squads[i].map((p) => ({ memberId: idOf.get(p.name) })),
+      })),
+    }),
+    "tournament",
+  );
+  must(await admin.call("setup", "POST", `/api/tournaments/${t.id}/fixtures`), "fixtures");
+  let x = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id);
+  for (const [i, g] of x.games.entries())
+    must(
+      await admin.call("setup", "PUT", `/api/tournaments/${t.id}/games/${g.id}`, {
+        homeGoals: 2 + (i % 3),
+        awayGoals: 1,
+      }),
+      "result",
+    );
+  x = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id);
+  const scorer = idOf.get(squads[0][0].name);
+  must(
+    await admin.call("setup", "PUT", `/api/tournaments/${t.id}/winners`, {
+      winners: [
+        { award: "The Judges' Call", memberId: idOf.get(squads[1][0].name), title: "Most Dramatic Fall" },
+        { award: "Top scorer", memberId: scorer },
+        { award: "Dim Mak", memberId: idOf.get(squads[2][0].name) },
+        { award: "Champions", teamId: x.teams[0].id },
+      ],
+    }),
+    "winners",
+  );
+  return t.id;
+}
+
+/**
+ * The after-party: a Kumite played out and its awards confirmed (not timed), and the room (`followers` phones) on the
+ * after-party page while whoever runs it turns each card over and rolls the drum on.
+ */
+async function reveals({ target, roster, stats, shared, notes, d1, followers = 100 }) {
+  const admin = await adminPhone(target, roster, stats, shared);
+  const t = { id: await playedKumite(admin, roster) };
+  const awards = AWARDS;
+  const room = await phones(
+    target,
+    roster.slice(1, 1 + Math.min(followers, roster.length - 1)).map((r) => r.email),
+    stats,
+    { shared },
+  );
+  await Promise.all(
+    room.map((p) => p.boot("bootstrap: open the after-party").then(() => p.page("page: the after-party", ["members"]))),
+  );
+  const stops = room.map((p) => p.follow(["tournaments"]));
+  await sleep(2000);
+  const from = { rows: d1 ? (await d1()).rowsRead : null, requests: stats.rows.length };
+  let changes = 0;
+  for (let i = 0; i < awards.length; i++) {
+    if (i > 0) {
+      must(await admin.change("roll the drum", "POST", `/api/tournaments/${t.id}/awards/next`, { at: i }), "next");
+      changes++;
+      await sleep(4000);
+    }
+    must(await admin.change("reveal", "POST", `/api/tournaments/${t.id}/awards/reveal`, { next: i }), "reveal");
+    changes++;
+    await sleep(6000);
+  }
+  const during = stats.rows
+    .slice(from.requests)
+    .filter((r) => !r.label.startsWith("live: event") && r.label !== "live: change to screen");
+  const reads = during.filter((r) => r.label.startsWith("live: read")).length;
+  const rows = d1 ? (await d1()).rowsRead - from.rows : null;
+  notes.push(
+    `The reveal, ${room.length} in the room: ${changes} changes (reveals and rolls); a change ${(during.length / changes).toFixed(1)} requests, ` +
+      `${(reads / changes).toFixed(1)} reads on the phones` +
+      (rows === null ? "" : `, ${Math.round(rows / changes)} D1 rows read`) +
+      `; at most ${peakIn10s(stats, during)} requests in 10 s`,
+  );
+  const revealed = (await admin.boot("setup")).tournaments.find((y) => y.id === t.id);
+  notes.push(`Revealed: ${revealed.awardsRevealed ?? revealed.revealed ?? "?"} of ${awards.length}`);
+  await Promise.all(stops.map((s) => s()));
+  notes.push(`The Kumite deleted: ${(await admin.call("setup", "DELETE", `/api/tournaments/${t.id}`)).status}`);
+}
+
+/** A phone's push token as Firebase makes one, for nobody: Firebase answers that it's unregistered (forgotten). */
+const nobodysToken = () => {
+  const b = (n) =>
+    Buffer.from(crypto.getRandomValues(new Uint8Array(n)))
+      .toString("base64url")
+      .slice(0, n);
+  return `${b(22)}:APA91b${b(134)}`;
+};
+
+/**
+ * A send to every phone at once (as a club-wide announcement, or sign-up opening): every member in a night of the
+ * run's own with a phone registered (a token Firebase has for nobody, so the run's phones are only ever told about
+ * the run's night), everyone on Home following; the teams published, so each of them is told. The publish sends the
+ * first 40; the push drain every minute the rest (ADR 0108). Against dev, the outbox is watched until it's empty.
+ */
+async function clubSend({ target, roster, stats, shared, notes }) {
+  const admin = await adminPhone(target, roster, stats, shared);
+  const session = await loadNight(admin, await admin.boot("setup"), { capacity: roster.length + 10 });
+  const everyone = await phones(
+    target,
+    roster.slice(1).map((r) => r.email),
+    stats,
+    { shared },
+  );
+  for (const p of everyone) {
+    must(await p.call("setup", "POST", `/api/sessions/${session.id}/answer`, { answer: "in" }), "in");
+    must(await p.call("setup", "PUT", "/api/auth/device", { platform: "android", token: nobodysToken() }), "device");
+  }
+  await Promise.all(everyone.map((p) => p.boot("bootstrap: open the app")));
+  const stops = everyone.map((p) => p.follow(["sessions"]));
+  await sleep(2000);
+  const night = (await admin.boot("setup")).sessions.find((s) => s.id === session.id);
+  const teams = [0, 1].map((t) => ({
+    name: t ? "Whites" : "Darks",
+    players: night.going.filter((_, i) => i % 2 === t),
+  }));
+  const sentAt = Date.now();
+  must(
+    await admin.change("publish teams (tells every phone)", "POST", `/api/sessions/${session.id}/teams`, { teams }),
+    "teams",
+  );
+  // The outbox, watched as the drain empties it (dev's own crons; a local Worker sends every row at once)
+  if (target.db) {
+    const ours = `member_id IN (SELECT id FROM members WHERE email LIKE '%@load.test')`;
+    const seen = [];
+    for (;;) {
+      const [o] = await target.db.rows(
+        `SELECT COUNT(*) total, SUM(state IN ('queued', 'claimed')) waiting FROM push_outbox WHERE ${ours}`,
+      );
+      seen.push(`${Math.round((Date.now() - sentAt) / 1000)} s: ${o.waiting ?? 0} of ${o.total} waiting`);
+      if (!o.waiting || Date.now() - sentAt > 10 * 60_000) break;
+      if (!target.remote) await target.cron?.("* * * * *");
+      await sleep(target.remote ? 15_000 : 1000);
+    }
+    notes.push(`The outbox, ${everyone.length} phones told: ${seen.join("; ")}`);
+  }
+  await Promise.all(stops.map((s) => s()));
+}
+
 /** The most of these requests sent in one of the clock's 10-second windows, as the domain's rule counts them. */
 function peakIn10s(stats, rows) {
   const windows = new Map();
@@ -427,4 +650,12 @@ async function baseline({ target, roster, stats, cpu, d1, notes }) {
   }
 }
 
-export const SCENARIOS = { baseline, "friday-rush": fridayRush, "live-draft": liveDraft, scoring };
+export const SCENARIOS = {
+  baseline,
+  "friday-rush": fridayRush,
+  register,
+  "live-draft": liveDraft,
+  scoring,
+  reveals,
+  "club-send": clubSend,
+};

@@ -83,11 +83,18 @@ npm run load -- friday-rush    # 120 members open the app and tap In within 10 s
 npm run load -- live-draft     # 8 captains picking in turn, 60 players watching the draft room live; an Undo and a
                                # pick for a captain
 npm run load -- scoring        # 1 scorekeeper, 80 members following the game live (--followers 20)
+npm run load -- register       # the night's register: 40 in at £8, 60 phones on the night (--followers), each marked
+                               # here a second or two apart, and two walk-ins
+npm run load -- reveals        # the after-party: a Kumite of four teams played out, its awards confirmed, 80 phones
+                               # in the room as each card's turned over and the drum rolls on (--followers)
+npm run load -- club-send      # a send to every phone at once (an announcement, sign-up opening): every member with a
+                               # phone, told at once; the publish sends 40, the minute drain the rest; dev's outbox watched
 npm run load -- all            # each, a fresh Worker each
 npm run load -- soak --minutes 60   # the scenarios in turn, a minute's pause between, the crons every 5 min and hourly
 npm run load -- cpu            # the Worker's own CPU a request (the fake world, SQLite's time taken off)
 # --members 120  --one-address (the rink's wifi)  --no-build  --keep (the run's D1)  --server-log
 # --minutes N (repeat a scenario)  --pause 60  --target local | dev (below)  --dry-run
+# --weeks 52 (a Worker of the run's own: a past behind the club, scripts/seed-history.mjs, so rows read show history)
 ```
 
 Each run builds the team app, writes a config naming a small wrapper (`scripts/load/load.worker.mjs`: the built
@@ -360,14 +367,17 @@ What stays: the data version is higher, and dev's request logs and analytics hav
 **What a run costs dev** (D1 Free: 5M rows read and 100k written a day, reset at 00:00 UTC; Workers Free: 100k
 requests). From the local runs after #112, scaled to dev's club of 147 while a run's on:
 
-| Run             | Rows read (of 5M) | Rows written | Requests | Takes   |
-| --------------- | ----------------- | ------------ | -------- | ------- |
-| `baseline`      | ~60k (1%)         | ~2k (2%)     | ~100     | 1 min   |
-| `friday-rush`   | ~0.76M (15%)      | ~4k (4%)     | ~4k      | 2 min   |
-| `live-draft`    | ~2.0M (41%)       | ~3.5k (3.5%) | ~4.5k    | 3–4 min |
-| `scoring`       | ~0.17M (3%)       | ~3k (3%)     | ~1.3k    | 1–2 min |
-| `all`           | ~3.0M (61%)       | ~12k (12%)   | ~10k     | 10 min  |
-| `soak`, an hour | until `--budget`  |              |          | 60 min  |
+| Run             | Rows read (of 5M)                | Rows written | Requests | Takes   |
+| --------------- | -------------------------------- | ------------ | -------- | ------- |
+| `baseline`      | ~60k (1%)                        | ~2k (2%)     | ~100     | 1 min   |
+| `friday-rush`   | ~0.76M (15%)                     | ~4k (4%)     | ~4k      | 2 min   |
+| `live-draft`    | 3.17M (63%), measured 2026-11-02 | ~3.5k (3.5%) | ~4.5k    | 3–4 min |
+| `scoring`       | ~0.17M (3%)                      | ~3k (3%)     | ~1.3k    | 1–2 min |
+| `register`      | ~1.3M (26%)                      | ~3k (3%)     | ~2.6k    | 3 min   |
+| `reveals`       | 0.32M (6.5%)                     | 2.7k (2.7%)  | 830      | 1 min   |
+| `club-send`     | 0.64M (12.9%)                    | 5.3k (5.3%)  | 600      | 4 min   |
+| `all`           | over the day: run them on two    | ~20k (20%)   | ~12k     | 20 min  |
+| `soak`, an hour | until `--budget`                 |              |          | 60 min  |
 
 Adding and removing the run's people is about 2k of the rows written, each scenario (each starts afresh). The dry run says what dev has used today
 and refuses a run that would pass 90% of the day's rows (`--anyway` overrides); a soak starts nothing new once the
@@ -391,6 +401,12 @@ higher limit (there's nothing to raise): its report counts the run as production
 each request was sent, as `--one-address` does locally, and prints any 429 actually received (there should be none;
 one would mean dev gained a limit). The numbers are then dev's real costs at the club's real rate, and the count
 says what the rink's wifi would have refused.
+
+### The launch-week review (2026-11-02)
+
+Every launch-week moment on dev, the register, the after-party and a club-wide send added, with a year of history
+measured locally (`--weeks 52`), each limit's headroom, what was fixed and what's filed:
+[reviews/free-tier-2026-11-02.md](reviews/free-tier-2026-11-02.md).
 
 ### What to do next
 
