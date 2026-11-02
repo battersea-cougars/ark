@@ -9,9 +9,9 @@
 //
 // Every hourly job is safe to run twice (each claims or converges on its own), so a try that ran a job before failing
 // on another just runs it again.
-import { captureCheckIn } from "@sentry/cloudflare";
 import { first, run } from "@cougars/shared/d1";
 import { scribe } from "@cougars/shared/scribe";
+import { checkIn } from "../sentry/sentry";
 
 const log = scribe.logger("cron");
 
@@ -87,7 +87,7 @@ export async function finishHour(db: D1Database, tried: HourTry, failed: string[
   );
   if (!set.meta.changes) return;
   const duration = (Date.now() - tried.started) / 1000;
-  captureCheckIn({ monitorSlug: HOURLY_MONITOR, status: failed.length ? "error" : "ok", duration });
+  checkIn(HOURLY_MONITOR, failed.length ? "error" : "ok", duration);
   // A failed hour isn't reported here: its jobs' lines were, and the monitor's error check-in is what alerts
   if (failed.length) log.warn("hourly.failed", fields);
   else log.info("hourly.done", fields);

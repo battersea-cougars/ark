@@ -87,7 +87,11 @@ and written (each result's `meta`), against the free day.
 **Reading the numbers**: latencies under load are this machine's, one workerd process serving everything with D1's
 SQLite in it; Cloudflare spreads requests over many isolates, so treat them as a floor on what the code costs, not a
 forecast. workerd's CPU includes the local runtime and SQLite, so a 304 already shows about 11 ms; the Worker's own
-CPU comes from `npm run load -- cpu`. **D1 rows read and written, and the counts of requests and reloads, are what
+CPU comes from `npm run load -- cpu`. That's a warm Worker's own handlers: on Cloudflare a quiet Worker's invocations
+mostly land in a new isolate, which compiles every function it calls first, so dev's CPU (Workers Logs:
+`node scripts/env-pull.mjs -- node scripts/cpu-by-route.mjs 24`, and the Usage page's p50/p99) reads higher. What a
+cold isolate costs is the bundle's size and its top-level work: keep heavy libraries out of the entry, loaded when
+used (Sentry, passkeys). **D1 rows read and written, and the counts of requests and reloads, are what
 Cloudflare would bill**, and are the numbers to plan with.
 
 `--one-address` also counts the run's requests as production's per-address limits would

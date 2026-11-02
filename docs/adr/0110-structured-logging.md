@@ -80,9 +80,13 @@ smaller (5k errors a month, one user) but plain about it.
   before then. Its margin is 50 minutes, so it waits for the catch-up, and it opens an issue only after **two hours in
   a row** fail or are missed (`failure_issue_threshold: 2`); one good hour resolves it (`recovery_threshold: 1`).
   `scripts/sentry-setup.mjs` sets these (Sentry's monitor config fields, as its `ConfigValidator` names them).
-- **Servers:** each Worker is wrapped in `@sentry/cloudflare`'s `withSentry` (`apps/web/src/worker.ts`,
-  `apps/team/worker/index.ts`), so an error nothing caught is reported, and every `error` or `fatal` log line is
-  reported through scribe's reporter (`packages/shared/scribe.sentry.ts`). Environment from `SITE_ENV`,
+- **Servers:** an error nothing caught is reported, and every `error` or `fatal` log line is reported through
+  scribe's reporter (`packages/shared/scribe.sentry.ts`). The website's Worker is wrapped in `@sentry/cloudflare`'s
+  `withSentry` (`apps/web/src/worker.ts`). The team Worker loads Sentry only when there's something to send
+  (`apps/team/worker/sentry/sentry.ts`): each invocation, the live hub's included, runs `within` a small record of its
+  own, and a report, a cron check-in or an uncaught error loads Sentry and sends inside `withSentry`'s own wrapper.
+  Wrapping every invocation set up a client, scopes and a proxy over every binding, and a new isolate compiled all of
+  it first: most of a quiet Worker's CPU (ADR 0003). Environment from `SITE_ENV`,
   release from the deploy's build version (`BUILD_VERSION`, set by `scripts/ci/target.mjs`). No DSN (your machine,
   tests): Sentry is off.
 - **The team app in the browser** (and the store app, which loads it): `@sentry/svelte`, loaded beside the club's data
