@@ -1,6 +1,6 @@
-// The team app's schedule model (apps/team/worker/training/README.md). These are the shapes the D1 tables will have; the demo keeps them in
-// memory. Training repeats (series → sessions); tournaments are scheduled one by one under a type; anything else
-// is a one-off event. The calendar is all three together.
+// The team app's schedule model (apps/team/worker/training/README.md), in the D1 tables' shapes: training repeats
+// (series → sessions), tournaments are scheduled one by one under a type, anything else is a one-off event. The
+// calendar is all three together.
 import type { Award } from "../lib/awards";
 import type { PenaltyRule } from "../lib/penalties";
 import type { IconName } from "../app/shell/icons";
@@ -79,7 +79,7 @@ export interface TrainingSession extends Entries {
   capacity?: number | null;
   note?: string | null;
   cancelledAt?: string | null;
-  /** Why it's off (#186, apps/team/worker/training/README.md): called off by hand, and the tournaments on its day it's off for. */
+  /** Why it's off (apps/team/worker/training/README.md): called off by hand, and the tournaments on its day it's off for. */
   offByHand?: boolean;
   offFor?: number[];
   /** The fee for this session: written when the register closes, or an admin's override. */
@@ -300,7 +300,7 @@ export interface Bookable {
   /** A training night whose sign-up isn't open yet: when it opens, short ("Mon", "Mon 19 Oct"), said where In would
    * be. Unset: open. */
   opens?: string;
-  /** A tournament that's started (lib/edition.ts hasStarted), or a training night that has (apps/team/worker/training/README.md, #167): who's in
+  /** A tournament that's started (lib/edition.ts hasStarted), or a training night that has (apps/team/worker/training/README.md): who's in
    * is an admin's or the register's to change, so In and Out are a line in their place (apps/team/worker/tournaments/README.md). */
   started?: boolean;
   /** That line, where it isn't "Ask an admin to change it": a training's, started or over. */
