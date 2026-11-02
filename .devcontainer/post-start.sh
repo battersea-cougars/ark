@@ -88,5 +88,5 @@ if [ -d "/home/node/.config/Bitwarden CLI" ]; then
   sudo chown -R node:node "/home/node/.config/Bitwarden CLI" 2>/dev/null || true
 fi
 if command -v bw >/dev/null 2>&1; then
-  echo "Secrets: bw-unlock (first time: bw config server https://vault.bitwarden.eu && bw login). docs/setup.md"
+  echo "Secrets: bw-unlock (first time: bw config server https://vault.bitwarden.eu && bw login). docs/accounts.md"
 fi

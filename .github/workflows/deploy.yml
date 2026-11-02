@@ -196,7 +196,7 @@ jobs:
       # Each account's Turnstile widget (public site keys; scripts/turnstile-setup.mjs made them, docs/secrets.md#turnstile)
       TURNSTILE_SITE_KEY: ${{ github.ref == 'refs/heads/release' && '0x4AAAAAAFTLssDmpWrRRwXt' || '0x4AAAAAAFTLrONmM47TYB4-' }}
       # Cloudflare Web Analytics' site token (public, in every page; lib/analytics.ts, #92), production only. Empty until
-      # it's copied from the dashboard (docs/setup.md, Web Analytics); then automatic setup is turned off.
+      # it's copied from the dashboard (docs/accounts.md, The domain); then automatic setup is turned off.
       WEB_ANALYTICS_TOKEN: ""
       BWS_SERVER_URL: ${{ vars.BWS_SERVER_URL }}
     steps:

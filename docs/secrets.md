@@ -2,12 +2,12 @@
 
 Every secret the website, the team app, the scripts and CI use, by the system it comes from, and within each system
 by environment. For each: what it's for, where it comes from, who reads it, how it gets there, whether it expires, and
-how to change it. Checked against Bitwarden and the code on 2026-10-23.
+how to change it. The accounts that issue them (who owns each, where to sign in, how it's set up) are in
+[accounts.md](accounts.md); this doc names an account only to link it.
 
 - How secrets work, in short: [below](#how-secrets-work).
 - The rules, and why: [ADR 0002](adr/0002-secrets-in-bitwarden.md). The two environments:
   [ADR 0010](adr/0010-environments-and-deploys.md).
-- Every outside service and who owns it: [accounts.md](accounts.md). Account setup, step by step: [setup.md](setup.md).
 
 ## How secrets work
 
@@ -121,13 +121,10 @@ personal data, such as an email address, which stays out of this public repo.
 
 ## Bitwarden
 
-Bitwarden is where every secret lives, and nowhere else. The club has one Bitwarden **organisation**, on Bitwarden's
-EU server (log in at <https://vault.bitwarden.eu>), on the free plan: 3 projects, 3 machine accounts, 2 people.
-People (organisation members) get access to the projects they look after. It has two halves: the **vault**
-(Password Manager, the `bw` command), opened with your master password; and **Secrets Manager** (`bws`), which only
-takes a **machine account's access token**. Secrets Manager holds what code reads; the vault holds the tokens for
-your machine and the recovery copy of a key no code reads (the [Apple push key](#apple-push-key-recovery-copy), in
-the organisation's vault, ADR 0002 point 1). Secrets Manager has two projects:
+Bitwarden is where every secret lives, and nowhere else: the club's organisation ([accounts.md](accounts.md#bitwarden)).
+Secrets Manager holds what code reads; the vault holds the tokens for your machine and the recovery copy of a key no
+code reads (the [Apple push key](#apple-push-key-recovery-copy), in the organisation's vault, ADR 0002 point 1).
+Secrets Manager has two projects:
 
 | Project       | Holds                                                                          | Read by                                         |
 | ------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
@@ -205,10 +202,9 @@ Your machine's token. It can read and write both projects, so you add secrets fr
 
 ## Cloudflare
 
-Cloudflare runs both apps: the Workers, the D1 database, the domain, Turnstile and Access. There are two accounts, so
-dev can never touch production: **Cougars** (production) and **Cougars Dev**. Log in at <https://dash.cloudflare.com>;
-the club account and a maintainer are Super Administrators on both. Tokens are **account API tokens** (Manage Account →
-**Account API Tokens**): they belong to the account, not a person.
+Cloudflare runs both apps: the Workers, the D1 database, the domain, Turnstile and Access, in two accounts,
+**Cougars** (production) and **Cougars Dev** ([accounts.md](accounts.md#cloudflare)). Tokens are **account API
+tokens** (Manage Account → **Account API Tokens**): they belong to the account, not a person.
 
 ### Production
 
@@ -379,7 +375,7 @@ security_ in the new dashboard) → **Add widget**: name `cougars-website`, host
 
 ### Cloudflare Access
 
-Until launch, production's team app is behind Cloudflare Access ([setup.md](setup.md)) (the website is open): only
+Until launch, production's team app is behind Cloudflare Access ([accounts.md](accounts.md#the-domain)) (the website is open): only
 people on its list get in, and CI
 gets past it with the service token above. At launch the gate and the token go.
 
@@ -387,10 +383,8 @@ gets past it with the service token above. At launch the gate and the token go.
 
 ## Google
 
-One Google Cloud project for the whole club: _Battersea Cougars_, ID `battersea-cougars` (permanent, so no "website"
-or "dev" in it), at <https://console.cloud.google.com>. It's owned by **the developer account** (the Gmail account
-kept for the club's technical work), with the club's Gmail account as a second Owner (**IAM → Grant access**), so the
-club can always reach it. Free, no billing account. The Gmail clients, the YouTube keys and Firebase all live in it.
+The Google Cloud project `battersea-cougars` ([accounts.md](accounts.md#google-cloud)) issues the Gmail client, the
+YouTube keys and Firebase's.
 
 ### Production
 
@@ -559,10 +553,9 @@ the Firebase console; it prints the link.
 
 ## Apple
 
-The team app in the App Store ([ADR 0108](adr/0108-store-apps.md)): built and sent to TestFlight by `store.yml`.
-Owned, for now, by a maintainer's Apple Developer membership (log in at <https://developer.apple.com> and
-<https://appstoreconnect.apple.com>); making it the club's is #103. One copy each, used by both environments, except
-the App Review pair, which is production's alone.
+The team app in the App Store ([ADR 0108](adr/0108-store-apps.md)), from the Apple Developer membership
+([accounts.md](accounts.md#apple)). One copy each, used by both environments, except the App Review pair, which is
+production's alone.
 
 **Android, later:** `PLAY_SERVICE_ACCOUNT` (Play Console upload), `PLAY_UPLOAD_KEY` and `FIREBASE_ANDROID_CONFIG`
 join these (ADR 0108).
@@ -649,12 +642,9 @@ secret**. **A leaked key could** send notifications to the app's users, given th
 
 ## Sentry
 
-Errors from both apps, server and browser, and the down alerts ([ADR 0110](adr/0110-structured-logging.md)). One
-organisation, `battersea-cougars`, in Sentry's **EU region** (log in at <https://de.sentry.io>), on the free Developer
-plan (one user: the developer account, which forwards the alerts). Projects `web` and `team`; each event says its
-environment. Alerts email on a new issue in **production** or **dev**, and on a spike in production; the team
-Worker's hourly cron has a cron monitor. Without these, errors only go to the log. Everything here is one copy for
-both environments.
+Errors from both apps, server and browser, and the down alerts ([ADR 0110](adr/0110-structured-logging.md)), from the
+organisation `battersea-cougars` ([accounts.md](accounts.md#sentry)). Without these, errors only go to the log.
+Everything here is one copy for both environments.
 
 ### Both environments (one value)
 
@@ -719,10 +709,8 @@ browser code for anyone to read, so it lives in `scripts/lib/settings.mjs`, not 
 
 ## Sanity
 
-Two Sanity projects hold the website's content: **Cougars** (`ah165efl`, production) and **Cougars Dev**
-(`zmg6rbe3`), each with one public `production` dataset (log in at <https://www.sanity.io/manage>). Their IDs aren't
-secret (`packages/shared/sanity.ts`), and public datasets need no read token. The club account and a maintainer are
-Administrators.
+Two Sanity projects hold the website's content, **Cougars** and **Cougars Dev**
+([accounts.md](accounts.md#sanity)). Their datasets are public, so reading needs no token.
 
 ### Production
 
@@ -771,7 +759,7 @@ scripts/sanity-copy.mjs`.
 
 ## GitHub
 
-The repository `battersea-cougars/ark`, in the `battersea-cougars` organisation. GitHub holds only the two
+The repository `battersea-cougars/ark` ([accounts.md](accounts.md#github)). GitHub holds only the two
 [Bitwarden tokens](#bitwarden), one per GitHub environment. Everything else is in Bitwarden.
 
 ### Both environments (one value)
@@ -811,8 +799,8 @@ rebuild. Nothing needs a different value per environment.
 ## Instagram
 
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club's Meta business portfolio owns the Instagram account
-(Professional), the Meta app and the system user `photosreader` that the token belongs to ([accounts.md](accounts.md#instagram)).
+[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The token belongs to the system user `photosreader` in the club's Meta business portfolio
+([accounts.md](accounts.md#instagram)).
 One value for both environments: there's one club Instagram and no dev copy of it, so dev, previews and your machine
 read the real account, read-only ([ADR 0010](adr/0010-environments-and-deploys.md)). Without the token, a checkout
 shows a sample feed, and production "No photos yet".
@@ -1011,7 +999,7 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 
 ## Setting up from scratch
 
-The accounts first ([setup.md](setup.md)), then the secrets, in this order. Each step stores its values straight in
+The accounts first ([accounts.md](accounts.md#setting-up-from-scratch)), then the secrets, in this order. Each step stores its values straight in
 Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names to check.
 
 1. **Bitwarden:** the organisation, the two projects, the three machine accounts and their

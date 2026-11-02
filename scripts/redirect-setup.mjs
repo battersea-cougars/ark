@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// www.batterseacougars.com → batterseacougars.com, permanently, keeping the path and query (docs/setup.md). The site
+// www.batterseacougars.com → batterseacougars.com, permanently, keeping the path and query (docs/accounts.md). The site
 // answers on both (target.mjs gives the Worker both names), so without this search engines see two copies of every
 // page. A zone rule, not the Worker: built pages are served before the Worker runs. Every production deploy runs it
 // (deploy.yml); safe to run again: it writes the same rule.
