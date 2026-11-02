@@ -32,6 +32,9 @@ export default defineConfig({
   // Old Wix addresses. /gallery/<album> is a server route (pages/gallery/[slug].ts): a config redirect to a
   // server-rendered page would point at a prerendered file that doesn't exist.
   redirects: { "/gallery": "/photos" },
+  // The join form's only CSRF guard (ADR 0036): a POST to a live route from another site is refused. Astro's default,
+  // said here so an upgrade or a tidy can't quietly turn it off
+  security: { checkOrigin: true },
   // Not in the sitemap: the thanks page and the form saying what went wrong (noindex), and the pieces the home page
   // fetches (the reel, What's on). The build's Sanity requests are counted into the environment's D1 (ADR 0059), and
   // its _headers written for the environment (ADR 0036).
