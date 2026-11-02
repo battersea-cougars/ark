@@ -73,6 +73,15 @@ functions past two screens, nesting five deep and parameters called `t`, `r`, `p
   entry points in `knip.jsonc`), and fails a PR (`pr.yml`) and `npm run merge:check` when it finds any. One kept on
   purpose says why, tagged `@public`; what knip can't see used (a runtime module, a script's command-line tools) is
   ignored in `knip.jsonc` with its reason.
+- **Types are checked by TypeScript 7, with TypeScript 6 beside it for the tools.** TypeScript 7 (the native
+  compiler, about ten times faster here) ships no JavaScript API yet, and svelte-check, `@astrojs/check` and
+  typescript-eslint are built on it. So both are installed: `typescript` is 6, the module those tools import; TypeScript
+  7 is `@typescript/native` (an npm alias, the name svelte-check looks for), run by its path because both packages
+  call their command `tsc`. `npm run check -w …` gives each file one checker: TypeScript 7 for every `.ts` file (the
+  Worker, the journeys, the website's and `packages/shared`'s code) and, through `svelte-check --tsgo`, for the team
+  app's `.svelte` files, which svelte-check turns into TypeScript in `.svelte-check/`; `astro check` (TypeScript 6)
+  only for the website's `.astro` files (`apps/web/tsconfig.astro.json`). Once those tools take TypeScript 7,
+  `typescript` becomes 7 and the alias goes (the tracking issue in the Backlog says how).
 
 ## Consequences
 
