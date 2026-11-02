@@ -1,9 +1,5 @@
-// The website's results are built from a snapshot of D1 (apps/team/worker/website/README.md), so a change to a result asks for a rebuild. A
-// change marks one wanted (`wantRebuild`, from the API's change pipeline); the five-minute cron (`rebuildWebsite`)
-// sends it once things have been quiet for five minutes, so a results day is one rebuild. It asks GitHub as the
-// club's GitHub App (docs/secrets.md#github_app_private_key): a JWT signed with the App's key buys an hour's installation token
-// that can only start workflows, which runs deploy.yml for the website from this environment's branch. Settings →
-// Website's Rebuild now (#107) sends one at once (`rebuildNow`), for Studio changes that can't wait for the morning.
+// Rebuilding the website when a result changes (apps/team/worker/website/README.md): a change marks a rebuild wanted,
+// and the five-minute cron sends it once things have been quiet, through the club's GitHub App.
 import { first, run } from "@cougars/shared/d1";
 import { markWebsiteTime, websiteTime } from "@cougars/shared/website-times";
 import { isDone } from "@cougars/shared/results";
@@ -96,7 +92,7 @@ async function dispatch(env: WebsiteEnv, now: Date) {
   const { GITHUB_APP_CLIENT_ID: app, GITHUB_APP_INSTALLATION_ID: installation, GITHUB_APP_PRIVATE_KEY: pem } = env;
   if (!app || !installation || !pem) throw new Error("The GitHub App isn't set up for this Worker.");
   const headers = { Accept: "application/vnd.github+json", "User-Agent": "cougars-team" };
-  // A token for this alone, whatever else the App may do: start a workflow in this one repo (#71)
+  // A token for this alone, whatever else the App may do: start a workflow in this one repo
   const tokenRes = await fetch(`https://api.github.com/app/installations/${installation}/access_tokens`, {
     method: "POST",
     headers: { ...headers, Authorization: `Bearer ${await appJwt(app, pem, now)}`, "Content-Type": "application/json" },

@@ -1,8 +1,5 @@
-// The website's results are pages built from a snapshot of D1 (apps/team/worker/website/README.md), so a result that changes in the app asks
-// for a rebuild: once the last game of a tournament is played, an award is confirmed or a finished one is changed.
-// The Worker waits for five quiet minutes, so a results day is one rebuild, then asks GitHub (as the club's GitHub
-// App) to run the website's deploy from its own environment's branch, with a token that can do only that (#71).
-// Driven through the real Worker handlers (ADR 0031), GitHub faked.
+// A result that changes in the app rebuilds the website (apps/team/worker/website/README.md), after five quiet minutes,
+// through the club's GitHub App. Driven through the real Worker handlers (ADR 0031), GitHub faked.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { rebuildWebsite } from "./website";
 import { NOW, minutes, testWorld } from "../testing";

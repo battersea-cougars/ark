@@ -1,7 +1,6 @@
-// Settings → Website (#107): where the club's website is managed from the team app. An admin, or anyone allowed to
-// edit the website, sees when it was last rebuilt and whether one is on its way, puts Studio changes live now with
-// Rebuild now (the same rebuild a result asks for, apps/team/worker/website/README.md, sent at once instead of after five quiet minutes), and
-// gets the links to the Studio and the site. Driven through the real Worker handlers (ADR 0031), GitHub faked.
+// Settings → Website: whoever may edit the website sees when it was last rebuilt, rebuilds it now
+// (apps/team/worker/website/README.md), and gets the Studio and site links. Driven through the real Worker handlers
+// (ADR 0031), GitHub faked.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { rebuildWebsite } from "./website";
 import { NOW, minutes, testWorld } from "../testing";
