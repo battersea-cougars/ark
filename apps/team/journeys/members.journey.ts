@@ -265,7 +265,7 @@ test("Members: added, changed, given roles, and gone", async ({ browser }) => {
       if (raeHere) {
         const rae = await signIn(browser, "Leaving", "Rae Retiring", raeEmail);
         await does(rae, "deletes her account from her You page, asked first, and is signed out", async () => {
-          await rae.page.goto("/me");
+          await rae.page.goto("/me#account");
           await rae.page
             .getByRole("region", { name: "Your account" })
             .getByRole("button", { name: "Delete my account" })
