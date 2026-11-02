@@ -151,7 +151,10 @@ to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
 
 Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
 screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
-purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error.
+purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error. A person's `page.goto` waits for an overlay
+just closed to take its history entry off first (`lib/back.ts`): opened before that lands, the address is cancelled
+(`net::ERR_ABORTED`). A journey that makes a training pauses it in its `test.afterEach` (`pauseTraining`), so one
+that stops half way doesn't leave its nights on Home for the journeys after it.
 
 **Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
 server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and

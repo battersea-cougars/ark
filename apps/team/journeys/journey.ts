@@ -253,6 +253,20 @@ export async function clubVia(api: (method: string, path: string) => Promise<any
 }
 
 /**
+ * A training a journey made, paused (no more nights, off the menus) if it's still running: for the journey's
+ * `test.afterEach`, so one that stopped half way never leaves its nights to meet the journeys after it on Home and
+ * the calendar (a Tuesday night still on at 00:30 leads Home over the Kumite's after-party). As the admin, through the
+ * API, at the story's last moment (`at`: a journey moves forward only). A shortcut, not under test.
+ */
+export async function pauseTraining(adminEmail: string, seriesId: number, at: Date) {
+  if (!seriesId) return;
+  const api = asMember(adminEmail, { at });
+  const series = (await clubVia(api)).series as { id: number; active: boolean }[];
+  const ours = series.find((s) => s.id === seriesId);
+  if (ours?.active) await api("PUT", `/api/series/${seriesId}`, { ...ours, active: false });
+}
+
+/**
  * Puts someone at a moment: their browser's clock (Playwright's clock, for every page of theirs, fixed there) and the
  * server's for every request their pages make (worker/api/api.dev-clock.ts). Both, so the app's own reckoning ("Tonight",
  * "In 3 days") and the server's (what's open, what's refused, what's charged) agree. Their next page load sees it.

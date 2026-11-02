@@ -24,6 +24,7 @@ import {
   does,
   london,
   noFailedChecks,
+  pauseTraining,
   signIn,
   stage,
   type Person,
@@ -60,6 +61,10 @@ const answers = (page: Page) => page.getByRole("group", { name: "Are you in?" })
 /** Their In, pressed: "In" on the training's page, "I'm in" on Home's card. */
 const saidIn = (page: Page) => answers(page).getByRole("button", { name: /^(In|I'm in)$/, pressed: true });
 
+/** Its training, paused once the journey's over however it ended (journey.ts pauseTraining): set as it's made. */
+let leftover = async () => {};
+test.afterEach(async () => leftover());
+
 test("Fridays: a training night and what it costs", async ({ browser }) => {
   const ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
   const pia = await signIn(browser, "Member", "Pia Payer", "pia@example.com");
@@ -83,6 +88,7 @@ test("Fridays: a training night and what it costs", async ({ browser }) => {
   const members = (await club()).members as { id: number; name: string }[];
   const idOf = (name: string) => members.find((m) => m.name === name)!.id;
   let seriesId = 0;
+  leftover = () => pauseTraining(ada.email, seriesId, now);
   let path = "";
   const sessionOn = async (day: string) =>
     ((await club()).sessions as Session[]).find((x) => x.seriesId === seriesId && x.heldOn === day)!;
