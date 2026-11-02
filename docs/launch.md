@@ -52,11 +52,9 @@ through a pull request and `deploy.yml` ([ADR 0010](adr/0010-environments-and-de
 
 Found while writing this runbook:
 
-- **Nothing puts production's database back through CI**
-  ([#218](https://github.com/battersea-cougars/ark/issues/218)). A backup can be opened (`scripts/db-restore.mjs`),
-  but there is no workflow for D1 Time Travel or for loading a backup into production, and doing either by hand breaks
-  the rules. Until it's there, a database rollback is a decision for the owner on the day (see
-  [Rolling back](#the-database)).
+- **Putting production's database back through CI** ([#218](https://github.com/battersea-cougars/ark/issues/218)):
+  `restore-db.yml` exists; try it once on dev (`gh workflow run restore-db.yml --ref main -f to=<an hour ago> -f
+reason="restore drill"`) before the day.
 - **Production doesn't quite start fresh** (the same issue). It has been deployed and rebuilt before launch, keeping
   its rows. At launch `scripts/db-migrate.mjs` sees its tables and marks `0001_launch.sql` as already applied, so
   whatever the admins tried behind Access stays. Look before the day (signed in on `team.batterseacougars.com`:
@@ -207,13 +205,29 @@ Backups: every night (`backup.yml`) and before every deploy that changes the dat
 prints each table's row count, and fails if any row points at something missing. It never writes to D1. The file is
 the club's personal data: never in the repo, deleted when done.
 
-**Putting it back** is the gap ([#218](https://github.com/battersea-cougars/ark/issues/218)): within 7 days D1 Time
-Travel restores `cougars` exactly to a moment (`wrangler d1 time-travel restore`); older, the restored file is the
-source for the rows needed. Neither has a workflow yet, and production is never changed by hand. Until #218 lands:
+**Putting it back, within 7 days**: Actions → _Restore the database_ (`.github/workflows/restore-db.yml`), run on
+`release`, with the owner's yes:
+
+    gh workflow run restore-db.yml --ref release -f to=2026-11-02T09:30:00Z -f reason="what broke"
+
+- `to` is a moment in UTC (RFC 3339 or Unix seconds) in the last 7 days, or a Time Travel bookmark. A time outside the
+  window stops the run before anything changes.
+- It backs up first (artifact `d1-production-before-restore-<run id>`, 90 days), then D1 Time Travel puts all of
+  `cougars` back to that moment, schema included: everything written since is gone.
+- It waits for a running deploy to production and the deploy waits for it; don't queue both at once.
+- Gone back past the launch release? `d1_migrations` went back too, so the next deploy applies the migrations again
+  (or roll the code back as well with `rollback.yml`).
+
+**Done:** the run's summary says what it restored to, the bookmark it came from and the reason. To undo it, run it
+again with that bookmark: `gh workflow run restore-db.yml --ref release -f to=<that bookmark> -f reason="undo"`.
+
+**Older than 7 days**: the backup is read locally (above) and the rows go back the way they were made: in the app by
+an admin (members by Import members), or a reviewed SQL file through a pull request, with ids, dates and amounts only,
+never names or emails (db/README.md, Putting one back). Nothing loads a whole old backup into production.
 
 - Straight after launch, before the import, there is nothing to put back: the database is the admins and the seed.
-- After the import, a bad import is undone in the app (delete the members it added), or by importing again.
-- Anything worse is the owner's call on the day, written down in #218.
+- A bad import is undone in the app (delete the members it added), by importing again, or with the workflow to just
+  before it.
 
 ### What can't be rolled back
 
