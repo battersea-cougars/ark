@@ -1,7 +1,5 @@
-// When things happen on the day (apps/team/worker/tournaments/README.md): the tournament keeps the hours an admin set, however early or
-// late its matches really start, and each match keeps when it actually kicked off (`startedAt`), set by the first
-// Start of its clock and never moved by a later one, cleared when the match is put back to not played. Driven through
-// the real Worker handlers (ADR 0031).
+// When things happen on the day (apps/team/worker/tournaments/README.md): the tournament keeps its set hours, and each
+// match keeps when it actually kicked off (`startedAt`). Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 

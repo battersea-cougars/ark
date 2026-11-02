@@ -1,9 +1,6 @@
-// What a tournament's editor saves, and what it leaves to the tournament's own pages (apps/team/worker/tournaments/README.md): driven through
-// the real Worker handlers in the fake world (testing.ts), with the body the app sends (lib/tournament-body.ts).
-//
-// The user (2026-10-23): a team's name and look are edited only on the team's own page ("Edit the team"), never in the
-// Kumite editor; and the editor has no Status: stages change only on the Kumite's page (Manage: Close sign-up,
-// Move to…). So an editor opened before either, and saved after, changes neither back.
+// What a tournament's editor saves, and what it leaves to the tournament's own pages
+// (apps/team/worker/tournaments/README.md), with the body the app sends (lib/tournament-body.ts). Driven through the
+// real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { logoAt, testWorld } from "../testing";
 import { tournamentBody } from "../../src/lib/tournament-body";

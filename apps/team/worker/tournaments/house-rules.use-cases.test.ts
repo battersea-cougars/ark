@@ -1,7 +1,5 @@
-// A series' house rules (apps/team/worker/tournaments/README.md), driven through the real Worker handlers in the fake world (testing.ts).
-//
-// The story: an admin writes the Kumite's house rules in its settings, a rule a line. Every member sees them under
-// Format & rules on the Kumite's page. A wall of text is refused.
+// A series' house rules (apps/team/worker/tournaments/README.md): written by an admin, a rule a line, seen by every
+// member. Driven through the real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAndRules, lineText } from "../../src/lib/format-rules";
 import { testWorld } from "../testing";

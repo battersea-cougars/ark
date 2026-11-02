@@ -1,9 +1,5 @@
-// The Kumite simulator (apps/team/worker/settings/README.md): on dev, an admin plays a Kumite on from wherever it is to its after-party with
-// one tap, so the after-party can be tried without scoring every match by hand. A request makes one move you'd see
-// (a pick, a goal, a period's end), says which, and whether that's all, so the app can pace it to watch. It goes
-// through the app's own use cases (the draft, the scoresheet, the clock, goals and penalties), stops with the awards provisional, carries on
-// where it stopped when asked again, and isn't there at all in production or wherever the environment doesn't say
-// it's dev or your own machine. Driven through the real Worker handlers in the fake world (ADR 0031).
+// The Kumite simulator (apps/team/worker/settings/README.md): on dev, an admin plays a Kumite on to its after-party,
+// paced a move at a time; not there in production. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { awardFromData } from "../../src/lib/awards";
 import { atAfters } from "../../src/lib/edition";

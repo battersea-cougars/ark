@@ -67,7 +67,7 @@ export const parseAwards = (json: string): Award[] => {
   }
 };
 
-/** How an award's decided, checked (lib/awards.ts); left out, guessed from its name as it used to be, once. */
+/** How an award's decided, checked (lib/awards.ts); left out, guessed from its name. */
 function decidedByIn(a: Record<string, unknown>, name: string): DecidedBy {
   const d = a.decidedBy;
   if (d == null) return decidedByOf({ name });
@@ -331,9 +331,9 @@ export type TournamentPlayerRow = {
 
 /**
  * Where a team's logo is (editions.routes.ts), by its version: an address the browser keeps for good, so a new logo is
- * a new address. Not the image itself: a year of them was most of what opening the app sent (#175). A small one
+ * a new address. Not the image itself, which would make opening the app heavy. A small one
  * (api.club.ts LOGO_SENT, a generated crest) comes as itself, a data URL, so a page of twenty crests isn't twenty
- * requests queueing (#177).
+ * requests queueing.
  */
 export const logoAddress = (teamId: number, sent: string) =>
   sent.startsWith("data:") ? sent : `/api/tournament-teams/${teamId}/logo?v=${sent}`;
@@ -348,7 +348,7 @@ export function tournamentsFrom(
   votes: { tournamentId: number; award: string; cast: number; mine: number | null }[] = [],
   titles: { tournamentId: number; award: string; title: string | null }[] = [],
 ) {
-  // Each put with its tournament (or team) in one pass, not looked for among every one there has been, for each (#175)
+  // Each put with its tournament (or team) in one pass, not looked for among every one there has been, for each
   const gamesOf = grouped(games, (g) => g.tournamentId);
   const winnersOf = grouped(winners, (x) => x.tournamentId);
   const votesOf = grouped(votes, (x) => x.tournamentId);
@@ -508,7 +508,7 @@ export async function setTeamLook(
 }
 
 /**
- * A team's look for the record (ADR 0024, #201): its name and which crest (by version, not the image), or null when
+ * A team's look for the record (ADR 0024): its name and which crest (by version, not the image), or null when
  * the one changing it is its captain, whose own it is, so only someone else changing it (an admin) is on the record.
  */
 export async function teamLookByOthers(db: D1Database, tournamentId: number, teamId: number, memberId: number) {
@@ -604,7 +604,7 @@ async function setTeams(db: D1Database, id: number, kind: Kind, teams: TeamIn[] 
   const existing = teamRows.results as { id: number; captain: number | null; name: string }[];
   const tournament = draft.results[0] as { s: string; series: number | null } | undefined;
   const state = tournament?.s;
-  // A draft in a series: its captains bring their teams from edition to edition (#150: in one that teams enter, the
+  // A draft in a series: its captains bring their teams from edition to edition (in one that teams enter, the
   // team would, not its captain)
   const bringing = kind === "draft" && tournament?.series != null;
   if (kind === "draft" && (state === "open" || state === "closed")) {
@@ -797,7 +797,7 @@ export async function deleteTournament(db: D1Database, id: number, now: string) 
   const res = await run(db, "DELETE FROM tournaments WHERE id = ?", [id]);
   if (!res.meta.changes) throw new HttpError(404, "No such tournament.");
   await syncTournament(db, id);
-  // The training nights it kept off are back on, unless something else keeps them off (#186)
+  // The training nights it kept off are back on, unless something else keeps them off
   await settle(db, nightsOff, now);
 }
 
@@ -818,7 +818,7 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   const fields = [...(await tournamentFields(db, o)), ...rules, ...(await tournamentAfterOf(db, o))];
   const kind = rules[4] as Kind;
   const teams = teamsOf(o, kind);
-  // Its teams' members checked before it goes in, as every other refusal is (#132): a refused create makes nothing
+  // Its teams' members checked before it goes in, as every other refusal is: a refused create makes nothing
   const named = teams ? namedIn(teams) : [];
   if (named.length && (await first<{ n: number }>(db, KNOWN, [JSON.stringify(named)]))?.n !== named.length)
     throw new HttpError(400, "No such member.");
@@ -834,7 +834,7 @@ export async function createTournament(db: D1Database, given: Record<string, unk
   const id = Number(res.meta.last_row_id);
   await setTeams(db, id, kind, teams);
   await syncTournament(db, id);
-  // A training night already off on its day is off for it too (#186)
+  // A training night already off on its day is off for it too
   await offOnItsDays(db, id);
   return { id };
 }
@@ -901,7 +901,7 @@ export async function updateTournament(
   if (!res.meta.changes) throw new HttpError(404, "No such tournament.");
   await setTeams(db, id, kind, teams);
   await syncTournament(db, id);
-  // Moved off a day, the training night it kept off there is back on, unless something else keeps it off (#186)
+  // Moved off a day, the training night it kept off there is back on, unless something else keeps it off
   await tournamentMoved(db, id, now);
 }
 

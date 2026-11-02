@@ -1,8 +1,5 @@
-// The evening a Kumite ends (apps/team/worker/tournaments/README.md): the last match played, everyone's at The Anchor. Once the awards are
-// confirmed, whoever runs it reveals them one at a time, in the order listed, on one card, a drum: a tap turns the
-// sealed card face up, Next award rolls on to the next, sealed. Members see each award's winner only once it's out
-// (the Worker doesn't send it before then), and every phone follows the drum. A double tap moves it once. Stepping
-// back turns them all face down again, the results kept. Driven through the real Worker handlers (ADR 0031).
+// The awards' reveal (apps/team/worker/tournaments/README.md): once confirmed, revealed one at a time on one card, a
+// drum every phone follows. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";

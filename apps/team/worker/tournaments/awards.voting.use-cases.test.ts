@@ -1,8 +1,6 @@
-// Before the reveal, the awards are confirmed (apps/team/worker/tournaments/README.md): from the last match till then, everyone who played votes
-// for the voted awards (Best keeper: the skaters, for a keeper), one vote an award, secret, never for themselves;
-// whoever runs it checks the stats and draws, makes the judges' call (its name tonight and who), and chooses where
-// a vote's level after its tie-break. Confirming counts the votes and closes voting. Driven through the real Worker
-// handlers (ADR 0031).
+// Confirming the awards (apps/team/worker/tournaments/README.md): everyone who played votes for the voted ones,
+// whoever runs it makes the other calls, and confirming counts the votes. Driven through the real Worker handlers
+// (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";

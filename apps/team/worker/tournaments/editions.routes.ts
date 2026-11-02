@@ -1,6 +1,5 @@
-// A series' editions, read when they're wanted (#175, apps/team/worker/tournaments/README.md): a past one in full when its page opens, History a
-// page at a time, all-time leaders, and each team's logo at an address of its own. Each read as the club read is,
-// for this member (view-as too), tagged by the data version so asking again unchanged is an empty 304.
+// A series' editions, read when they're wanted (apps/team/worker/tournaments/README.md): a past one in full, History
+// a page at a time, all-time leaders and team logos, each tagged by the data version.
 import { id, type Ctx, type Route } from "../api/api.route";
 import { versionedRead } from "../api/api.version";
 import { allTimeLeaders, editionOf, logoOf, pageOf, pastEditions, tournamentWith } from "./editions";
@@ -63,15 +62,15 @@ export const EDITIONS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/tournament-games\/(\d+)\/meetings$/,
     action: "read:Event",
-    // When this game's captains' sides last met, in past ones of its series (#177)
+    // When this game's captains' sides last met, in past ones of its series
     handle: (c) => versionedRead(c, `meet${id(c)}`, async () => ({ editions: await pastMeetings(c.env.DB, id(c)) })),
   },
   {
     method: "GET",
     path: /^\/api\/tournament-types\/(\d+)\/brings$/,
     action: "read:Event",
-    // What each captain brings to an edition on `heldOn` (none yet: after every other), `tournament` once it's saved
-    // (#177): the tournament editor's "Brings" before the team's made
+    // What each captain brings to an edition on `heldOn` (none yet: after every other), `tournament` once it's saved:
+    // the tournament editor's "Brings" before the team's made
     handle: (c) => {
       const url = new URL(c.request.url);
       const heldOn = url.searchParams.get("heldOn") || null;

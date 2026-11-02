@@ -1,8 +1,5 @@
-// Scoring a game as it's played (apps/team/worker/tournaments/README.md): each game suggests a team sitting it out to keep score, but one person
-// keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can score until they (or an admin)
-// let it go. They start the clock, log each goal as it goes in (who scored, who assisted), pause, and call full time,
-// which makes the score the result. Everyone sees the score as it happens. Driven through the real Worker handlers
-// (ADR 0031).
+// Scoring a game as it's played (apps/team/worker/tournaments/README.md): whoever starts scoring holds the sheet until
+// they let it go, and everyone sees the score as it happens. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 

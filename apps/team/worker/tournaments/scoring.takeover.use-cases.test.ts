@@ -1,8 +1,5 @@
-// An admin takes over a game's scoresheet (apps/team/worker/tournaments/README.md, #116): the scorekeeper's phone has died, or they've had to go,
-// and the game's on. One tap frees the sheet and makes the admin the scorekeeper, from where the game is; or, for an
-// admin who isn't at the rink, Free it, and anyone can take it on. The old scorekeeper's live page hears at once and
-// its taps are refused from then on; two admins taking over at once leave one scorekeeper (ADR 0003). On the record.
-// Driven through the real Worker handlers (ADR 0031).
+// An admin takes over or frees a game's scoresheet (apps/team/worker/tournaments/README.md) when the scorekeeper
+// can't go on. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

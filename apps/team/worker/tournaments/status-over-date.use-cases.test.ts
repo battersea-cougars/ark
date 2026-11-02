@@ -1,8 +1,5 @@
-// Status, not the date, says whether something is past, on or next (apps/team/worker/tournaments/README.md, #182). Seen on dev: a Kumite set for the
-// 30th was played early; Home's feed still had it "on the 30th" while its page showed History. The rule (the user,
-// 2026-10-25): done is past, whatever its date; live is on, even running late; not started, its time gone by, is
-// still next until it's played, closed or cancelled. Here what the Worker sends and does by it, through the real
-// handlers and the cron; how the app reads it is lib/phase.ts's, and the journeys'.
+// Status, not the date, says whether a tournament is past, on or next (apps/team/worker/tournaments/README.md): what
+// the Worker sends and does by it, through the real handlers and the cron. The app's side is lib/phase.ts's.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { londonISO } from "@cougars/shared/london";
 import { testWorld } from "../testing";
@@ -53,7 +50,7 @@ async function kumiteOn(heldOn: string, extra: object = {}) {
   expect(made.status).toBe(201);
   const id = made.body.id as number;
   expect((await dana.call("POST", `/api/tournaments/${id}/fixtures`)).status).toBe(200);
-  /** The app's core as it opens at `now`: the bootstrap alone (#178). */
+  /** The app's core as it opens at `now`: the bootstrap alone. */
   const opening = async (now: Date) => (await dana.call("GET", "/api/bootstrap", undefined, { now })).body as Json;
   /** Played at `now`: the first match kicked off on the clock (so that evening's when it was played), then the results. */
   const play = async (now: Date) => {

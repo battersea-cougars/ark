@@ -1,8 +1,5 @@
-// Where everyone goes afterwards (apps/team/worker/tournaments/README.md), driven through the real Worker handlers in the fake world (testing.ts).
-//
-// The story: the club always goes to The Anchor after a Kumite, for the celebration and awards. It's set once, on the
-// series, so a new Kumite has it without anyone retyping it. One Kumite can go somewhere else, at its own time, or
-// nowhere this time. A venue that doesn't exist is refused. The day's entry in the club's calendar says where.
+// Where everyone goes afterwards (apps/team/worker/tournaments/README.md): set once on the series, changed or
+// dropped for one Kumite. Driven through the real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { afterOf } from "@cougars/shared/places";
 import { testWorld } from "../testing";

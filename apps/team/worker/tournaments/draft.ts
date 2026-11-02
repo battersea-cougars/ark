@@ -1,8 +1,5 @@
-// A captains' draft (apps/team/worker/tournaments/README.md, after 0052; reset and reopen: 0064, 0066; one keeper a team: 0067). An admin opens it on
-// the night, once the captains' pick order is drawn at random (step 1, drawOrder); the captains take turns, in snake order from it,
-// picking from the members who said they're in (captains are in automatically and never picked); an admin closes it
-// once everyone's picked, or leaving the rest out on purpose, and then the teams are locked. Someone running the draft
-// (run:Draft) can pick for the captain on the clock, and undo the last pick.
+// A captains' draft (apps/team/worker/tournaments/README.md): drawing the pick order, the captains' picks in snake
+// order from the members who said they're in, and closing it to lock the teams.
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { MIN_TEAM_SIZE, nextSlots, onTheClock, playersNeeded } from "../../src/lib/draft";
 import { syncTournament } from "@cougars/shared/agenda";
@@ -40,7 +37,7 @@ const PICKS = `SELECT COUNT(*) FROM tournament_team_players p JOIN tournament_te
 
 /**
  * The slot of the pick to make now (0: round one's first): the first pick number nobody has, less one. The turn
- * follows the numbers, not how many picks there are (#125): a pick that came off leaves its number empty, filled
+ * follows the numbers, not how many picks there are: a pick that came off leaves its number empty, filled
  * first by the team whose pick it was (lib/draft.ts nextSlots, the same for the page). One param: the tournament.
  */
 const NEXT_SLOT = `WITH taken AS (SELECT p.pick_number n FROM tournament_team_players p
@@ -128,7 +125,7 @@ const PLAYED_SAID = "A match has started: clear the fixtures to reopen the draft
 
 /**
  * Step 2: an admin opens the draft, once the order's drawn: the captains can pick (and each hears it, with their
- * place: push.notices.ts draftOpen). A closed one reopens with its picks and its order, where it left off (0066),
+ * place: push.notices.ts draftOpen). A closed one reopens with its picks and its order, where it left off,
  * keeping its fixtures, which are between the same teams; not once a match has started (reopenDraft clears them).
  */
 export async function openDraft(db: D1Database, tournamentId: number, agenda = true) {
@@ -242,11 +239,11 @@ export async function finishDraft(db: D1Database, tournamentId: number, leaveOut
 
 /**
  * Someone running the draft starts it again: every pick comes off, the pick order with them, and it's back to not yet
- * open. The sign-ups, captains and fixtures stay: the teams are the same teams, only their players change (0066).
+ * open. The sign-ups, captains and fixtures stay: the teams are the same teams, only their players change.
  */
 export async function resetDraft(db: D1Database, tournamentId: number) {
   await tournamentOf(db, tournamentId);
-  // One batch, the draft closed to picks first (#126): a pick landing during the reset finds it not open and is
+  // One batch, the draft closed to picks first: a pick landing during the reset finds it not open and is
   // refused (its INSERT asks), never left on a team after the picks are taken off
   await batch(db, [
     statement(db, "UPDATE tournaments SET draft_state = 'none' WHERE id = ?", [tournamentId]),
@@ -291,7 +288,7 @@ async function oneGoalie(db: D1Database, teamId: number, memberId: number) {
 
 /**
  * The captain on the clock (or someone running the draft) picks a member who said they're in. The turn follows the
- * pick numbers (NEXT_SLOT, #125). `turn`, when the app sends it, is the slot it saw on the clock (with no picks taken
+ * pick numbers (NEXT_SLOT). `turn`, when the app sends it, is the slot it saw on the clock (with no picks taken
  * off, how many picks it had seen): a pick is for that turn and no other, so a tap that lands after the turn moved on
  * (a second phone, a slow network, the captain whose snake turn comes twice running) is refused, not spent on their
  * next pick. Without it, the turn is whatever it is when the pick lands.
@@ -315,7 +312,7 @@ export async function pick(
   if (!running && team.captain !== by.memberId) throw new HttpError(409, "It's not your pick.");
   await oneGoalie(db, team.id, memberId);
   // One statement, so two captains tapping at once can't both pick: it only goes in while the draft's still open (a
-  // reset landing first, #126), they're still in the pool and the pick on the clock is still this one (no other has
+  // reset landing first), they're still in the pool and the pick on the clock is still this one (no other has
   // landed, or come off, since). It takes that pick's number
   const res = await run(
     db,

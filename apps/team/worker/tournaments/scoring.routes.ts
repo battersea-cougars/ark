@@ -61,7 +61,7 @@ export const SCORING_ROUTES: Route[] = [
     // { action: "claim" | "release" }: Start scoring, or let it go
     handle: async (c) => (await holdScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c), ok()),
   },
-  // An admin's say over someone's scoresheet (#116): take it over, or free it. On the record, unlike holding your own
+  // An admin's say over someone's scoresheet: take it over, or free it. On the record, unlike holding your own
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer\/admin$/,
@@ -119,7 +119,7 @@ export const SCORING_ROUTES: Route[] = [
     changes: ["tournaments"],
     calendar: false,
     liveMatch: true,
-    // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once (#114)
+    // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once
     handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c, named(c, "goal")), ok()),
   },
   {
@@ -156,7 +156,7 @@ export const SCORING_ROUTES: Route[] = [
     changes: ["tournaments"],
     calendar: false,
     liveMatch: true,
-    // ?penalty=: the last penalty the page shows (#114)
+    // ?penalty=: the last penalty the page shows
     handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c, named(c, "penalty")), ok()),
   },
   {

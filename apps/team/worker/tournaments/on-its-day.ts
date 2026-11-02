@@ -1,10 +1,5 @@
-// The Kumite simulator on a tournament's own day (ADR 0010), dev only: for a Kumite dated in the past (past-day.ts),
-// the simulator's clocks are its evening's, not now, so it's played that evening and goes straight to history
-// (lib/edition.ts playedOn: the evening its last match kicked off). The evening runs to a timetable worked out from
-// what's been played, so a run stopped part way carries on at the same time: the first match kicks off half an hour
-// after its start time (the draft first), each period runs its full length, a break between them, and the next match
-// kicks off a few minutes after the last ended. Then, past the matches, the awards: confirmed with a winner each (the
-// stats' and a draw's from the data, a vote's and the judges' call chosen at random), and each one revealed in turn.
+// The Kumite simulator on a tournament's own day (ADR 0010), dev only: the timetable of a past Kumite's evening, so
+// it's played then and goes straight to history, and its awards confirmed and revealed.
 import { awardFromData, candidatesOf, decidedByOf, LIVE_OPTIONS, playersOf } from "../../src/lib/awards";
 import { londonISO } from "@cougars/shared/london";
 import { awardsDataOf, nextAward, revealAward, setWinners, type Winner } from "./awards";

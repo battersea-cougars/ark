@@ -1,8 +1,5 @@
-// An admin steps a tournament back one step of its workflow (apps/team/worker/tournaments/README.md), whatever step it's at: the stages its
-// front page shows (sign-up, the draft, the teams, the fight card, the day) and the draft's own (the order drawn, the
-// draft open). Each step back undoes the step before it and no more, says which step it's leaving (`from`), so a tap
-// on a page that's out of date is refused, and is one batch. Driven through the real Worker handlers in the fake
-// world, each person signed in as themselves (ADR 0031).
+// An admin steps a tournament back one step of its workflow (apps/team/worker/tournaments/README.md), whatever step
+// it's at. Driven through the real Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";
