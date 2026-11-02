@@ -1,5 +1,5 @@
 // The videos' settings for live routes (/videos, the home page's reel): the build's (sanity-env.ts) and, since only a
-// request has the database, when an admin last pressed Refresh photos and videos (media-refresh.ts, #109).
+// request has the database, when an admin last pressed Refresh photos and videos (media-refresh.ts).
 import { env } from "cloudflare:workers";
 import { mediaRefreshedAt } from "./media-refresh";
 import { videosConfig } from "./sanity-env";

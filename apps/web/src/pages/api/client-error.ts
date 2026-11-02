@@ -22,7 +22,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     limit: 10,
     windowSeconds: 10 * 60,
   });
-  // Over its limit, or past this visitor's few, it isn't read at all (#73)
+  // Over its limit, or past this visitor's few, it isn't read at all
   if (!allowed) return done;
   const sent = await withinLimit(request, 10_000);
   if (!sent) return done;

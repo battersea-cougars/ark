@@ -44,5 +44,5 @@ export function formatRange(startIso: string, endIso?: string | null) {
 }
 
 /** "2026-10-02": the calendar day in London, like a Sanity `date` field; and the instant of a London wall-clock
- * time. The one shared copy (@cougars/shared/london, #35), passed on so the site imports its dates from one place. */
+ * time. The one shared copy (@cougars/shared/london), passed on so the site imports its dates from one place. */
 export { londonDay, londonISO } from "@cougars/shared/london";

@@ -1,8 +1,6 @@
-// Email settings for the Worker (packages/shared/email.ts). SITE_ENV is a wrangler var: target.mjs makes it "production"
-// only on release. The Gmail values are Worker secrets (deploy.yml), read on each request; the token is the one an
-// admin reconnected in the team app if there is one, kept in D1 (packages/shared/gmail-token.ts), and each send is
-// written down for the team app's Settings → Email (mail-health.ts). The club's inbox is the Studio's Club → Contact
-// email (read as the rest of the club facts are, lib/sanity/content.ts).
+// Email settings for the Worker (packages/shared/email.ts): SITE_ENV (a wrangler var, "production" only on release),
+// the Gmail secrets (deploy.yml) or the token an admin reconnected in the team app (packages/shared/gmail-token.ts),
+// and the club's inbox from the Studio. Each send is written down for the team app's Settings → Email.
 import { env } from "cloudflare:workers";
 import {
   GMAIL_REFRESH_TOKEN,

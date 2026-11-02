@@ -1,5 +1,5 @@
-// Cloudflare Web Analytics on the website only (#92): the beacon is in the website's own pages, so turning off
-// Cloudflare's automatic setup keeps it off the team app (team.batterseacougars.com), whose CSP refuses it.
+// Cloudflare Web Analytics on the website only: the beacon is in the website's own pages, not Cloudflare's automatic
+// setup, so it stays off the team app (team.batterseacougars.com), whose CSP refuses it.
 import { describe, expect, it } from "vitest";
 import { analyticsBeacon } from "./analytics";
 import { csp } from "./server/headers";

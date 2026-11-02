@@ -1,4 +1,4 @@
-// What a live route may be sent (#73): read up to `max` bytes and no more, so a huge body costs the Worker nothing.
+// What a live route may be sent: read up to `max` bytes and no more, so a huge body costs the Worker nothing.
 // The size it says it is counts first; one that says nothing is counted as it comes. The team app's API does the same
 // (apps/team/worker/api/api.http.ts withinLimit).
 

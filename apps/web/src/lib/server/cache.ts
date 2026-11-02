@@ -1,12 +1,6 @@
-// A small cache for the Worker's live reads (YouTube, Sanity), so a page view doesn't cost an API call
-// (docs/adr/0016-photos-and-videos-read-live.md). Three layers, cheapest first:
-//   1. This isolate's memory. Workers keep an isolate alive between requests, so most views stop here.
-//   2. Cloudflare's edge cache (Cache API), shared by every isolate in a data centre. It only works on a custom
-//      domain; on *.workers.dev its calls do nothing, which is fine.
-//   3. The source itself. Concurrent misses share one fetch.
-// If the source fails, the last good value is served for up to `staleMs`, so a YouTube outage or a spent quota
-// shows yesterday's list rather than nothing. Every live read goes through here (ADR 0053); the sources themselves
-// are behind circuit breakers (packages/shared/breaker.ts, ADR 0055).
+// The cache every live read on the Worker goes through (ADR 0053), cheapest layer first: this isolate's memory,
+// Cloudflare's edge cache (shared by a data centre), then the source, with concurrent misses sharing one fetch. If
+// the source fails, the last good value is served for up to `staleMs`.
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("cache");
@@ -48,6 +42,7 @@ const inFlight = new Map<string, Promise<unknown>>();
 // The edge cache stores Responses under URLs; this host is never fetched, it only names entries.
 const edgeUrl = (key: string) => `https://cache.cougars.internal/${encodeURIComponent(key)}`;
 
+// Only works on a custom domain; on *.workers.dev its calls do nothing, which is fine
 const defaultEdge = (): Pick<Cache, "match" | "put"> | null =>
   (globalThis as { caches?: { default?: Cache } }).caches?.default ?? null;
 
