@@ -1,7 +1,5 @@
-// What goes wrong reaches Sentry (ADR 0110), now that Sentry is loaded only to send it (#225): an error logged in a cron
-// run or a request is one report, a request's carrying its method and address as before, with what the invocation
-// logged up to it as breadcrumbs; a run with nothing wrong sends nothing. Driven through the real Worker in the fake world
-// (ADR 0031): the crons and a request as Cloudflare hands them to it, D1 failing as it can, Sentry's ingest answering.
+// What goes wrong reaches Sentry (ADR 0110): an error in a cron run or a request is one report with its breadcrumbs,
+// and a run with nothing wrong sends nothing. Driven through the real Worker in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "../index";
 import { LiveHub } from "../live/live";
