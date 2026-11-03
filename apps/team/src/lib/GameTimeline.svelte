@@ -2,10 +2,10 @@
   // A game's goals and penalties in time order (apps/team/worker/tournaments/README.md), each on its team's side,
   // grouped by period when there's more than one; latest first while it's on. With `onremove` (an admin putting a result
   // right), each row has Take off.
+  import { teamsOf } from "./tournament-teams";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
-  import { teamTone } from "./team-tones";
+  import { nameOfMember } from "./names";
   import { mmss } from "./game-clock.svelte";
   import { infractionLabel } from "./penalties";
   import { periodName } from "./periods";
@@ -28,8 +28,7 @@
 
   const teams = $derived(tournament.teams);
   const byId = (id: number | null) => playerOf(id);
-  const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
-  const teamName = (teamId: number | null) => nameOfTeam(teams[indexOf(teamId)], teams, byId);
+  const look = $derived(teamsOf(teams));
   const who = (memberId: number | null) => nameOfMember(memberId, byId) || "Bench";
   const sitOut = $derived(tournament.penaltyRule === "sit_out");
   const periods = $derived(tournament.periods ?? 1);
@@ -72,8 +71,6 @@
     }
     return out;
   });
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 {#each groups as group (group.key)}
@@ -82,15 +79,9 @@
     {#each group.rows as g (g.key)}
       <li class="goal-row" class:home={g.isHome} class:pen={g.kind === "penalty"}>
         <span class="scored">
-          <TeamCrest
-            among={crestNames}
-            name={teamName(g.teamId)}
-            logo={teams[indexOf(g.teamId)]?.logo ?? null}
-            tone={teamTone(indexOf(g.teamId))}
-            size={g.kind === "goal" ? "3.75rem" : "2.25rem"}
-          />
+          <TeamCrest {...look.crestOf(g.teamId)} size={g.kind === "goal" ? "3.75rem" : "2.25rem"} />
           <span class="who">
-            <span class="team-label">{teamName(g.teamId)}</span>
+            <span class="team-label">{look.nameOf(g.teamId)}</span>
             {#if g.kind === "goal"}
               <span class="scorer">{nameOfMember(g.scorerId, byId) || "Goal"}</span>
               {#if g.assistId}<span class="assist">Assist · {nameOfMember(g.assistId, byId)}</span>{/if}

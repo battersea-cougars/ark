@@ -2,12 +2,12 @@
   // Full time's review (apps/team/worker/tournaments/README.md): the final score, every goal and penalty, the last goal
   // to take back, and Seal the result, which makes it the result (the Kumite's with its 決 mark). Until then the match
   // stays live; a level playoff plays on. A drawer on a desktop, a tall sheet on a phone (lib/Drawer, ADR 0065).
+  import { teamsOf } from "./tournament-teams";
   import Icon from "../app/shell/Icon.svelte";
   import Drawer from "./Drawer.svelte";
   import GameTimeline from "./GameTimeline.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
-  import { teamTone } from "./team-tones";
+  import { nameOfMember } from "./names";
   import { mmss } from "./game-clock.svelte";
   import { kanjiFor } from "./motif";
   import { prefersReducedMotion } from "../app/motion";
@@ -40,9 +40,7 @@
 
   const teams = $derived(tournament.teams);
   const byId = (id: number | null) => playerOf(id);
-  const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
-  const teamName = (teamId: number | null) => nameOfTeam(teams[indexOf(teamId)], teams, byId);
-  const crestNames = $derived(teamNamesOf(teams, byId));
+  const look = $derived(teamsOf(teams));
   const sides = $derived([
     { teamId: game.homeTeamId, goals: game.homeGoals ?? 0 },
     { teamId: game.awayTeamId, goals: game.awayGoals ?? 0 },
@@ -70,15 +68,9 @@
       {#each sides as side, i (i)}
         <div class="side" class:away={i === 1}>
           {#if side.teamId}
-            <TeamCrest
-              among={crestNames}
-              name={teamName(side.teamId)}
-              logo={teams[indexOf(side.teamId)]?.logo ?? null}
-              tone={teamTone(indexOf(side.teamId))}
-              size="3.5rem"
-            />
+            <TeamCrest {...look.crestOf(side.teamId)} size="3.5rem" />
           {/if}
-          <span class="name">{teamName(side.teamId)}</span>
+          <span class="name">{look.nameOf(side.teamId)}</span>
           <span class="display goals num">{side.goals}</span>
         </div>
       {/each}
@@ -104,7 +96,7 @@
         onclick={() => !busy && !stamping && lastGoal && ontakeback()}
         ><Icon name="undo" size={16} /><span
           >{lastGoal
-            ? `Take back ${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)}'s goal · ${mmss(lastGoal.atMs)}`
+            ? `Take back ${nameOfMember(lastGoal.scorerId, byId) || look.nameOf(lastGoal.teamId)}'s goal · ${mmss(lastGoal.atMs)}`
             : "No goal to take back"}</span
         ></button
       >

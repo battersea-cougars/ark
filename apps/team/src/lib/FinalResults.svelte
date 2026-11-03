@@ -2,20 +2,17 @@
   // The day's end, as the after-party and the awards page show it (apps/team/worker/tournaments/README.md): the final table with the stats we
   // track (played, won, drawn, lost, goal difference, points), the champions first; then the day's results, one line
   // a match, the score in the middle. Brass on the carbon: the page round it sets --brass and --brass-ink.
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
-  import { playerOf } from "../demo/data";
   import Kanji from "./Kanji.svelte";
   import BoardTable from "./BoardTable.svelte";
   import { finalOrder } from "./afters";
   import { kanjiFor } from "./motif";
-  import { nameOfTeam } from "./names";
 
   let { type, tournament: t }: { type: TournamentType; tournament: Tournament } = $props();
 
   const teams = $derived(t.teams);
-  const byId = (id: number | null) => playerOf(id);
-  const teamIndex = (id: number | null) => teams.findIndex((x) => x.id === id);
-  const teamName = (id: number | null) => nameOfTeam(teams[teamIndex(id)], teams, byId);
+  const look = $derived(teamsOf(teams));
   const standings = $derived(finalOrder(t));
   const games = $derived([...(t.games ?? [])].sort((a, b) => a.position - b.position));
 </script>
@@ -32,17 +29,17 @@
     <h2 class="section-title">The results<Kanji text={kanjiFor(type, "fights")} /></h2>
     <ol class="results">
       {#each games as g (g.id)}
-        {@const home = teamIndex(g.homeTeamId)}
-        {@const away = teamIndex(g.awayTeamId)}
+        {@const home = look.indexOf(g.homeTeamId)}
+        {@const away = look.indexOf(g.awayTeamId)}
         <li>
           <a class="result" href="/tournaments/{type.slug}/games/{g.id}">
             <span class="game hint">{g.name || `Game ${g.position}`}</span>
             <span class="side home" class:lost={(g.homeGoals ?? 0) < (g.awayGoals ?? 0)}
-              >{home >= 0 ? teamName(g.homeTeamId) : "–"}</span
+              >{home >= 0 ? look.nameOf(g.homeTeamId) : "–"}</span
             >
             <span class="score num">{g.homeGoals ?? "–"}–{g.awayGoals ?? "–"}</span>
             <span class="side away" class:lost={(g.awayGoals ?? 0) < (g.homeGoals ?? 0)}
-              >{away >= 0 ? teamName(g.awayTeamId) : "–"}</span
+              >{away >= 0 ? look.nameOf(g.awayTeamId) : "–"}</span
             >
           </a>
         </li>

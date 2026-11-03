@@ -2,16 +2,13 @@
   // A game's box score (apps/team/worker/tournaments/README.md): each team's goals per period, then the total (just the total for a one-period
   // game). No shots: we don't count them. Once it's over, the winner's row is bright and the loser's fades, as on the
   // fight card.
+  import { teamsOf } from "./tournament-teams";
   import TeamCrest from "./TeamCrest.svelte";
-  import { nameOfTeam, teamNamesOf } from "./names";
-  import { teamTone } from "./team-tones";
   import { boxScore } from "./periods";
-  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentGame } from "../demo/model";
 
   let { tournament, game }: { tournament: Tournament; game: TournamentGame } = $props();
 
-  const byId = (id: number | null) => playerOf(id);
   const sides = $derived([game.homeTeamId, game.awayTeamId].filter((t): t is number => t !== null));
   const box = $derived(boxScore(game.goals ?? [], sides, tournament.periods ?? 1));
   const totals = $derived(box.rows.map((r) => r.total));
@@ -19,10 +16,7 @@
   const won = $derived(
     game.status !== "done" || totals[0] === totals[1] ? null : totals[0] > totals[1] ? sides[0] : sides[1],
   );
-  const team = (id: number) => tournament.teams.find((t) => t.id === id);
-  const indexOf = (id: number) => tournament.teams.findIndex((t) => t.id === id);
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(tournament.teams, byId));
+  const look = $derived(teamsOf(tournament.teams));
 </script>
 
 {#if sides.length === 2}
@@ -39,14 +33,8 @@
         <tr class:won={won === r.teamId} class:lost={won !== null && won !== r.teamId}>
           <th scope="row">
             <span class="team">
-              <TeamCrest
-                among={crestNames}
-                name={nameOfTeam(team(r.teamId), tournament.teams, byId)}
-                logo={team(r.teamId)?.logo ?? null}
-                tone={teamTone(indexOf(r.teamId))}
-                size="2rem"
-              />
-              <span class="tn">{nameOfTeam(team(r.teamId), tournament.teams, byId)}</span>
+              <TeamCrest {...look.crestOf(r.teamId)} size="2rem" />
+              <span class="tn">{look.nameOf(r.teamId)}</span>
             </span>
           </th>
           {#each r.byPeriod as n, i (i)}<td class="n num">{n}</td>{/each}
