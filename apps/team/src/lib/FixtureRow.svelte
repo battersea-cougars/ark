@@ -2,14 +2,13 @@
   // One game, as a row in a list: its kick-off, the two teams (or the places a playoff waits on, 1st v 2nd), and the
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
   // both teams, the goals, and where it's scored or an admin puts a result right (apps/team/worker/tournaments/README.md).
+  import { teamsOf } from "./tournament-teams";
   import { clock } from "./dates";
-  import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
-  import { playerOf } from "../demo/data";
   import { matchTime, placeLabel, recordsOf } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import RollNumber from "./RollNumber.svelte";
-  import { teamHref, teamTone } from "./team-tones";
+  import { teamHref } from "./team-tones";
   import { typeById } from "../demo/schedule.svelte";
   import { leftOf, mmss, ticking } from "./game-clock.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -41,12 +40,7 @@
   } = $props();
 
   const teams = $derived(tournament.teams);
-  const teamName = (id: number) => {
-    const t = teams.find((x) => x.id === id);
-    return nameOfTeam(t, teams, playerOf);
-  };
-  const logoOf = (id: number) => teams.find((x) => x.id === id)?.logo ?? null;
-  const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
+  const look = $derived(teamsOf(teams));
 
   // Each team's record from the group games with a result: won-drawn-lost and points, as a league writes it
   const records = $derived(big ? recordsOf(tournament) : null);
@@ -68,16 +62,14 @@
   const playable = $derived(g.status !== "done" && !!g.homeTeamId && !!g.awayTeamId);
   // A live game's clock ticks here
   $effect(() => (live ? ticking() : undefined));
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 {#snippet side(id: number | null, seed: number | null)}
   <span class="side">
     <!-- A team's name opens the team where there's a pointer to show it's a link; on a phone it's plain, the card one
          tap to the match (whose page links both teams) -->
-    {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a><span
-        class="tn plain">{teamName(id)}</span
+    {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{look.nameOf(id)}</a><span
+        class="tn plain">{look.nameOf(id)}</span
       >
     {:else}<span class="tn">{placeLabel(seed)}</span>{/if}
     {#if big && id}
@@ -104,13 +96,7 @@
 <div class="row fixture" class:done={g.status === "done"} class:big class:carded class:feature>
   {#if !big}<span class="n hint num" title="Game {g.position}">{@render when()}</span>{/if}
   <span class="team" class:won={won === "home"} class:lost={won === "away"}>
-    {#if g.homeTeamId}<TeamCrest
-        among={crestNames}
-        name={teamName(g.homeTeamId)}
-        logo={logoOf(g.homeTeamId)}
-        tone={toneOf(g.homeTeamId)}
-        size={crest}
-      />{/if}
+    {#if g.homeTeamId}<TeamCrest {...look.crestOf(g.homeTeamId)} size={crest} />{/if}
     {@render side(g.homeTeamId, g.homeSeed)}
   </span>
   <!-- On now, a big row opens the live page (the clock, the goals as they go in); otherwise the matchup -->
@@ -126,13 +112,7 @@
   </a>
   <span class="team right" class:won={won === "away"} class:lost={won === "home"}>
     {@render side(g.awayTeamId, g.awaySeed)}
-    {#if g.awayTeamId}<TeamCrest
-        among={crestNames}
-        name={teamName(g.awayTeamId)}
-        logo={logoOf(g.awayTeamId)}
-        tone={toneOf(g.awayTeamId)}
-        size={crest}
-      />{/if}
+    {#if g.awayTeamId}<TeamCrest {...look.crestOf(g.awayTeamId)} size={crest} />{/if}
   </span>
   {#if !big}
     <!-- Always there, even empty: every row's columns line up -->

@@ -2,7 +2,8 @@
   // A tournament's awards and who won them (apps/team/worker/tournaments/README.md), on its landing page: each award, its line, and the team or
   // player (or joint winners) who took it home. Once it's done, the data's picks show as provisional (lib/awards.ts)
   // until an admin confirms them (here, or in Manage: AwardsDrawer).
-  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
+  import { teamsOf } from "./tournament-teams";
+  import { nameOfMember } from "./names";
   import { can } from "../access/actions";
   import { playerOf } from "../demo/data";
   import type { Tournament } from "../demo/model";
@@ -13,7 +14,6 @@
   import { kanjiFor } from "./motif";
   import { typeById } from "../demo/schedule.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { teamTone } from "./team-tones";
   import { awardFromData, decidedByOf } from "./awards";
   import { atAfters, editionState } from "./edition";
   import { revealOf } from "./afters";
@@ -23,16 +23,9 @@
 
   const admin = $derived(can(granted(), "manage:Tournament"));
   const teams = $derived(tournament.teams);
+  const look = $derived(teamsOf(teams));
   const awards = $derived(tournament.awards ?? []);
   const byId = (id: number | null) => playerOf(id);
-  const teamIndex = (id: number | null) => teams.findIndex((t) => t.id === id);
-  const teamName = (id: number | null) => {
-    const t = teams[teamIndex(id)];
-    return nameOfTeam(t, teams, byId);
-  };
-  // Whose team a player's on
-  const teamOf = (memberId: number) =>
-    teams.find((t) => t.captainMemberId === memberId || t.players.some((p) => p.memberId === memberId))?.id ?? null;
   // Confirmed, else (once it's done) what the data says, provisionally
   const done = $derived(editionState(tournament) === "done");
   // Its evening, an award not yet revealed at the after-party is face down for everyone but whoever reveals it
@@ -63,7 +56,6 @@
   // The judges' call is named on the night: its name, with what it is under it
   const titleOf = (award: string) => tournament.titles?.find((w) => w.award === award)?.title;
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 {#if awards.length}
@@ -93,7 +85,7 @@
                 <span class="won-name">Shared by {w.list.length}</span>
                 <span class="hint shared"
                   >{w.list
-                    .map((x) => (x.teamId ? teamName(x.teamId) : nameOfMember(x.memberId, byId)))
+                    .map((x) => (x.teamId ? look.nameOf(x.teamId) : nameOfMember(x.memberId, byId)))
                     .join(", ")}</span
                 >
               </span>
@@ -101,19 +93,13 @@
               {#each w.list as x, i (i)}
                 {#if x.teamId}
                   <span class="won">
-                    <TeamCrest
-                      among={crestNames}
-                      name={teamName(x.teamId)}
-                      logo={teams[teamIndex(x.teamId)]?.logo ?? null}
-                      tone={teamTone(teamIndex(x.teamId))}
-                      size="2.25rem"
-                    />
-                    <span class="won-name">{teamName(x.teamId)}</span>
+                    <TeamCrest {...look.crestOf(x.teamId)} size="2.25rem" />
+                    <span class="won-name">{look.nameOf(x.teamId)}</span>
                   </span>
                 {:else if x.memberId}
                   <span class="won-text">
                     <span class="won-name">{nameOfMember(x.memberId, byId)}</span>
-                    {#if teamOf(x.memberId)}<span class="hint">{teamName(teamOf(x.memberId))}</span>{/if}
+                    {#if look.teamOf(x.memberId)}<span class="hint">{look.nameOf(look.teamOf(x.memberId))}</span>{/if}
                   </span>
                 {/if}
               {:else}

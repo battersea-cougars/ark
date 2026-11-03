@@ -2,6 +2,7 @@
   // One award on the awards page's stage (apps/team/worker/tournaments/README.md): a fixed-size card, sealed till its
   // reveal, when the winner rolls in and the hanko lands; the champions' card is the bigger finale. `beat` is what's
   // playing (lib/afters beatOf), its timing lib/award-reveal.css; `small` is the grid's size down.
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
   import { playerOf } from "../demo/data";
   import type { revealOf } from "./afters";
@@ -9,8 +10,7 @@
   import HankoPress from "./HankoPress.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { isKumite, kanjiFor } from "./motif";
-  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
-  import { teamTone } from "./team-tones";
+  import { nameOfMember } from "./names";
 
   type Award = ReturnType<typeof revealOf>["awards"][number];
 
@@ -51,12 +51,8 @@
   } = $props();
 
   const teams = $derived(t.teams);
+  const look = $derived(teamsOf(teams));
   const byId = (id: number | null) => playerOf(id);
-  const teamIndex = (id: number | null) => teams.findIndex((x) => x.id === id);
-  const teamName = (id: number | null) => nameOfTeam(teams[teamIndex(id)], teams, byId);
-  const teamOf = (memberId: number | null) =>
-    teams.find((x) => x.captainMemberId === memberId || x.players.some((p) => p.memberId === memberId))?.id ?? null;
-  const crestNames = $derived(teamNamesOf(teams, byId));
   const won = $derived((t.winners ?? []).filter((w) => w.award === award.name));
   const kumite = $derived(isKumite(type));
   const mark = $derived(kanjiFor(type, finale ? "champions" : "awards"));
@@ -107,25 +103,19 @@
           >
           <!-- A big tie: who shares it, a line under it -->
           {#if won.length}<span class="shared-names"
-              >{won.map((w) => (w.teamId ? teamName(w.teamId) : nameOfMember(w.memberId, byId))).join(" · ")}</span
+              >{won.map((w) => (w.teamId ? look.nameOf(w.teamId) : nameOfMember(w.memberId, byId))).join(" · ")}</span
             >{/if}
         {:else}
           {#each won as w, k (k)}
             {#if w.teamId}
               <span class="who who-team">
-                <TeamCrest
-                  among={crestNames}
-                  name={teamName(w.teamId)}
-                  logo={teams[teamIndex(w.teamId)]?.logo ?? null}
-                  tone={teamTone(teamIndex(w.teamId))}
-                  size={sizes.crest}
-                />
-                <BoardWords text={teamName(w.teamId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
+                <TeamCrest {...look.crestOf(w.teamId)} size={sizes.crest} />
+                <BoardWords text={look.nameOf(w.teamId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
               </span>
             {:else}
               <span class="who who-player">
                 <BoardWords text={nameOfMember(w.memberId, byId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
-                <span class="team-line">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : " "}</span>
+                <span class="team-line">{look.teamOf(w.memberId) ? look.nameOf(look.teamOf(w.memberId)) : " "}</span>
               </span>
             {/if}
           {/each}
@@ -296,12 +286,8 @@
       inset 0 0 0 0.3rem var(--red),
       inset 0 0 0 calc(0.3rem + 2px) color-mix(in srgb, var(--primary) 55%, transparent);
     /* The worn ink (noise) over the ink's body (a soft disc the drain shrinks, edges first) */
-    -webkit-mask-image:
-      var(--ink-worn),
-      radial-gradient(closest-side, #000 72%, transparent);
-    mask-image:
-      var(--ink-worn),
-      radial-gradient(closest-side, #000 72%, transparent);
+    -webkit-mask-image: var(--ink-worn), radial-gradient(closest-side, #000 72%, transparent);
+    mask-image: var(--ink-worn), radial-gradient(closest-side, #000 72%, transparent);
     -webkit-mask-size:
       140px 70px,
       220% 220%;
