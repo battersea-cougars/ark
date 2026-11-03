@@ -22,10 +22,10 @@
   // and the view slides in from the way you went. History is a quiet link at the foot.
   // Once the after-party's over it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
-  import { nameOfTeam } from "../lib/names";
+  import { teamsOf } from "../lib/tournament-teams";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
-  import { playerOf } from "../demo/data";
+
   import {
     currentTournament,
     pastTournaments,
@@ -105,7 +105,7 @@
   const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
   const kumite = $derived(isKumite(type));
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, playerOf);
+  const look = $derived(teamsOf(teams));
   const manage = $derived(can(perms, "manage:Tournament"));
   const today = $derived(londonToday());
 
@@ -133,7 +133,7 @@
   );
   const holding = $derived(duty?.keeperId === me().id);
   const vs = (g: { homeTeamId: number | null; awayTeamId: number | null }) =>
-    [g.homeTeamId, g.awayTeamId].map((id) => teamName(teams.findIndex((t) => t.id === id))).join(" v ");
+    [g.homeTeamId, g.awayTeamId].map(look.nameOf).join(" v ");
   const at = (position: number) =>
     tournament ? clock(kickOff(tournament.startTime, slotMinutes(tournament), position)) : "";
 

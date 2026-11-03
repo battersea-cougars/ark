@@ -3,8 +3,8 @@
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.
+  import { teamsOf } from "../lib/tournament-teams";
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { nameOfTeam, teamNamesOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { me } from "../demo/session.svelte";
   import { playerOf } from "../demo/data";
@@ -14,7 +14,7 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import TeamRecord from "../lib/TeamRecord.svelte";
   import { recordsOf, type TableRow } from "../lib/fixtures";
-  import { teamHref, teamTone } from "../lib/team-tones";
+  import { teamHref } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
   import { can } from "../access/actions";
@@ -26,7 +26,7 @@
 
   const type = $derived(typeById(typeId)!);
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, playerOf);
+  const look = $derived(teamsOf(teams));
   const isMine = (i: number) =>
     teams[i].captainMemberId === me().id || teams[i].players.some((p) => p.memberId === me().id);
   // Yours first
@@ -39,8 +39,6 @@
   // A team's squad, its captain first then the players in the order they were picked (the pick quietly beside them);
   // someone who's left keeps their place (lib/team-roster.ts)
   const squadOf = (i: number) => rosterOf(teams[i], playerOf);
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 <div class="teams-view">
@@ -70,9 +68,9 @@
       {@const r = t.id ? records.get(t.id) : undefined}
       <a class="list team-card" class:mine={isMine(i)} href={t.id ? teamHref(type.slug, t.id) : undefined}>
         <span class="head">
-          <TeamCrest among={crestNames} name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3rem" />
+          <TeamCrest {...look.crestOf(t.id)} size="3rem" />
           <span class="grow">
-            <span class="name display">{teamName(i)}</span>
+            <span class="name display">{look.names[i]}</span>
             <span class="sub"
               >{#if isMine(i)}<strong class="yours">Your team</strong> ·
               {/if}{squad.length}

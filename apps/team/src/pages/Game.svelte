@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { teamsOf } from "../lib/tournament-teams";
   import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
   // One game, full screen (apps/team/worker/tournaments/README.md): the live scoreboard for everyone, and for the one
   // person keeping score the scoresheet: goals, penalties, the clock, and Full time's review that seals the result.
-  import { goesBy, nameOfMember, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, nameOfMember } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { onDestroy, untrack } from "svelte";
@@ -46,7 +47,7 @@
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
-  import { teamHref, teamTone } from "../lib/team-tones";
+  import { teamHref } from "../lib/team-tones";
   import {
     INFRACTIONS,
     infractionOf,
@@ -71,19 +72,15 @@
   const teams = $derived(tournament?.teams ?? []);
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
   const byId = (id: number | null) => playerOf(id);
-  const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
-  const teamName = (teamId: number | null) => {
-    const t = teams[indexOf(teamId)];
-    return nameOfTeam(t, teams, byId);
-  };
+  const look = $derived(teamsOf(teams));
   // Who can be picked for a goal or a penalty: the members on it the app holds
   const roster = (teamId: number): Player[] => {
-    const t = teams[indexOf(teamId)];
+    const t = look.team(teamId);
     return t ? [t.captainMemberId, ...t.players.map((p) => p.memberId)].flatMap((id) => byId(id) ?? []) : [];
   };
   // The teams as shown: anyone who's left kept in their place (lib/team-roster.ts)
   const squad = (teamId: number) => {
-    const t = teams[indexOf(teamId)];
+    const t = look.team(teamId);
     return t ? rosterOf(t, byId) : [];
   };
   const sides = $derived(game ? ([game.homeTeamId, game.awayTeamId] as (number | null)[]) : []);
@@ -305,7 +302,7 @@
           icon: "undo",
           label: "Take back the last goal",
           sub: lastGoal
-            ? `${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
+            ? `${nameOfMember(lastGoal.scorerId, byId) || look.nameOf(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
             : "No goals yet",
           disabled: busy || !lastGoal,
           now: true,
@@ -518,8 +515,6 @@
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <BackBar
@@ -616,7 +611,7 @@
           <span class="hint" class:lost={lost && !lost.to}
             >{lost && !lost.to
               ? "An admin freed your scoresheet. Keep score to take it back"
-              : `Nobody's keeping score${game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}`}</span
+              : `Nobody's keeping score${game.scoringTeamId ? ` · ${look.nameOf(game.scoringTeamId)}'s turn` : ""}`}</span
           >
           <button class="btn outline sm" disabled={busy} onclick={take}
             ><Icon name="whistle" size={16} />Keep score</button
@@ -658,20 +653,14 @@
       {#each sides as teamId, i (i)}
         <div class="side" class:away={i === 1}>
           {#if teamId}
-            <TeamCrest
-              among={crestNames}
-              name={teamName(teamId)}
-              logo={teams[indexOf(teamId)]?.logo ?? null}
-              tone={teamTone(indexOf(teamId))}
-              size="6rem"
-            />
+            <TeamCrest {...look.crestOf(teamId)} size="6rem" />
           {/if}
-          <span class="display name">{teamName(teamId)}</span>
+          <span class="display name">{look.nameOf(teamId)}</span>
           <span class="display goals num"><RollNumber value={scoreOf(i)} /></span>
           {#if game.status === "live"}
             <!-- The penalty clock: who's in the box and the time left, counting down with the game clock. Two lines'
                  room kept whether or not anyone's in, so nothing moves when a penalty's called or served -->
-            <ul class="box" aria-label="{teamName(teamId)}'s penalties">
+            <ul class="box" aria-label="{look.nameOf(teamId)}'s penalties">
               {#each boxOf(teamId).slice(0, 2) as b (b.penalty.id)}
                 <!-- One waiting for the player's last to end: its whole length, "then 2:00" -->
                 <li class:waiting={b.waiting}>
@@ -726,14 +715,8 @@
           <div class="squad">
             {#if teamId}
               <a class="squad-head" href={teamHref(type.slug, teamId)}>
-                <TeamCrest
-                  among={crestNames}
-                  name={teamName(teamId)}
-                  logo={teams[indexOf(teamId)]?.logo ?? null}
-                  tone={teamTone(indexOf(teamId))}
-                  size="2.25rem"
-                />
-                <span class="squad-name">{teamName(teamId)}</span>
+                <TeamCrest {...look.crestOf(teamId)} size="2.25rem" />
+                <span class="squad-name">{look.nameOf(teamId)}</span>
               </a>
               <ol class="squad-list">
                 <!-- Someone who's left stays in their place on a past game's roster, by "Someone who's left" -->
@@ -834,14 +817,8 @@
       {#each sides as teamId, i (i)}
         {#if teamId}
           <div class="score-side">
-            <TeamCrest
-              among={crestNames}
-              name={teamName(teamId)}
-              logo={teams[indexOf(teamId)]?.logo ?? null}
-              tone={teamTone(indexOf(teamId))}
-              size="3.5rem"
-            />
-            <span class="score-name">{teamName(teamId)}</span>
+            <TeamCrest {...look.crestOf(teamId)} size="3.5rem" />
+            <span class="score-name">{look.nameOf(teamId)}</span>
             <div class="stepper">
               <button
                 class="btn outline step"
@@ -908,7 +885,7 @@
     bind:open={() => !!picking, (v) => !v && (picking = null)}
     title={picking?.scorer === undefined ? "Who scored?" : picking?.assist === undefined ? "Who assisted?" : "When?"}
     sub={picking
-      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
+      ? `Goal ${look.nameOf(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
       : undefined}
   >
     {#if picking && picking.scorer !== undefined && picking.assist !== undefined}
@@ -972,7 +949,7 @@
   <Drawer
     bind:open={() => !!calling, (v) => !v && (calling = null)}
     title="Penalty"
-    sub={calling ? `${teamName(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
+    sub={calling ? `${look.nameOf(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
   >
     {#if calling}
       {@const rule = infractionOf(calling.infraction)}

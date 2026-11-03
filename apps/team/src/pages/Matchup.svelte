@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { teamsOf } from "../lib/tournament-teams";
   import { clock } from "../lib/dates";
   import { waitingFor } from "../app/editions.svelte";
   // One game's matchup (apps/team/worker/tournaments/README.md), from the fight card's Details: the two teams side by side, each squad in full and
@@ -6,7 +7,7 @@
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesByOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { playerOf } from "../demo/data";
@@ -17,7 +18,7 @@
   import TeamRecord from "../lib/TeamRecord.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
-  import { teamHref, teamTone } from "../lib/team-tones";
+  import { teamHref } from "../lib/team-tones";
   import { kickOff, placeLabel, recordsOf, slotMinutes, type TableRow } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
@@ -41,8 +42,7 @@
   const onNow = $derived(!!tournament && tournament.id === currentTournament(typeId)?.id);
   const teams = $derived(tournament?.teams ?? []);
   const byId = (id: number | null) => playerOf(id);
-  const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, byId);
+  const look = $derived(teamsOf(teams));
 
   // The two sides, home then away: the team (or the place a playoff waits on), its squad, its record so far
   const records = $derived(tournament ? recordsOf(tournament) : new Map<number, TableRow>());
@@ -52,12 +52,12 @@
           { teamId: game.homeTeamId, seed: game.homeSeed },
           { teamId: game.awayTeamId, seed: game.awaySeed },
         ].map(({ teamId, seed }) => {
-          const i = indexOf(teamId);
+          const i = look.indexOf(teamId);
           const t = i >= 0 ? teams[i] : undefined;
           return {
             i,
             team: t,
-            name: t ? teamName(i) : placeLabel(seed),
+            name: t ? look.names[i] : placeLabel(seed),
             captain: byId(t?.captainMemberId ?? null),
             squad: t ? rosterOf(t, byId) : [],
             record: t?.id ? records.get(t.id) : undefined,
@@ -87,12 +87,8 @@
     d: past.filter((m) => m.for === m.against).length,
     b: past.filter((m) => m.for < m.against).length,
   });
-  const nameOf = (t: { teams: { id: number; name: string; captainMemberId: number | null }[] }, id: number | null) => {
-    const team = t.teams.find((x) => x.id === id);
-    return nameOfTeam(team, t.teams, byId);
-  };
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
+  const nameOf = (t: { teams: { id: number; name: string; captainMemberId: number | null }[] }, id: number | null) =>
+    teamsOf(t.teams).nameOf(id);
 </script>
 
 <div class="page">
@@ -120,13 +116,7 @@
           href={s.team?.id ? teamHref(type.slug, s.team.id) : undefined}
           aria-label={s.name}
         >
-          {#if s.team}<TeamCrest
-              among={crestNames}
-              name={s.name}
-              logo={s.team.logo}
-              tone={teamTone(s.i)}
-              size="4.5rem"
-            />{/if}
+          {#if s.team}<TeamCrest {...look.crestOf(s.team.id)} size="4.5rem" />{/if}
           <!-- Plainly a way to the team, pointer or not: its name with a chevron beside it (never under it) -->
           <span class="side-line"
             ><span class="side-name display">{s.name}</span>{#if s.team?.id}<Icon
