@@ -10,6 +10,20 @@
     danger?: boolean;
     /** Its icon in a colour (a CSS colour): what kind of thing it makes, as the calendar shows that kind. */
     tone?: string;
+    /** Can't be done now (no goal to take back): shown, greyed. */
+    disabled?: boolean;
+    /** Where things are already (the team they're on): said, not offered. */
+    here?: boolean;
+    /** Done at once, nothing opens: no chevron. */
+    now?: boolean;
+    /** A tap-twice job (lib/arm.svelte.ts) waiting for its second tap: its words in red, the row ringed. */
+    armed?: boolean;
+    /** Its tap keeps the menu open (the first of a tap-twice): `run` is called, not `go`. */
+    stays?: boolean;
+  }
+  /** A line between the jobs, saying why some aren't there (the register's closed). */
+  export interface ManageNote {
+    note: string;
   }
 </script>
 
@@ -18,16 +32,28 @@
   // calendar's New event (lib/ManageMenu opens them). `go` runs one (the menu closes first).
   import Icon from "../app/shell/Icon.svelte";
 
-  let { items, go }: { items: ManageItem[]; go: (run: () => void) => void } = $props();
+  let { items, go }: { items: (ManageItem | ManageNote)[]; go: (run: () => void) => void } = $props();
 </script>
 
 <div class="tools">
-  {#each items as item (item.label)}
-    <button class="tool" class:danger={item.danger} style:--tone={item.tone} onclick={() => go(item.run)}>
-      <Icon name={item.icon} size={22} />
-      <span class="tool-text"><strong>{item.label}</strong><span>{item.sub}</span></span>
-      <Icon name="chevronRight" size={18} />
-    </button>
+  {#each items as item, i ("note" in item ? `note ${i}` : item.label)}
+    {#if "note" in item}
+      <p class="tool-note hint">{item.note}</p>
+    {:else}
+      <button
+        class="tool"
+        class:danger={item.danger}
+        class:here={item.here}
+        class:armed={item.armed}
+        style:--tone={item.tone}
+        disabled={item.disabled || item.here}
+        onclick={() => (item.stays ? item.run() : go(item.run))}
+      >
+        <Icon name={item.icon} size={22} />
+        <span class="tool-text"><strong>{item.label}</strong><span>{item.sub}</span></span>
+        {#if !item.now && !item.here}<Icon name="chevronRight" size={18} />{/if}
+      </button>
+    {/if}
   {/each}
 </div>
 
@@ -53,8 +79,26 @@
     flex-shrink: 0;
     color: var(--tone, currentColor);
   }
-  .tool:active {
+  .tool:active:not(:disabled) {
     background: var(--surface-3);
+  }
+  .tool:disabled {
+    opacity: 0.5;
+  }
+  .tool.here {
+    opacity: 1;
+    background: none;
+  }
+  /* The second tap's the real one: said in red, the only red here */
+  .tool.armed {
+    box-shadow: inset 0 0 0 1.5px var(--red-hot);
+  }
+  .tool.armed strong {
+    color: var(--red-hot);
+  }
+  .tool-note {
+    margin: 0;
+    padding: var(--s-2) var(--s-4);
   }
   .tool-text {
     display: grid;

@@ -11,6 +11,7 @@
   import { labelFor } from "../demo/dues.svelte";
   import { formatDayDate, pounds } from "./dates";
   import { loadMore } from "./load-more";
+  import { Arm } from "./arm.svelte";
 
   let { memberId, editable = false }: { memberId: number; editable?: boolean } = $props();
 
@@ -26,12 +27,7 @@
   const balance = (p: number) => (p < 0 ? `${pounds(-p)} credit` : pounds(p));
 
   // The line waiting for its second tap
-  let arming = $state<string | null>(null);
-  function takeBack(key: string, go: () => unknown) {
-    if (arming !== key) return void (arming = key);
-    arming = null;
-    go();
-  }
+  const arm = new Arm();
 </script>
 
 <div class="ledger">
@@ -81,15 +77,15 @@
               {#if l.kind === "payment" || (l.charge.byHand && !l.charge.paidPence)}
                 <button
                   class="btn sm ghost"
-                  class:armed={arming === key}
-                  aria-label={arming === key ? "Tap again to take it back" : "Take back"}
+                  class:armed={arm.is(key)}
+                  aria-label={arm.is(key) ? "Tap again to take it back" : "Take back"}
                   onclick={() =>
-                    takeBack(key, () =>
+                    arm.tap(key, () =>
                       l.kind === "payment" ? removePayment(l.payment.id) : removeCharge(l.charge.id),
                     )}
-                  onblur={() => arming === key && (arming = null)}
+                  onblur={() => arm.is(key) && arm.disarm()}
                 >
-                  {#if arming === key}Sure?{:else}<Icon name="x" size={14} />{/if}
+                  {#if arm.is(key)}Sure?{:else}<Icon name="x" size={14} />{/if}
                 </button>
               {/if}
             </td>

@@ -58,6 +58,16 @@ const RULES = [
     pattern: /(?:(?<![.\w])name|(?<!form)\.name|nameOf\([^)]*\)|goesBy\w*\([^)]*\)|webName[^\n]*\))\.split\((?:" "|\/\\s\+\/)\)\[0\]/,
     home: "lib/names.ts",
   },
+  {
+    what: "a Manage row of its own, `class=\"tool\"` (lib/ManageList: disabled, here, now, armed, notes)",
+    pattern: /class="tool[\s"]/,
+    home: "lib/ManageList.svelte",
+  },
+  {
+    what: "a tap-twice of its own (lib/arm.svelte.ts Arm)",
+    pattern: /let (?:arming|sure|confirming) = \$state<[^>]*(?:string|"|null)/,
+    home: "lib/arm.svelte.ts",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

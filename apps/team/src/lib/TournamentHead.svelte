@@ -460,13 +460,9 @@
   </div>
 {/snippet}
 {#if tournament && track}
-  {#if phone.current}
-    <Sheet bind:open={rulesOpen} title="Rules" top={topicTabs} footer={topicSteps} tall>{@render rulesList()}</Sheet>
-  {:else}
-    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
-      >{@render rulesList()}</Drawer
-    >
-  {/if}
+  <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
+    >{@render rulesList()}</Drawer
+  >
 {/if}
 
 {#if tournament && myTeam?.id}
