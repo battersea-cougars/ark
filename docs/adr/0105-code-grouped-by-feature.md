@@ -1,7 +1,7 @@
 # 0105. Code is for people to read: grouped by feature, entry points as tables of contents, `{domain}.{kind}.ts` names, one job per file and function
 
 - **Status:** Accepted
-- **Date:** 2026-10-10 · updated 2026-11-02
+- **Date:** 2026-10-10 · updated 2026-11-03
 - **Merges:** 0125
 
 ## Context
@@ -60,6 +60,13 @@ functions past two screens, nesting five deep and parameters called `t`, `r`, `p
 - **Sizes to notice**: a file past roughly **400 lines**, a Svelte component's own CSS past roughly **500 lines**
   (#153), or a function past a screen (about **80 lines**) is the prompt to ask whether it holds more than one idea and
   to split it. A prompt, not a rule: a long list of routes or a table of rules can stay long.
+- **One home for each look and word.** What the app shows the same way in many places is written once and used
+  everywhere: a team's name, crest and colour (`lib/tournament-teams.ts` `teamsOf`), a member found by id
+  (`playerOf`), a first name (`lib/names.ts` `shortName`), ordinals and plurals (`lib/dates.ts`), a table, a record and
+  a final (`lib/fixtures.ts`), "is it the Kumite?" (`lib/motif.ts` `isKumite`), a Manage row (`lib/ManageList`), a
+  question before a job (`lib/Confirm`), a tap-twice (`lib/arm.svelte.ts`), the red fill (`.btn.danger`), and
+  app.css's keyframes and worn ink. `scripts/team-one-home.test.mjs` greps for each copy by hand and fails CI on one,
+  naming where the one home is; a new shared piece adds its rule there.
 - **Exit early, minimal nesting.** Guard clauses first (`if (!session) return …`), then the main path, unindented. No
   `else` after a `return`; no pyramid of `if`s. Past three blocks deep, pull the inside out into a named function.
 - **Names from the domain.** Variables, parameters and functions say what they are in the club's words (`session`,
