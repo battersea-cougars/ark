@@ -209,7 +209,7 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
-  const emailed = emailThem && (await tellTheyreIn(env, name, address, origin));
+  const emailed = emailThem && (await tellTheyreIn(env, { name }, address, origin));
   return { id, emailed };
 }
 
@@ -218,15 +218,15 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
  * someone in the club (active) with an email; whether it went is in the reply, as for an add.
  */
 export async function sendAppLink(env: AuthEnv, id: number, origin: string): Promise<{ emailed: boolean }> {
-  const m = await first<{ name: string; email: string | null; status: string }>(
+  const m = await first<{ name: string; webName: string | null; email: string | null; status: string }>(
     env.DB,
-    "SELECT name, email, status FROM members WHERE id = ?",
+    "SELECT name, web_name webName, email, status FROM members WHERE id = ?",
     [id],
   );
   if (!m) throw new HttpError(404, "No such member.");
   if (m.status !== "active") throw new HttpError(409, "They're not in the club, so there's no link to send.");
   if (!m.email) throw new HttpError(400, "They've no email: add one on their card first.");
-  return { emailed: await tellTheyreIn(env, m.name, m.email, origin) };
+  return { emailed: await tellTheyreIn(env, m, m.email, origin) };
 }
 
 /**

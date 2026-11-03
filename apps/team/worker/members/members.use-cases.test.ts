@@ -115,6 +115,14 @@ describe("an admin adds a member without emailing them (#164)", () => {
     });
   });
 
+  it("the email greets them by the name they go by, a nickname whole: Hi Big Nina, not Hi Big", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    const { id } = (await dana.call("POST", "/api/members", { ...NEWBIE, emailThem: false })).body;
+    w.db.raw.prepare("UPDATE members SET web_name = 'Big Nina' WHERE id = ?").run(id);
+    await dana.call("POST", `/api/members/${id}/app-link`);
+    expect(w.mails[0].text).toContain("Hi Big Nina,");
+  });
+
   it("the link is for an admin to send, to someone in the club with an email", async () => {
     const dana = await w.signedIn("dana@example.com");
     const { id } = (await dana.call("POST", "/api/members", { ...NEWBIE, emailThem: false })).body;

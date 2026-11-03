@@ -4,20 +4,26 @@ import { all } from "@cougars/shared/d1";
 import { sendMail } from "@cougars/shared/email";
 import { mailSetup, type AuthEnv } from "../auth/auth";
 import { scribe } from "@cougars/shared/scribe";
+import { shortName } from "../../src/lib/names";
 
 const log = scribe.logger("members");
 
 const sent = (event: string) => [() => true, (e: unknown) => (log.error(event, e), false)] as const;
 
 /** "You're in": a link to the app that fills in their address on the sign-in screen. */
-export async function tellTheyreIn(env: AuthEnv, name: string, address: string, origin: string): Promise<boolean> {
+export async function tellTheyreIn(
+  env: AuthEnv,
+  who: { name: string; webName?: string | null },
+  address: string,
+  origin: string,
+): Promise<boolean> {
   const link = `${origin}/?email=${encodeURIComponent(address)}`;
   return sendMail(
     {
       to: [address],
       subject: "You're in: the Battersea Cougars app",
       text: [
-        `Hi ${name.split(" ")[0]},`,
+        `Hi ${shortName(who)},`,
         "",
         "You're in the Battersea Cougars app: training, tournaments, the draft and what you owe, all in one place.",
         "",

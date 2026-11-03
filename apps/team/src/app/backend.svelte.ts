@@ -42,6 +42,7 @@ import { db } from "../demo/store.svelte";
 import { startSession } from "../demo/session.svelte";
 import type { pastBody } from "../lib/past-kumite";
 import { plural } from "../lib/dates";
+import { shortName } from "../lib/names";
 
 /** The last save's outcome, shown briefly by the shell; `refused`, how the Worker refused it (409: something changed). */
 export const saving = $state({ busy: 0, message: "", failed: false, refused: 0 });
@@ -407,7 +408,7 @@ export const addMember = async (name: string, email: string, position: string, e
     () => api<{ id: number; emailed: boolean }>("POST", "/api/members", { name, email, position, emailThem }),
     "",
   );
-  const first = name.split(" ")[0];
+  const first = shortName({ name });
   if (r)
     say(
       !emailThem

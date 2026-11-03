@@ -3,7 +3,7 @@
   // who's going (faces, first names, the count and spaces left) with In and Out on that row. Each kind has its own icon
   // and colour (an admin's, per type). Nothing moves when you answer.
   import { keeps, nextUp, onSide, roomFor } from "./places";
-  import { goesByOf } from "./names";
+  import { shortNameOf } from "./names";
   import type { Snippet } from "svelte";
   import type { Bookable } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
@@ -79,7 +79,7 @@
   const queue = (list: number[]) => (training ? onSide(list, keeps(id)) : list);
 
   // Who's going: the first five faces, in sign-up order, and first names (you first in both, when you're in)
-  const nameOf = (pid: number) => goesByOf(PLAYERS.find((p) => p.id === pid));
+  const nameOf = (pid: number) => shortNameOf(PLAYERS.find((p) => p.id === pid));
   // Home's lead on a phone shows fewer, so the faces and counts stay on one line and the buttons never move
   const tight = $derived(glance && phone.current);
   const faces = $derived(
@@ -89,7 +89,7 @@
   const names = $derived(
     others
       .slice(0, 3)
-      .map((x) => nameOf(x).split(" ")[0])
+      .map(nameOf)
       .filter(Boolean),
   );
   const rest = $derived(others.length - names.length);

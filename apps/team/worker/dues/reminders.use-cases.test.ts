@@ -63,6 +63,14 @@ describe("the club's bank details", () => {
 });
 
 describe("an admin emails members what they owe", () => {
+  it("greets them by the name they go by, a nickname whole: Hi Big Reg, not Hi Big", async () => {
+    await bank();
+    await owes("Reg Player", 1200, "2026-10-02");
+    const reg = await idOf("Reg Player");
+    w.db.raw.prepare("UPDATE members SET web_name = 'Big Reg' WHERE id = ?").run(reg);
+    expect((await preview(dana, `?member=${reg}`)).body.letter.text).toContain("Hi Big Reg,");
+  });
+
   it("sees who'll get one and what it says before sending: everyone who owes, with what and how long", async () => {
     await bank();
     await owes("Reg Player", 1200, "2026-08-20", "Friday Training");

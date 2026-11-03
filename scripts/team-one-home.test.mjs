@@ -15,7 +15,8 @@ function sourceFiles(dir) {
   });
 }
 
-const files = sourceFiles(src).map((path) => ({
+// The worker's emails greet members by name too, so it's read as well ("../worker/…" from src)
+const files = [...sourceFiles(src), ...sourceFiles(join(src, "../worker"))].map((path) => ({
   path: relative(src, path),
   code: readFileSync(path, "utf8"),
 }));
@@ -51,6 +52,11 @@ const RULES = [
     what: "a Sheet on a phone and a Drawer on a desktop by hand (lib/Drawer `short`, lib/ManageMenu)",
     pattern: /<Sheet[^>]*>\s*(?:<ManageList|\{@render (?:ask|body|toolList|manageTools|kindList)\(\)\})/,
     home: "lib/Drawer.svelte",
+  },
+  {
+    what: 'a first name by hand, `name.split(" ")[0]` (lib/names.ts shortName keeps a chosen name whole)',
+    pattern: /(?:(?<![.\w])name|(?<!form)\.name|nameOf\([^)]*\)|goesBy\w*\([^)]*\)|webName[^\n]*\))\.split\((?:" "|\/\\s\+\/)\)\[0\]/,
+    home: "lib/names.ts",
   },
 ];
 
