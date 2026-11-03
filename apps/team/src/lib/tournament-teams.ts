@@ -1,7 +1,7 @@
 // A tournament's teams as every page shows them: each one's name (its own, else "Team {captain}", told apart among
 // the others), crest names, logo and colour, found by the team's id, and whose team a player is on.
 import { playerOf } from "../demo/data";
-import { teamNamesOf } from "./names";
+import { nameOfTeam, teamNamesOf } from "./names";
 import { teamTone } from "./team-tones";
 
 interface Named {
@@ -39,6 +39,8 @@ export function teamsOf<T extends ShownTeam>(
       logo: teams[indexOf(id)]?.logo ?? null,
       tone: teamTone(indexOf(id)),
     }),
+    /** The name it'd have with none of its own ("Team Dan"): what its name field offers. */
+    unnamed: (team: T) => nameOfTeam({ ...team, name: "" }, teams, person),
     /** The team a member captains or plays on, by its id; null for none. */
     teamOf: (memberId: number | null) =>
       teams.find((t) => t.captainMemberId === memberId || t.players?.some((p) => p.memberId === memberId))?.id ?? null,

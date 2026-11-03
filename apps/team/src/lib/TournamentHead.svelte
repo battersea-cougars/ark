@@ -2,13 +2,14 @@
   // The top of every tournament page: the type, the page and the edition it shows (its day, season, hours, place and
   // where it stands, lib/edition.ts). On the front page, an admin's Manage menu (ADR 0065); with nothing on, Next Kumite
   // is the front page's own button (apps/team/worker/tournaments/README.md).
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import TeamLookSheet from "./TeamLookSheet.svelte";
   import PickLog from "./PickLog.svelte";
   import AnswerMenu from "./AnswerMenu.svelte";
-  import { goesByOf, nameOfTeam } from "./names";
+  import { goesByOf } from "./names";
   import { playerOf } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
@@ -224,7 +225,7 @@
           londonToday(),
           {
             player: (id, name) => goesByOf(byId(id)) || name || "",
-            team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
+            team: (i) => teamsOf(t.teams).names[i],
           },
         );
     const RUN: Record<ManageKey, (e: ManageEntry) => void> = {
@@ -471,7 +472,7 @@
     teamId={myTeam.id}
     name={myTeam.name}
     logo={myTeam.logo}
-    fallback={nameOfTeam({ ...myTeam, name: "" }, tournament.teams, (id) => playerOf(id))}
+    fallback={teamsOf(tournament.teams).unnamed(myTeam)}
     bind:open={lookOpen}
   />
 {/if}

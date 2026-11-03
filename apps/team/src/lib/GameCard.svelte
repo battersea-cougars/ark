@@ -2,6 +2,7 @@
   // One game as a card of its own (the Kumite's home, the Fight card): its header (lib/GameHead), then the big row,
   // the teams either side of the time and the score. The whole card opens the game; the team names open the teams.
   // Under the pointer it warms with the club's red, its edge firms up, and its header lights. Nothing moves.
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { typeById } from "../demo/schedule.svelte";
   import FixtureRow from "./FixtureRow.svelte";
@@ -9,7 +10,7 @@
   import { isKumite, kanjiFor } from "./motif";
   import { me } from "../demo/session.svelte";
   import { playerOf } from "../demo/data";
-  import { goesBy, nameOfTeam } from "./names";
+  import { goesBy } from "./names";
   import Icon from "../app/shell/Icon.svelte";
   import InkStamp from "./InkStamp.svelte";
   import { myTeamIndex } from "./tournament-front";
@@ -60,12 +61,7 @@
   const winner = $derived.by(() => {
     if (!done || g.homeGoals === null || g.awayGoals === null || g.homeGoals === g.awayGoals) return null;
     const id = g.homeGoals > g.awayGoals ? g.homeTeamId : g.awayTeamId;
-    const teams = tournament.teams;
-    return nameOfTeam(
-      teams.find((t) => t.id === id),
-      teams,
-      playerOf,
-    );
+    return teamsOf(tournament.teams).nameOf(id);
   });
 </script>
 

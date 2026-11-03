@@ -34,4 +34,8 @@ describe("a tournament's teams, by id", () => {
     expect(t.teamOf(4)).toBe(10);
     expect(t.teamOf(9)).toBeNull();
   });
+
+  it("says what a named team would be called without its name, for its name field", () => {
+    expect(t.unnamed(teams[2])).toBe("Team The Joker");
+  });
 });

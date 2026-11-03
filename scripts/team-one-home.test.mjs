@@ -104,6 +104,12 @@ const RULES = [
     pattern: /slug === "kumite"|!!kanjiFor\(/,
     home: "lib/motif.ts",
   },
+  {
+    what: "a team named or its crest's names worked out by hand (lib/tournament-teams.ts teamsOf)",
+    pattern: /\bnameOfTeam\(|\bteamNamesOf\(/,
+    home: "lib/tournament-teams.ts",
+    allow: ["lib/names.ts", "lib/TeamsField.svelte"],
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

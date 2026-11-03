@@ -2,15 +2,14 @@
   // Changing your answer to a tournament, from the badge in its header (apps/team/worker/tournaments/README.md): Can't
   // make it, or I'm in while sign-up's open; once it's started, who's in is an admin's to change. A popover under the
   // badge on a desktop, a short sheet on a phone (TournamentHead).
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
-  import { playerOf } from "../demo/data";
   import { answerFor } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { signupOpen } from "./signup";
   import { londonToday } from "./dates";
-  import { nameOfTeam } from "./names";
   import { pick } from "./quips";
   import { untrack } from "svelte";
   import { invitationOnly } from "./motif";
@@ -45,7 +44,7 @@
   const quip = untrack(() => pick(db.quips.filter((q) => q.kind === (inIt ? "in" : "out") && q.text.trim()))?.text);
   // Your team, if you're on one: off it while the draft's open; after that (or a captain), it's an admin's to change
   const team = $derived(t.teams.find((x) => x.captainMemberId === id || x.players.some((p) => p.memberId === id)));
-  const teamName = $derived(team ? nameOfTeam(team, t.teams, playerOf) : "");
+  const teamName = $derived(team ? teamsOf(t.teams).nameOf(team.id) : "");
   const consequence = $derived.by(() => {
     if (!team) return "";
     if (team.captainMemberId !== id && t.draftState === "open") return `You'll come off ${teamName}`;

@@ -2,8 +2,7 @@
   // A series' past ones (apps/team/worker/tournaments/README.md), newest first, each with how it ended, opening its own
   // page (lib/edition-address.ts). On History and the series' front page, read a page at a time (app/history.svelte.ts);
   // tonight's is still on at its after-party, so it isn't here.
-  import { nameOfTeam } from "./names";
-  import { playerOf } from "../demo/data";
+  import { teamsOf } from "./tournament-teams";
   import type { TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
@@ -31,10 +30,7 @@
     }),
   );
 
-  const nameOf = (t: EditionSummary, id: number | null) => {
-    const team = t.teams.find((x) => x.id === id);
-    return nameOfTeam(team, t.teams, playerOf);
-  };
+  const nameOf = (t: EditionSummary, id: number | null) => teamsOf(t.teams).nameOf(id);
   // How it ended, in a line: the final, else the top of the table
   const summary = (t: EditionSummary) => {
     const f = t.final;

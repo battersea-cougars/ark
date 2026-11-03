@@ -3,9 +3,10 @@
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
+  import { teamsOf } from "../lib/tournament-teams";
   import { clock, formatDayDate, formatTime, londonEvening, londonToday, pounds } from "../lib/dates";
   import { untrack } from "svelte";
-  import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
+  import { shortName, shortNameOf } from "../lib/names";
   import { can } from "../access/actions";
   import { playerOf } from "../demo/data";
   import { owedBy, unpaidCharges } from "../demo/dues.svelte";
@@ -18,7 +19,6 @@
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { myTurnLine } from "../lib/draft";
   import { kickOff, placeLabel, slotMinutes } from "../lib/fixtures";
-  import { teamTone } from "../lib/team-tones";
   import { leftOn, overdue } from "../lib/dues";
   import {
     homeFeed,
@@ -348,16 +348,13 @@
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
   function matchOf({ type, t, game, teamId }: Fight) {
-    const person = (id: number | null) => playerOf(id);
-    const side = (id: number | null, seed: number | null) => {
-      const i = t.teams.findIndex((x) => x.id === id);
-      return {
-        id,
-        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : placeLabel(seed),
-        logo: t.teams[i]?.logo ?? null,
-        tone: teamTone(i),
-      };
-    };
+    const look = teamsOf(t.teams);
+    const side = (id: number | null, seed: number | null) => ({
+      id,
+      name: look.indexOf(id) >= 0 ? look.nameOf(id) : placeLabel(seed),
+      logo: look.logoOf(id),
+      tone: look.toneOf(id),
+    });
     const home = side(game.homeTeamId, game.homeSeed);
     const away = side(game.awayTeamId, game.awaySeed);
     const where = tournamentBookable(t);
@@ -374,7 +371,7 @@
       },
       ours: game.awayTeamId === teamId ? away : home,
       them: game.awayTeamId === teamId ? home : away,
-      crests: teamNamesOf(t.teams, person),
+      crests: look.names,
       game: game.name || `Game ${game.position}`,
     };
   }

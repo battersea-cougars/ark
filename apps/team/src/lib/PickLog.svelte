@@ -2,12 +2,13 @@
   // The choices (apps/team/worker/tournaments/README.md): every pick of a draft by round, and who chose for a captain
   // when it wasn't them; from Manage once the draft's open, a sheet on a phone, a drawer on a desktop. As a `column` (the
   // draft room on a wide screen), a line each, newest first, burning in as it lands.
+  import { teamsOf } from "./tournament-teams";
   import BurnReveal from "./BurnReveal.svelte";
   import { prefersReducedMotion } from "../app/motion";
   import type { Tournament } from "../demo/model";
   import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { nameOfPlayer, nameOfTeam, shortNameOf } from "./names";
+  import { nameOfPlayer, shortNameOf } from "./names";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
@@ -30,7 +31,7 @@
   } = $props();
 
   const byId = (id: number) => playerOf(id);
-  const teamName = (i: number) => nameOfTeam(t.teams[i], t.teams, (id) => (id ? byId(id) : undefined));
+  const teamName = (i: number) => teamsOf(t.teams).names[i];
   // A pick someone made for the captain (whoever runs the draft) says who
   const pickerOf = (p: { pickedBy?: number | null }, team: number) =>
     p.pickedBy && p.pickedBy !== t.teams[team]?.captainMemberId ? shortNameOf(byId(p.pickedBy)) || "An admin" : "";
