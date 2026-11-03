@@ -152,7 +152,12 @@ describe("a tournament's records and final", () => {
     pointsWin: 2,
     pointsDraw: 1,
     pointsLoss: 0,
-    games: [game("group", 1, 1, 2, 3, 1), game("group", 2, 2, 1, 2, 2), game("playoff", 4, 2, 1, 5, 0), game("playoff", 3, 1, 2, 1, 0)],
+    games: [
+      game("group", 1, 1, 2, 3, 1),
+      game("group", 2, 2, 1, 2, 2),
+      game("playoff", 4, 2, 1, 5, 0),
+      game("playoff", 3, 1, 2, 1, 0),
+    ],
   };
 
   it("a team's record counts the group games only, at the tournament's own points; a team not saved yet has none", () => {

@@ -105,7 +105,13 @@
 </section>
 
 <Drawer short bind:open={sheetOpen} title="Remove this passkey?">
-  <Confirm cancel="Keep it" confirm="Remove it" kind="danger" {busy} oncancel={() => (sheetOpen = false)} onconfirm={remove}
+  <Confirm
+    cancel="Keep it"
+    confirm="Remove it"
+    kind="danger"
+    {busy}
+    oncancel={() => (sheetOpen = false)}
+    onconfirm={remove}
     ><p>
       {removing?.name} won't sign you in any more. You stay signed in where you are; next time there, it's a code.
     </p></Confirm

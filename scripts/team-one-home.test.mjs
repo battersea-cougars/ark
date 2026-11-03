@@ -55,11 +55,12 @@ const RULES = [
   },
   {
     what: 'a first name by hand, `name.split(" ")[0]` (lib/names.ts shortName keeps a chosen name whole)',
-    pattern: /(?:(?<![.\w])name|(?<!form)\.name|nameOf\([^)]*\)|goesBy\w*\([^)]*\)|webName[^\n]*\))\.split\((?:" "|\/\\s\+\/)\)\[0\]/,
+    pattern:
+      /(?:(?<![.\w])name|(?<!form)\.name|nameOf\([^)]*\)|goesBy\w*\([^)]*\)|webName[^\n]*\))\.split\((?:" "|\/\\s\+\/)\)\[0\]/,
     home: "lib/names.ts",
   },
   {
-    what: "a Manage row of its own, `class=\"tool\"` (lib/ManageList: disabled, here, now, armed, notes)",
+    what: 'a Manage row of its own, `class="tool"` (lib/ManageList: disabled, here, now, armed, notes)',
     pattern: /class="tool[\s"]/,
     home: "lib/ManageList.svelte",
   },
@@ -76,7 +77,8 @@ const RULES = [
   },
   {
     what: "a red fill of its own for a button (app.css .btn.danger)",
-    pattern: /background: var\(--red\);\s*color: var\(--on-red\);\s*\}\s*[^{}]*:hover[^{]*\{\s*background: var\(--red-hot\)/,
+    pattern:
+      /background: var\(--red\);\s*color: var\(--on-red\);\s*\}\s*[^{}]*:hover[^{]*\{\s*background: var\(--red-hot\)/,
     home: "app.css",
   },
   {

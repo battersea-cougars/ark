@@ -54,7 +54,12 @@
   const members = $derived(
     db.members
       .filter((m) => m.status !== "pending")
-      .map((m) => ({ id: m.player.id, name: goesBy(m.player), short: shortName(m.player), position: m.player.position }))
+      .map((m) => ({
+        id: m.player.id,
+        name: goesBy(m.player),
+        short: shortName(m.player),
+        position: m.player.position,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name)),
   );
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
