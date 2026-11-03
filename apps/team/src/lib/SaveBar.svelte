@@ -54,7 +54,7 @@
   </p>
   {#if edits.asking}
     <button class="btn ghost" type="button" onclick={() => edits.keep()}>Keep editing</button>
-    <button class="btn discard" type="button" onclick={() => edits.discard()}>Discard</button>
+    <button class="btn danger" type="button" onclick={() => edits.discard()}>Discard</button>
   {:else}
     <button
       class="btn save"
@@ -115,13 +115,5 @@
     border-color: transparent;
     background: none;
     color: var(--fg-subtle);
-  }
-  /* The one red fill: the tap that throws the changes away */
-  .discard {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .discard:hover {
-    background: var(--red-hot);
   }
 </style>
