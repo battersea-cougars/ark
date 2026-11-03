@@ -34,6 +34,8 @@
 }
 
 :root {
+  /* Worn ink: the noise every stamp's print is masked by (lib/InkStamp, the Kumite invite, the award's seal) */
+  --ink-worn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   /* ─── Type ─── */
   --font: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: "Anton", Impact, sans-serif;
@@ -1486,6 +1488,24 @@ input[type="checkbox"] {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+/* A menu or pop-over dropping open (lib/Select, PersonPicker, DateField) */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+/* A layer over the page coming and going (a card turning over, its shade) */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
   }
 }
 

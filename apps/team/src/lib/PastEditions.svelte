@@ -2,12 +2,11 @@
   // A series' past ones (apps/team/worker/tournaments/README.md), newest first, each with how it ended, opening its own
   // page (lib/edition-address.ts). On History and the series' front page, read a page at a time (app/history.svelte.ts);
   // tonight's is still on at its after-party, so it isn't here.
-  import { nameOfTeam } from "./names";
-  import { PLAYERS } from "../demo/data";
+  import { teamsOf } from "./tournament-teams";
   import type { TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { atAfters, editionWhen } from "./edition";
+  import { atAfters, editionWhen, wonTheFinal } from "./edition";
   import { teamTone } from "./team-tones";
   import { editionPath } from "./edition-address";
   import { pastList, type EditionSummary } from "../app/history.svelte";
@@ -31,18 +30,11 @@
     }),
   );
 
-  const nameOf = (t: EditionSummary, id: number | null) => {
-    const team = t.teams.find((x) => x.id === id);
-    return nameOfTeam(team, t.teams, (id) => PLAYERS.find((p) => p.id === id));
-  };
+  const nameOf = (t: EditionSummary, id: number | null) => teamsOf(t.teams).nameOf(id);
   // How it ended, in a line: the final, else the top of the table
   const summary = (t: EditionSummary) => {
     const f = t.final;
-    if (t.champion && f) {
-      const home = f.homeTeamId === t.champion;
-      const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
-      return `Beat ${nameOf(t, home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
-    }
+    if (t.champion && f) return wonTheFinal(f, t.champion, (id) => nameOf(t, id));
     return t.champion ? "Top of the table" : `${t.games} matches`;
   };
 </script>

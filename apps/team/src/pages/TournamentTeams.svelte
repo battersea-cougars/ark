@@ -3,18 +3,18 @@
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.
+  import { teamsOf } from "../lib/tournament-teams";
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { nameOfTeam, teamNamesOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { typeById } from "../demo/schedule.svelte";
   import type { Tournament } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import TeamRecord from "../lib/TeamRecord.svelte";
-  import { table } from "../lib/fixtures";
-  import { teamHref, teamTone } from "../lib/team-tones";
+  import { recordsOf, type TableRow } from "../lib/fixtures";
+  import { teamHref } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
   import { can } from "../access/actions";
@@ -26,31 +26,19 @@
 
   const type = $derived(typeById(typeId)!);
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
+  const look = $derived(teamsOf(teams));
   const isMine = (i: number) =>
     teams[i].captainMemberId === me().id || teams[i].players.some((p) => p.memberId === me().id);
   // Yours first
   const order = $derived(teams.map((_, i) => i).sort((a, b) => Number(isMine(b)) - Number(isMine(a))));
   // The record from the group games with a result: won, drawn, lost (in words), and points
-  const records = $derived(
-    tournament
-      ? new Map(
-          table(
-            teams.flatMap((t) => (t.id ? [t.id] : [])),
-            (tournament.games ?? []).filter((g) => g.stage === "group"),
-            { win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss },
-          ).map((r) => [r.teamId, r]),
-        )
-      : new Map(),
-  );
+  const records = $derived(tournament ? recordsOf(tournament) : new Map<number, TableRow>());
   const admin = $derived(can(granted(), "manage:Tournament"));
   const draftNight = $derived(tournament?.draftOn ? formatDayDate(londonISO(tournament.draftOn, "12:00")) : null);
   const played = $derived((tournament?.games ?? []).some((g) => g.homeGoals !== null));
   // A team's squad, its captain first then the players in the order they were picked (the pick quietly beside them);
   // someone who's left keeps their place (lib/team-roster.ts)
-  const squadOf = (i: number) => rosterOf(teams[i], (id) => PLAYERS.find((p) => p.id === id));
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const squadOf = (i: number) => rosterOf(teams[i], playerOf);
 </script>
 
 <div class="teams-view">
@@ -80,9 +68,9 @@
       {@const r = t.id ? records.get(t.id) : undefined}
       <a class="list team-card" class:mine={isMine(i)} href={t.id ? teamHref(type.slug, t.id) : undefined}>
         <span class="head">
-          <TeamCrest among={crestNames} name={teamName(i)} logo={t.logo} tone={teamTone(i)} size="3rem" />
+          <TeamCrest {...look.crestOf(t.id)} size="3rem" />
           <span class="grow">
-            <span class="name display">{teamName(i)}</span>
+            <span class="name display">{look.names[i]}</span>
             <span class="sub"
               >{#if isMine(i)}<strong class="yours">Your team</strong> ·
               {/if}{squad.length}

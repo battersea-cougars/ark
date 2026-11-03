@@ -1,15 +1,16 @@
 <script lang="ts">
+  import { teamsOf } from "../lib/tournament-teams";
   import { waitingFor } from "../app/editions.svelte";
   // A team in a tournament: its crest and name, the squad, and its games. Every team has one, reached from wherever
   // the team's shown, with a way back to them all; yours is also My team (no teamId: the one you're on). Its captain
   // (or an admin) edits its name and logo behind Edit, in a sheet (no name: "Team Dan", after them; no logo: the
   // initials). A draft's players only show once it's closed, to anyone outside it (apps/team/worker/tournaments/README.md).
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesByOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -49,11 +50,12 @@
       !can(granted(), "manage:Tournament"),
   );
   const team = $derived(index >= 0 ? teams[index] : undefined);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   // Its squad, captain first: someone who's left keeps their place (lib/team-roster.ts)
   const squad = $derived(team ? rosterOf(team, byId) : []);
   const captain = $derived(squad.find((r) => r.captain));
-  const fallback = $derived(team ? nameOfTeam({ ...team, name: "" }, teams, byId) : "");
+  const look = $derived(teamsOf(teams));
+  const fallback = $derived(team ? look.unnamed(team) : "");
   const isCaptain = $derived(!!team && team.captainMemberId === me().id);
   // An admin edits any team here: its name and logo as its captain does, and who's on it (TeamDrawer, apps/team/worker/tournaments/README.md)
   const admin = $derived(can(granted(), "manage:Tournament"));
@@ -64,8 +66,6 @@
   );
 
   let lookOpen = $state(false);
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <div class="page">
@@ -86,7 +86,7 @@
   {:else}
     <section class="hero">
       <TeamCrest
-        among={crestNames}
+        among={look.names}
         name={team.name || fallback}
         logo={team.logo}
         tone={teamTone(index)}

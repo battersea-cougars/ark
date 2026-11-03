@@ -8,6 +8,7 @@ import { code, email, localHere, mailConfig, mailSetup, sha256 } from "../auth/a
 import { moveEmailCodeEmail, newEmailCodeEmail } from "../auth/auth.email";
 import { endSessions } from "../auth/auth.sessions";
 import { scribe } from "@cougars/shared/scribe";
+import { shortName } from "../../src/lib/names";
 
 const log = scribe.logger("members");
 
@@ -144,9 +145,9 @@ export async function confirmEmailChange(c: Ctx): Promise<Response> {
   ]);
   if (spent.meta.changes !== 1) throw new HttpError(400, "That code's been used. Ask for a new one.");
 
-  const was = await first<{ name: string; email: string | null }>(
+  const was = await first<{ name: string; webName: string | null; email: string | null }>(
     c.env.DB,
-    "SELECT name, email FROM members WHERE id = ?",
+    "SELECT name, web_name webName, email FROM members WHERE id = ?",
     [c.memberId],
   );
   // Someone else may have been given it since the code went
@@ -164,7 +165,7 @@ export async function confirmEmailChange(c: Ctx): Promise<Response> {
         to: [was.email],
         subject: "Your Cougars sign-in email has changed",
         text: [
-          `Hi ${was.name.split(" ")[0]},`,
+          `Hi ${shortName(was)},`,
           "",
           `You now sign in to the Cougars app with ${live.email}, not this address.`,
           "",

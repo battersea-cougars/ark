@@ -80,9 +80,9 @@
     background: #ffb347;
     box-shadow: 0 0 6px 1px #ff7a18;
     opacity: 0;
-    animation: rise 0.7s var(--d) ease-out both;
+    animation: ember-rise 0.7s var(--d) ease-out both;
   }
-  @keyframes rise {
+  @keyframes ember-rise {
     0% {
       opacity: 0;
       transform: translate(0, 0) scale(1);

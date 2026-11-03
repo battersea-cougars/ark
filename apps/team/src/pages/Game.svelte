@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { teamsOf } from "../lib/tournament-teams";
   import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
   // One game, full screen (apps/team/worker/tournaments/README.md): the live scoreboard for everyone, and for the one
   // person keeping score the scoresheet: goals, penalties, the clock, and Full time's review that seals the result.
-  import { goesBy, nameOfMember, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, nameOfMember } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { onDestroy, untrack } from "svelte";
@@ -13,12 +14,13 @@
   import BackBar from "../app/shell/BackBar.svelte";
   import Drawer from "../lib/Drawer.svelte";
   import Sheet from "../lib/Sheet.svelte";
-  import ManageList, { type ManageItem } from "../lib/ManageList.svelte";
-  import { phone } from "../lib/viewport.svelte";
+  import ManageList, { type ManageItem, type ManageNote } from "../lib/ManageList.svelte";
+  import ManageMenu from "../lib/ManageMenu.svelte";
+  import Confirm from "../lib/Confirm.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
   import SealResult from "../lib/SealResult.svelte";
-  import { PLAYERS, type Player } from "../demo/data";
+  import { type Player, playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { goBack, navigate, router } from "../app/router.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -45,7 +47,7 @@
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { inGameTime, periodName } from "../lib/periods";
-  import { teamHref, teamTone } from "../lib/team-tones";
+  import { teamHref } from "../lib/team-tones";
   import {
     INFRACTIONS,
     infractionOf,
@@ -69,20 +71,16 @@
   );
   const teams = $derived(tournament?.teams ?? []);
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-  const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
-  const teamName = (teamId: number | null) => {
-    const t = teams[indexOf(teamId)];
-    return nameOfTeam(t, teams, byId);
-  };
+  const byId = (id: number | null) => playerOf(id);
+  const look = $derived(teamsOf(teams));
   // Who can be picked for a goal or a penalty: the members on it the app holds
   const roster = (teamId: number): Player[] => {
-    const t = teams[indexOf(teamId)];
+    const t = look.team(teamId);
     return t ? [t.captainMemberId, ...t.players.map((p) => p.memberId)].flatMap((id) => byId(id) ?? []) : [];
   };
   // The teams as shown: anyone who's left kept in their place (lib/team-roster.ts)
   const squad = (teamId: number) => {
-    const t = teams[indexOf(teamId)];
+    const t = look.team(teamId);
     return t ? rosterOf(t, byId) : [];
   };
   const sides = $derived(game ? ([game.homeTeamId, game.awayTeamId] as (number | null)[]) : []);
@@ -210,10 +208,6 @@
       },
     ];
   });
-  function manage(run: () => void) {
-    manageOpen = false;
-    run();
-  }
   function override() {
     const action = asking;
     asking = null;
@@ -294,6 +288,69 @@
     toolsOpen = false;
     what();
   };
+  // The scorekeeper's tools, behind the whistle in the bar: what can be taken back, ended or handed over
+  const keeperItems = $derived.by(() => {
+    if (!tournament || !game) return [];
+    const t = tournament;
+    const g = game;
+    const items: (ManageItem | ManageNote)[] = [
+      { note: "Only you can run the clock and log goals and penalties, until you hand it over." },
+    ];
+    if (g.status === "live") {
+      items.push(
+        {
+          icon: "undo",
+          label: "Take back the last goal",
+          sub: lastGoal
+            ? `${nameOfMember(lastGoal.scorerId, byId) || look.nameOf(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
+            : "No goals yet",
+          disabled: busy || !lastGoal,
+          now: true,
+          run: () => lastGoal && act(() => undoGoal(t.id, g.id, lastGoal.id)),
+        },
+        {
+          icon: "undo",
+          label: "Take back the last penalty",
+          sub: lastPenalty
+            ? `${penaltyLine(lastPenalty, (id) => who(id))} · PIM ${lastPenalty.minutes} · ${lastPenalty.atMs === null ? "–" : mmss(lastPenalty.atMs)}`
+            : "No penalties yet",
+          disabled: busy || !lastPenalty,
+          now: true,
+          run: () => lastPenalty && act(() => undoPenalty(t.id, g.id, lastPenalty.id)),
+        },
+      );
+      if (!lastPeriod)
+        items.push({
+          icon: "whistle",
+          label: `End the ${periodName(period)} period`,
+          sub: `The ${periodName(period + 1)} starts paused, the clock back to ${mmss(full)}.`,
+          disabled: busy,
+          now: true,
+          run: endPeriod,
+        });
+      // Full time closes the tools itself, as it opens the review
+      items.push({
+        icon: "whistle",
+        label: "Full time now",
+        sub: level
+          ? "Not while it's level: a playoff needs a winner."
+          : "Stops the clock to look it over, then seal the result.",
+        disabled: busy || level,
+        now: true,
+        stays: true,
+        run: end,
+      });
+    }
+    items.push({
+      icon: "signOut",
+      label: "Hand over",
+      sub: "Someone else can take it on from where you are.",
+      disabled: busy,
+      now: true,
+      run: letGo,
+    });
+    return items;
+  });
 
   // Set the time: by the scorekeeper's watch (the game started late on the app, or the ref says so). Paused, it stays
   // paused; running, it runs on from the time set
@@ -458,8 +515,6 @@
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
   const scoreOf = (i: number) => (i === 0 ? game?.homeGoals : game?.awayGoals) ?? 0;
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 <BackBar
@@ -556,7 +611,7 @@
           <span class="hint" class:lost={lost && !lost.to}
             >{lost && !lost.to
               ? "An admin freed your scoresheet. Keep score to take it back"
-              : `Nobody's keeping score${game.scoringTeamId ? ` · ${teamName(game.scoringTeamId)}'s turn` : ""}`}</span
+              : `Nobody's keeping score${game.scoringTeamId ? ` · ${look.nameOf(game.scoringTeamId)}'s turn` : ""}`}</span
           >
           <button class="btn outline sm" disabled={busy} onclick={take}
             ><Icon name="whistle" size={16} />Keep score</button
@@ -598,20 +653,14 @@
       {#each sides as teamId, i (i)}
         <div class="side" class:away={i === 1}>
           {#if teamId}
-            <TeamCrest
-              among={crestNames}
-              name={teamName(teamId)}
-              logo={teams[indexOf(teamId)]?.logo ?? null}
-              tone={teamTone(indexOf(teamId))}
-              size="6rem"
-            />
+            <TeamCrest {...look.crestOf(teamId)} size="6rem" />
           {/if}
-          <span class="display name">{teamName(teamId)}</span>
+          <span class="display name">{look.nameOf(teamId)}</span>
           <span class="display goals num"><RollNumber value={scoreOf(i)} /></span>
           {#if game.status === "live"}
             <!-- The penalty clock: who's in the box and the time left, counting down with the game clock. Two lines'
                  room kept whether or not anyone's in, so nothing moves when a penalty's called or served -->
-            <ul class="box" aria-label="{teamName(teamId)}'s penalties">
+            <ul class="box" aria-label="{look.nameOf(teamId)}'s penalties">
               {#each boxOf(teamId).slice(0, 2) as b (b.penalty.id)}
                 <!-- One waiting for the player's last to end: its whole length, "then 2:00" -->
                 <li class:waiting={b.waiting}>
@@ -666,14 +715,8 @@
           <div class="squad">
             {#if teamId}
               <a class="squad-head" href={teamHref(type.slug, teamId)}>
-                <TeamCrest
-                  among={crestNames}
-                  name={teamName(teamId)}
-                  logo={teams[indexOf(teamId)]?.logo ?? null}
-                  tone={teamTone(indexOf(teamId))}
-                  size="2.25rem"
-                />
-                <span class="squad-name">{teamName(teamId)}</span>
+                <TeamCrest {...look.crestOf(teamId)} size="2.25rem" />
+                <span class="squad-name">{look.nameOf(teamId)}</span>
               </a>
               <ol class="squad-list">
                 <!-- Someone who's left stays in their place on a past game's roster, by "Someone who's left" -->
@@ -724,68 +767,7 @@
 
   <!-- The tools: big rows, one tap each (full time opens its review), each done right here. Up from the bottom on a phone,
        a side drawer on a desktop (ADR 0065) -->
-  {#snippet toolList()}
-    <div class="tools">
-      <p class="hint tools-note">Only you can run the clock and log goals and penalties, until you hand it over.</p>
-      {#if game.status === "live"}
-        <button
-          class="tool"
-          disabled={busy || !lastGoal}
-          onclick={() => lastGoal && tool(() => act(() => undoGoal(tournament.id, game.id, lastGoal.id)))}
-        >
-          <Icon name="undo" size={22} />
-          <span class="tool-text"
-            ><strong>Take back the last goal</strong><span
-              >{lastGoal
-                ? `${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
-                : "No goals yet"}</span
-            ></span
-          >
-        </button>
-        <button
-          class="tool"
-          disabled={busy || !lastPenalty}
-          onclick={() => lastPenalty && tool(() => act(() => undoPenalty(tournament.id, game.id, lastPenalty.id)))}
-        >
-          <Icon name="undo" size={22} />
-          <span class="tool-text"
-            ><strong>Take back the last penalty</strong><span
-              >{lastPenalty
-                ? `${penaltyLine(lastPenalty, (id) => who(id))} · PIM ${lastPenalty.minutes} · ${lastPenalty.atMs === null ? "–" : mmss(lastPenalty.atMs)}`
-                : "No penalties yet"}</span
-            ></span
-          >
-        </button>
-        {#if !lastPeriod}
-          <button class="tool" disabled={busy} onclick={() => tool(endPeriod)}>
-            <Icon name="whistle" size={22} />
-            <span class="tool-text"
-              ><strong>End the {periodName(period)} period</strong><span
-                >The {periodName(period + 1)} starts paused, the clock back to {mmss(full)}.</span
-              ></span
-            >
-          </button>
-        {/if}
-        <button class="tool" disabled={busy || level} onclick={end}>
-          <Icon name="whistle" size={22} />
-          <span class="tool-text"
-            ><strong>Full time now</strong><span
-              >{level
-                ? "Not while it's level: a playoff needs a winner."
-                : "Stops the clock to look it over, then seal the result."}</span
-            ></span
-          >
-        </button>
-      {/if}
-      <button class="tool" disabled={busy} onclick={() => tool(letGo)}>
-        <Icon name="signOut" size={22} />
-        <span class="tool-text"
-          ><strong>Hand over</strong><span>Someone else can take it on from where you are.</span></span
-        >
-      </button>
-    </div>
-  {/snippet}
-  <Drawer bind:open={toolsOpen} short title="You're keeping score">{@render toolList()}</Drawer>
+  <Drawer bind:open={toolsOpen} short title="You're keeping score"><ManageList items={keeperItems} go={tool} /></Drawer>
 
   <!-- Full time's review: look it over, put a mistake right, then seal the result -->
   {#if keeper || reviewing}
@@ -802,36 +784,31 @@
     />
   {/if}
 
-  <!-- An admin's Manage: a sheet on a phone, a side drawer on a desktop (ADR 0065) -->
-  {#snippet manageList()}<ManageList items={manageItems} go={manage} />{/snippet}
-  {#if phone.current}
-    <Sheet bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}">{@render manageList()}</Sheet
-    >
-  {:else}
-    <Drawer bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}"
-      >{@render manageList()}</Drawer
-    >
-  {/if}
+  <!-- An admin's Manage (ADR 0065) -->
+  <ManageMenu bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}" items={manageItems} />
 
   <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0009) -->
-  <Sheet
+  <Drawer
+    short
     bind:open={() => !!asking, (v) => !v && (asking = null)}
     title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
   >
-    <p class="ask">
-      {#if asking === "free"}
-        {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
-      {:else}
-        {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
-      {/if}
-    </p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (asking = null)}>Leave it</button>
-      <button class="btn yes" type="button" disabled={busy} onclick={override}
-        >{asking === "free" ? "Free it" : "Take over"}</button
-      >
-    {/snippet}
-  </Sheet>
+    <Confirm
+      cancel="Leave it"
+      confirm={asking === "free" ? "Free it" : "Take over"}
+      kind="danger"
+      {busy}
+      oncancel={() => (asking = null)}
+      onconfirm={override}
+      ><p>
+        {#if asking === "free"}
+          {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
+        {:else}
+          {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
+        {/if}
+      </p></Confirm
+    >
+  </Drawer>
 
   <!-- Set the score, in a sheet (a short form, ADR 0065): each side's goals, up and down -->
   <Sheet bind:open={scoring} title="Set the score">
@@ -840,14 +817,8 @@
       {#each sides as teamId, i (i)}
         {#if teamId}
           <div class="score-side">
-            <TeamCrest
-              among={crestNames}
-              name={teamName(teamId)}
-              logo={teams[indexOf(teamId)]?.logo ?? null}
-              tone={teamTone(indexOf(teamId))}
-              size="3.5rem"
-            />
-            <span class="score-name">{teamName(teamId)}</span>
+            <TeamCrest {...look.crestOf(teamId)} size="3.5rem" />
+            <span class="score-name">{look.nameOf(teamId)}</span>
             <div class="stepper">
               <button
                 class="btn outline step"
@@ -914,7 +885,7 @@
     bind:open={() => !!picking, (v) => !v && (picking = null)}
     title={picking?.scorer === undefined ? "Who scored?" : picking?.assist === undefined ? "Who assisted?" : "When?"}
     sub={picking
-      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
+      ? `Goal ${look.nameOf(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
       : undefined}
   >
     {#if picking && picking.scorer !== undefined && picking.assist !== undefined}
@@ -978,7 +949,7 @@
   <Drawer
     bind:open={() => !!calling, (v) => !v && (calling = null)}
     title="Penalty"
-    sub={calling ? `${teamName(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
+    sub={calling ? `${look.nameOf(calling.team)}${calling.memberId ? ` · ${who(calling.memberId)}` : ""}` : undefined}
   >
     {#if calling}
       {@const rule = infractionOf(calling.infraction)}
@@ -1275,19 +1246,6 @@
   .keep-line .lost {
     color: var(--red-hot);
   }
-  .ask {
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.5;
-  }
-  /* The armed "are you sure": the one red fill (ADR 0009) */
-  .yes {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .yes:hover:not(:disabled) {
-    background: var(--red-hot);
-  }
   .rec {
     width: 0.5rem;
     height: 0.5rem;
@@ -1514,37 +1472,6 @@
     font-size: var(--text-sm);
     text-align: center;
   }
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.5rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    text-align: left;
-  }
-  .tool:disabled {
-    opacity: 0.5;
-  }
-  .tool-text {
-    display: grid;
-    gap: 0.15rem;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
-  }
   /* Scoring, in the bar: says this phone's the scoresheet, and opens its tools */
   .keeping {
     gap: var(--s-1);
@@ -1555,9 +1482,6 @@
     .keeping :global(svg) {
       display: none;
     }
-  }
-  .tools-note {
-    margin: 0 0 var(--s-2);
   }
   .let-go {
     width: 100%;

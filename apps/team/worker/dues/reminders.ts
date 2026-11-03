@@ -10,6 +10,7 @@ import { bankFrom, type Bank, type SettingsRow } from "../settings/settings";
 import { tell, type Message } from "../tell/tell";
 import { reminderMail, reminderNotice, type Letter, type Owed } from "./reminders.letter";
 import { scribe } from "@cougars/shared/scribe";
+import { shortName } from "../../src/lib/names";
 
 const log = scribe.logger("reminders");
 
@@ -172,7 +173,7 @@ function lettersFrom(rows: Omit<Queued, "id">[], bank: Bank, now: Date, preview 
     const charges = (JSON.parse(r.charges) as Owed[]).sort((a, b) => a.dueOn.localeCompare(b.dueOn));
     if (!charges.length || (!r.email && !preview) || r.status !== "active") continue;
     const letter: Letter = {
-      firstName: (r.webName?.trim() || r.name).split(/\s+/)[0],
+      firstName: shortName(r),
       reference: r.reference ?? "COUGARS",
       charges,
       bank,

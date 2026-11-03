@@ -2,15 +2,14 @@
   // A tournament's table (apps/team/worker/tournaments/README.md): its group games with a result, points, then goal difference, then goals for, with
   // its own points for a win, draw and loss; the champions marked once it's decided. On the board, on a past one's
   // page (History), and at the after-party in its final order.
-  import { nameOfTeam, teamNamesOf } from "./names";
-  import { PLAYERS } from "../demo/data";
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
-  import { teamHref, teamTone } from "./team-tones";
+  import { teamHref } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import InkStamp from "./InkStamp.svelte";
   import { kanjiFor } from "./motif";
-  import { champion, table, type TableRow } from "./fixtures";
+  import { championOf, groupTableOf, type TableRow } from "./fixtures";
 
   let {
     type,
@@ -24,31 +23,11 @@
   } = $props();
 
   // This tournament's own points (apps/team/worker/training/README.md)
-  const points = $derived({ win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss });
   const teams = $derived(tournament.teams);
-  const group = $derived((tournament.games ?? []).filter((g) => g.stage === "group"));
-  const rows = $derived(
-    order ??
-      table(
-        teams.flatMap((t) => (t.id ? [t.id] : [])),
-        group,
-        points,
-      ),
-  );
+  const look = $derived(teamsOf(teams));
+  const rows = $derived(order ?? groupTableOf(tournament));
   // Who won, once it's decided: the final's winner, else the top of the table (lib/fixtures.ts)
-  const champ = $derived(
-    champion(
-      teams.flatMap((t) => (t.id ? [t.id] : [])),
-      tournament.games ?? [],
-      points,
-    ),
-  );
-  const teamName = (id: number) => {
-    const t = teams.find((x) => x.id === id);
-    return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));
-  };
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const champ = $derived(championOf(tournament));
 </script>
 
 <!-- A row a team: the whole row is the way to it (its name the link, its hit area the row), the chevron at the row's
@@ -69,13 +48,9 @@
         <tr class:top={i === 0 && r.p > 0} class:champ={r.teamId === champ}>
           <td class="l"
             ><span class="team"
-              ><span class="pos">{i + 1}</span><TeamCrest
-                among={crestNames}
-                name={teamName(r.teamId)}
-                logo={teams.find((t) => t.id === r.teamId)?.logo ?? null}
-                tone={teamTone(teams.findIndex((t) => t.id === r.teamId))}
-                size="2.75rem"
-              /><a class="team-link" href={teamHref(type.slug, r.teamId)}>{teamName(r.teamId)}</a
+              ><span class="pos">{i + 1}</span><TeamCrest {...look.crestOf(r.teamId)} size="2.75rem" /><a
+                class="team-link"
+                href={teamHref(type.slug, r.teamId)}>{look.nameOf(r.teamId)}</a
               >{#if r.teamId === champ}<span class="champ-badge" title="{type.shortName} Champions"
                   ><InkStamp
                     size="card"

@@ -3,7 +3,7 @@
   // a numbered line each, then who's waiting and who's out; a row turns the player's card over (PlayerCardZoom). The
   // Kumite's by invitation (lib/motif.ts invitationOnly): The fighters with their numbers, Reserves and Declined.
   import PositionIcon from "./PositionIcon.svelte";
-  import { PLAYERS, type Player } from "../demo/data";
+  import { type Player, playerOf } from "../demo/data";
   import type { Tournament } from "../demo/model";
   import { granted, me } from "../demo/session.svelte";
   import { can } from "../access/actions";
@@ -28,7 +28,7 @@
       ? { going: "Who's in", waiting: "Reserves", out: "Declined" }
       : { going: "Who's in", waiting: "Waiting", out: "Out" },
   );
-  const byId = (id: number) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number) => playerOf(id);
   const people = (ids: readonly number[]) => ids.flatMap((id) => byId(id) ?? []);
   const captains = $derived(new Set(t.teams.flatMap((x) => x.captainMemberId ?? [])));
   const going = $derived(people(t.going));

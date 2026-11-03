@@ -2,6 +2,7 @@
   // The draft room (apps/team/worker/tournaments/README.md): the draft (Draft), full screen, for its captains and
   // whoever runs it while it's open, under a slim bar instead of the app's rail, dock and tabs. It shows you out to the
   // page once the draft closes or steps back, or if it isn't yours.
+  import { teamsOf } from "../lib/tournament-teams";
   import { onDestroy, untrack } from "svelte";
   import Draft from "./Draft.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -9,7 +10,7 @@
   import LiveNote from "../lib/LiveNote.svelte";
   import { kanjiFor } from "../lib/motif";
   import { liveFeed } from "../lib/live-updates.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesByOf } from "../lib/names";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamTone } from "../lib/team-tones";
   import { draftJobsOf } from "../lib/draft-jobs";
@@ -23,7 +24,7 @@
   import { canEnterRoom, canFullScreen, leaveFullScreen, roomTurn, toggleFullScreen } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { editionPath } from "../lib/edition-address";
   import { goBack, navigate } from "../app/router.svelte";
@@ -36,8 +37,9 @@
   const base = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const inRoom = $derived(canEnterRoom(tournament, me().id, can(granted(), "run:Draft")));
   const teams = $derived(tournament?.teams ?? []);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-  const nameOf = (i: number) => nameOfTeam(teams[i], teams, byId);
+  const byId = (id: number | null) => playerOf(id);
+  const look = $derived(teamsOf(teams));
+  const nameOf = (i: number) => look.names[i];
   const dataTurn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
   // The team the light's on, as the draft's timeline shows it (lib/draft-sequence.ts): the bar changes with the light,
   // after the glide, not when the data does
@@ -80,8 +82,6 @@
     fit();
     return { update: () => requestAnimationFrame(fit), destroy: () => ro.disconnect() };
   }
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
   const seal = $derived(kanjiFor(type, "fist"));
   const choose = $derived(kanjiFor(type, "choose"));
 
@@ -97,7 +97,7 @@
     const jobs: ManageItem[] = draftJobsOf(
       t,
       { runs, adds },
-      { player: (id, name) => goesByOf(byId(id)) || name || "", team: (i) => nameOfTeam(t.teams[i], t.teams, byId) },
+      { player: (id, name) => goesByOf(byId(id)) || name || "", team: (i) => teamsOf(t.teams).names[i] },
     ).map((j) => ({ ...j, run: () => drafter?.run(j.job) }));
     const from = backFrom(t, londonToday());
     const admin = can(granted(), "manage:Tournament");
@@ -180,7 +180,7 @@
             {#if choose}<Kanji text={choose} seal />{:else}<Icon name="user" size={20} />{/if}
           {:else}
             <TeamCrest
-              among={crestNames}
+              among={look.names}
               name={nameOf(turn.team)}
               logo={teams[turn.team].logo}
               tone={teamTone(turn.team)}
@@ -391,11 +391,6 @@
     line-height: 1rem;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  @keyframes pulse {
-    50% {
-      opacity: 0.35;
-    }
   }
   .keys {
     display: flex;

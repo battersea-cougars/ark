@@ -1,6 +1,6 @@
 // A series' editions, read when they're wanted (apps/team/worker/tournaments/README.md): opening the app sends only
 // the ones its pages show at once (api.club.ts SHOWN_TOURNAMENTS); the rest are read here.
-import { champion } from "@cougars/shared/results";
+import { champion, finalOf } from "@cougars/shared/results";
 import { DONE, LOGO_SENT, LOGO_VERSION, readClub, rows } from "../api/api.club";
 import { HttpError } from "../api/api.http";
 import { type Ctx } from "../api/api.route";
@@ -130,8 +130,7 @@ function summaryOf(e: EditionRow, allTeams: TeamRow[], allGames: GameRow[]) {
   const { pointsWin, pointsDraw, pointsLoss, ...fields } = e;
   const teams = allTeams.filter((t) => t.tournamentId === e.id);
   const games = allGames.filter((g) => g.tournamentId === e.id);
-  const playoffs = games.filter((g) => g.stage === "playoff");
-  const final = playoffs.length ? playoffs.reduce((a, b) => (b.position > a.position ? b : a)) : null;
+  const final = finalOf(games) ?? null;
   return {
     ...fields,
     teams: teams.map((t) => ({

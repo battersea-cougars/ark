@@ -4,7 +4,8 @@
   // you're signed out everywhere and the app goes back to its sign-in screen.
   import { api } from "../app/api";
   import Icon from "../app/shell/Icon.svelte";
-  import Sheet from "./Sheet.svelte";
+  import Drawer from "./Drawer.svelte";
+  import Confirm from "./Confirm.svelte";
 
   import type { Snippet } from "svelte";
 
@@ -60,8 +61,15 @@
   </div>
 </section>
 
-<Sheet bind:open={asking} title="Delete your account?">
-  <div class="ask">
+<Drawer short bind:open={asking} title="Delete your account?">
+  <Confirm
+    cancel="Keep my account"
+    confirm="Delete my account"
+    kind="danger"
+    {busy}
+    oncancel={() => (asking = false)}
+    onconfirm={remove}
+  >
     <p>
       Your name, email, phone, bio and roles go now, and you're signed out on every device. You can't sign in again with
       this email; to come back, ask an admin to add you.
@@ -71,12 +79,8 @@
       in its accounts. Places you'd taken for what's still to come are given up.
     </p>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-  </div>
-  {#snippet footer()}
-    <button class="btn ghost" type="button" onclick={() => (asking = false)}>Keep my account</button>
-    <button class="btn danger" type="button" disabled={busy} onclick={remove}>Delete my account</button>
-  {/snippet}
-</Sheet>
+  </Confirm>
+</Drawer>
 
 <style>
   .data {
@@ -96,13 +100,6 @@
   .row:disabled {
     cursor: default;
     opacity: 0.55;
-  }
-  .ask {
-    display: grid;
-    gap: var(--s-3);
-  }
-  .ask p {
-    margin: 0;
   }
   .error {
     color: var(--red-hot);

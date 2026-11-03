@@ -1,4 +1,4 @@
-import { PLAYERS } from "../demo/data";
+import { playerOf } from "../demo/data";
 
 // A training's places (apps/team/worker/training/README.md): the skaters' limit, and the keepers' own if the series
 // sets any, so who's in, waits and moves up is counted a side at a time. The server decides (worker/entries); the app
@@ -11,7 +11,7 @@ export interface Limits {
 }
 
 /** Whether someone keeps goal (their places counted apart). */
-export const keeps = (id: number) => PLAYERS.find((p) => p.id === id)?.position === "G";
+export const keeps = (id: number) => playerOf(id)?.position === "G";
 
 /** The places that count for a keeper or a skater; null: no limit. */
 export const limitFor = (keeper: boolean, l: Limits) => (keeper ? l.goalieCapacity : l.capacity) ?? null;

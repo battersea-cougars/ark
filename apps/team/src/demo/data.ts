@@ -35,6 +35,9 @@ export interface Player {
 /** Everyone in the club. Filled by hydrate(). */
 export const PLAYERS: Player[] = [];
 
+/** A member by their id, if the app holds them (someone who's left, or nobody, isn't). */
+export const playerOf = (id: number | null | undefined) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+
 /** Who you really are (the signed-in member). */
 export let REAL_ID = 0;
 /** Dev tools are here (outside production, for whoever sets the club's settings; ADR 0027). */

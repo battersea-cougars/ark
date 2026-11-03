@@ -3,7 +3,7 @@
   // confirmed: a card that opens the ballot (lib/VoteSheet), for everyone who played. At the after-party the vote is on
   // the awards' own card (lib/AwardsEntry) instead.
   import Icon from "../app/shell/Icon.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
   import { me } from "../demo/session.svelte";
   import DraftStep from "./DraftStep.svelte";
@@ -12,7 +12,7 @@
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 
-  const positionOf = (id: number) => PLAYERS.find((p) => p.id === id)?.position;
+  const positionOf = (id: number) => playerOf(id)?.position;
   const ballot = $derived(ballotOf(tournament, me().id, { positionOf }));
   const left = $derived(ballot.filter((b) => b.mine === null));
   let open = $state(false);

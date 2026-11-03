@@ -2,14 +2,15 @@
   // The top of every tournament page: the type, the page and the edition it shows (its day, season, hours, place and
   // where it stands, lib/edition.ts). On the front page, an admin's Manage menu (ADR 0065); with nothing on, Next Kumite
   // is the front page's own button (apps/team/worker/tournaments/README.md).
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
   import TeamLookSheet from "./TeamLookSheet.svelte";
   import PickLog from "./PickLog.svelte";
   import AnswerMenu from "./AnswerMenu.svelte";
-  import { goesByOf, nameOfTeam } from "./names";
-  import { PLAYERS } from "../demo/data";
+  import { goesByOf } from "./names";
+  import { playerOf } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
   import { editTournament } from "./tournament-panel.svelte";
@@ -208,7 +209,7 @@
   // rink), a side drawer on a desktop. The next one isn't here: it's the front page's own button once nothing's on
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (apps/team/worker/tournaments/README.md)
   let recorder = $state<ReturnType<typeof PastKumiteRecord>>();
   let pastDay = $state<ReturnType<typeof PastDayPlay>>();
@@ -224,7 +225,7 @@
           londonToday(),
           {
             player: (id, name) => goesByOf(byId(id)) || name || "",
-            team: (i) => nameOfTeam(t.teams[i], t.teams, byId),
+            team: (i) => teamsOf(t.teams).names[i],
           },
         );
     const RUN: Record<ManageKey, (e: ManageEntry) => void> = {
@@ -460,13 +461,9 @@
   </div>
 {/snippet}
 {#if tournament && track}
-  {#if phone.current}
-    <Sheet bind:open={rulesOpen} title="Rules" top={topicTabs} footer={topicSteps} tall>{@render rulesList()}</Sheet>
-  {:else}
-    <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
-      >{@render rulesList()}</Drawer
-    >
-  {/if}
+  <Drawer bind:open={rulesOpen} title="Rules" sub={tournament.name} top={topicTabs} footer={topicSteps}
+    >{@render rulesList()}</Drawer
+  >
 {/if}
 
 {#if tournament && myTeam?.id}
@@ -475,9 +472,7 @@
     teamId={myTeam.id}
     name={myTeam.name}
     logo={myTeam.logo}
-    fallback={nameOfTeam({ ...myTeam, name: "" }, tournament.teams, (id) =>
-      id ? PLAYERS.find((p) => p.id === id) : undefined,
-    )}
+    fallback={teamsOf(tournament.teams).unnamed(myTeam)}
     bind:open={lookOpen}
   />
 {/if}

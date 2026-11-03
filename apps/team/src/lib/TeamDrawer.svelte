@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { goesBy, matchesName, nameOfTeam } from "./names";
+  import { teamsOf } from "./tournament-teams";
+  import { goesBy, matchesName } from "./names";
   import { MEMBERS, type Player } from "../demo/data";
   import type { Tournament } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
@@ -30,7 +31,7 @@
   );
   const found = (p: Player) => search.length < 2 || matchesName(p, search);
   const byId = (id: number) => active.find((p) => p.id === id);
-  const teamLabel = (i: number) => nameOfTeam(tournament.teams[i], tournament.teams, (id) => byId(id ?? 0));
+  const teamLabel = (i: number) => teamsOf(tournament.teams, (id) => byId(id ?? 0)).names[i];
 
   const on = $derived(team.players.flatMap((p) => (p.memberId ? (byId(p.memberId) ?? []) : [])).filter(found));
   const free = $derived(

@@ -2,12 +2,13 @@
   // The Draft open view of a tournament's page (apps/team/worker/tournaments/README.md): a captains' draft, led one step
   // at a time (shuffle, open, pick, close), as a draft room: a ticker of picks, then the players and the teams, side by
   // side on a wide screen; narrower, the teams are the page and the players open in a drawer.
+  import { teamsOf } from "../lib/tournament-teams";
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesBy, matchesName, nameOfMember, nameOfPlayer, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, matchesName, nameOfMember, nameOfPlayer, shortNameOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, type Player, type Position } from "../demo/data";
+  import { type Player, type Position, playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
@@ -71,7 +72,7 @@
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const byId = (id: number) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number) => playerOf(id);
   const firstName = (id: number | null) => (id ? shortNameOf(byId(id)) : "");
   const ratings = $derived(can(perms, "read:Rating"));
 
@@ -186,7 +187,8 @@
     if (!t || t.captainMemberId !== me().id || typeof t.pick !== "number") return "";
     return myTurnLine(t.pick, picksUntil(teams.length, slots, myTeam));
   });
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
+  const teamLooks = $derived(teamsOf(teams));
+  const teamName = (i: number) => teamLooks.names[i];
   // The captains in the server's order: as named until the draft opens and draws it (apps/team/worker/tournaments/README.md)
   const order = $derived(
     teams.flatMap((t) =>
@@ -719,8 +721,6 @@
   $effect(() => {
     if (open || waiting) return checkForUpdates();
   });
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => (id ? byId(id) : undefined)));
   // What the status shows (lib/draft-room.ts): the picking's only in the draft room; while it's picked, the Kumite's
   // page has a summary of it (who's picking, the last pick, the way in)
   const shows = $derived(tournament ? draftShows(tournament, room) : "steps");
@@ -917,7 +917,7 @@
   >
     <header>
       <TeamCrest
-        among={crestNames}
+        among={teamLooks.names}
         name={teamName(i)}
         logo={t.logo}
         tone={teamTone(i)}
@@ -1150,7 +1150,7 @@
               animate:flip={{ duration: moveMs }}
             >
               <TeamCrest
-                among={crestNames}
+                among={teamLooks.names}
                 name={teamName(t.team)}
                 logo={teams[t.team].logo}
                 tone={teamTone(t.team)}
@@ -1210,7 +1210,7 @@
       <section class="summary" in:fade={viewsIn} aria-live="polite">
         <div class="on-clock panel">
           <TeamCrest
-            among={crestNames}
+            among={teamLooks.names}
             name={teamName(shownClock)}
             logo={teams[shownClock].logo}
             tone={teamTone(shownClock)}
@@ -1434,7 +1434,7 @@
     teamId={t.id!}
     name={t.name}
     logo={t.logo}
-    fallback={nameOfTeam({ ...t, name: "" }, teams, (id) => (id ? byId(id) : undefined))}
+    fallback={teamLooks.unnamed(t)}
     bind:open={lookOpen}
   />
 {/if}
@@ -2489,12 +2489,12 @@
   }
   /* After the finale, the Seal the teams card rises in, its 決 fading up last, as if the stamp is waiting */
   .seal-arrive.arrive {
-    animation: rise 520ms var(--ease) both;
+    animation: rise-far 520ms var(--ease) both;
   }
   .seal-arrive.arrive :global(.hanko-press) {
     animation: wait-stamp 700ms 380ms ease-out both;
   }
-  @keyframes rise {
+  @keyframes rise-far {
     from {
       opacity: 0;
       transform: translateY(1.25rem);

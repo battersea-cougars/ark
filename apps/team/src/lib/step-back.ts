@@ -69,6 +69,17 @@ export const BACK_TO: Record<BackFrom, string> = {
   signup: "Back to Sign-up open",
 };
 
+/** What's said once it's gone back, beside the tap's own words (BACK_TO). */
+export const BACK_DONE: Record<BackFrom, string> = {
+  awards: "Every award's face down again",
+  results: "Back to the fight card",
+  fixtures: "Back to the teams",
+  teams: "The draft is open again",
+  draft: "Back to the drawn order",
+  order: "Back to before the draw",
+  signup: "Sign-up is open again",
+};
+
 /** "Back to …" for this tournament (the same whether it's a draft or teams enter). */
 export const backTo = (from: BackFrom, _kind: string) => BACK_TO[from];
 

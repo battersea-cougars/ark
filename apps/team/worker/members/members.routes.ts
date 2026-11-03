@@ -223,12 +223,12 @@ export const MEMBERS_ROUTES: Route[] = [
       }
       // Let in after asking to join: they hear so, with the way in (apps/team/worker/members/README.md)
       if (letIn) {
-        const m = await first<{ name: string; email: string | null }>(
+        const m = await first<{ name: string; webName: string | null; email: string | null }>(
           c.env.DB,
-          "SELECT name, email FROM members WHERE id = ?",
+          "SELECT name, web_name webName, email FROM members WHERE id = ?",
           [id(c)],
         );
-        if (m?.email) await tellTheyreIn(c.env, m.name, m.email, new URL(c.request.url).origin);
+        if (m?.email) await tellTheyreIn(c.env, m, m.email, new URL(c.request.url).origin);
       }
       return ok();
     },

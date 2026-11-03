@@ -1,8 +1,45 @@
 // A tournament's games (apps/team/worker/tournaments/README.md), shared by the Worker and the app: a round robin played
 // in the order fairest to everyone's breaks, kick-off times and who keeps score. The table and the champions are shared
 // with the website (packages/shared/results.ts, ADR 0016).
-import { londonTime } from "./dates";
+import { londonTime, ordinal } from "./dates";
+import { champion, finalOf as finalOfGames, table, type Result } from "@cougars/shared/results";
 export { champion, table, type TableRow } from "@cougars/shared/results";
+
+/** A tournament as its table needs it: its teams, its games, its points for a win, a draw and a loss. */
+interface Tabled {
+  teams: { id?: number | null }[];
+  games?: (Result & { stage: "group" | "playoff"; position: number })[] | null;
+  pointsWin: number;
+  pointsDraw: number;
+  pointsLoss: number;
+}
+
+/** A playoff place still waiting on the table ("3rd"), said where its team will be; nothing for no place. */
+export const placeLabel = (seed: number | null | undefined) => (seed ? ordinal(seed) : "");
+
+/** Its teams' ids, those saved (a team being drafted may have none yet). */
+export const teamIdsOf = (t: Tabled) => t.teams.flatMap((x) => (x.id ? [x.id] : []));
+
+/** Its own points (apps/team/worker/tournaments/README.md). */
+export const pointsOf = (t: Tabled) => ({ win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss });
+
+/** Its table from the group games with a result: what a team's record says (lib/TeamRecord). */
+export const groupTableOf = (t: Tabled) =>
+  table(
+    teamIdsOf(t),
+    (t.games ?? []).filter((g) => g.stage === "group"),
+    pointsOf(t),
+  );
+
+/** Each team's record so far, by its id. */
+export const recordsOf = (t: Tabled) => new Map(groupTableOf(t).map((r) => [r.teamId, r]));
+
+/** The champions, once it's decided: the final's winner, else the top of the table. */
+export const championOf = (t: Tabled) => champion(teamIdsOf(t), t.games ?? [], pointsOf(t));
+
+/** Its final: the last playoff game, if it has playoffs. */
+export const finalOf = <G extends { stage: "group" | "playoff"; position: number }>(t: { games?: G[] | null }) =>
+  finalOfGames(t.games ?? []);
 
 /** How many teams a tournament's playoffs need: the lowest place they take (3rd v 4th needs 4); 0 for none. */
 export const teamsForPlayoffs = (playoffs: { home: number; away: number }[]) =>

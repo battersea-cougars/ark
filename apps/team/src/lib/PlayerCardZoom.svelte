@@ -12,6 +12,7 @@
   import PlayerCard from "./PlayerCard.svelte";
   import Avatar from "./Avatar.svelte";
   import { portal } from "./overlay";
+  import { Arm } from "./arm.svelte";
 
   let {
     player,
@@ -49,7 +50,8 @@
   let closeBtn = $state<HTMLButtonElement | undefined>();
   let closing = $state(false);
   let settled = $state(false);
-  let sure = $state(false);
+  const arm = new Arm<"remove">();
+  const sure = $derived(arm.is("remove"));
   const first = $derived(shortName(player));
   const DURATION = 520;
   const EASE = EASE_OUT;
@@ -107,14 +109,11 @@
     back.onfinish = () => onclose();
   }
 
-  function remove() {
-    if (!sure) {
-      sure = true;
-      return;
-    }
-    onremove?.();
-    close();
-  }
+  const remove = () =>
+    arm.tap("remove", () => {
+      onremove?.();
+      close();
+    });
 
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") close();
@@ -210,16 +209,6 @@
   }
   .closing .scrim {
     animation: fade-out 380ms var(--ease) both;
-  }
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-  }
-  @keyframes fade-out {
-    to {
-      opacity: 0;
-    }
   }
   .stage {
     position: relative;

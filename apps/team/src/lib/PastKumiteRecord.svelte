@@ -13,7 +13,7 @@
   import Select from "./Select.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { reachableStep } from "./wizard";
-  import { goesBy } from "./names";
+  import { goesBy, shortName } from "./names";
   import { decidedByOf, LIVE_OPTIONS } from "./awards";
   import { formatDayDate, londonISO, londonToday } from "./dates";
   import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
@@ -54,14 +54,20 @@
   const members = $derived(
     db.members
       .filter((m) => m.status !== "pending")
-      .map((m) => ({ id: m.player.id, name: goesBy(m.player), position: m.player.position }))
+      .map((m) => ({
+        id: m.player.id,
+        name: goesBy(m.player),
+        short: shortName(m.player),
+        position: m.player.position,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name)),
   );
   const nameOf = (id: number | null) => members.find((m) => m.id === id)?.name ?? "";
   const positionOf = (id: number) => members.find((m) => m.id === id)?.position;
   const teamName = (i: number) => {
     const t = values.teams[i];
-    return t?.name.trim() || (t?.captain ? `Team ${nameOf(t.captain).split(" ")[0]}` : `Team ${i + 1}`);
+    const captain = members.find((m) => m.id === t?.captain);
+    return t?.name.trim() || (captain ? `Team ${captain.short}` : `Team ${i + 1}`);
   };
   // Nobody plays for two teams: whoever's on one is off the others' lists
   const taken = $derived(new Set(values.teams.flatMap(rosterOf)));

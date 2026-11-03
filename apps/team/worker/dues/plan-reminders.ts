@@ -10,6 +10,7 @@ import type { Env } from "../api/api.route";
 import { notify } from "../push/push";
 import { PLAN_REMINDER_DAYS } from "../settings/settings";
 import { feeOn, nextQuarter, quarterOf, quarterStart, type DatedFee } from "../../src/lib/dues";
+import { shortName } from "../../src/lib/names";
 import { planMail, planNotice, type PlanLetter } from "./plan-reminders.letter";
 
 const log = scribe.logger("plan-reminders");
@@ -59,7 +60,7 @@ export async function remindPlans(env: Env, now: Date) {
   // No rate in force on the day: nobody's charged, so there's nothing to tell
   if (!pence) return;
   const letter = (d: Due): PlanLetter => ({
-    firstName: (d.webName?.trim() || d.name).split(/\s+/)[0],
+    firstName: shortName(d),
     quarter,
     pence,
     chargedOn: starts,

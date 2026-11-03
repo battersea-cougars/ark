@@ -24,6 +24,14 @@ async function tournamentOf(db: D1Database, tournamentId: number) {
   return t;
 }
 
+/** The draft's guards, worded once: open for picks, and two captains at least to draft at all. */
+function draftMustBeOpen(t: { state: string }) {
+  if (t.state !== "open") throw new HttpError(409, "The draft isn't open.");
+}
+function twoCaptainsAtLeast(captains: number) {
+  if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
+}
+
 const teamsOf = (db: D1Database, tournamentId: number) =>
   all<DraftTeam>(
     db,
@@ -99,7 +107,7 @@ export async function isDrawn(db: D1Database, tournamentId: number) {
 export async function drawOrder(db: D1Database, tournamentId: number) {
   await tournamentOf(db, tournamentId);
   const teams = await teamsOf(db, tournamentId);
-  if (teams.length < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  twoCaptainsAtLeast(teams.length);
   if (await isDrawn(db, tournamentId)) return;
   // One batch, each number set only while some captain's still without one: a second admin's draw, a moment later,
   // finds them all numbered and changes nothing
@@ -132,7 +140,7 @@ export async function openDraft(db: D1Database, tournamentId: number, agenda = t
   const t = await tournamentOf(db, tournamentId);
   if (t.state === "closed" && (await played(db, tournamentId))) throw new HttpError(409, PLAYED_SAID);
   const captains = (await teamsOf(db, tournamentId)).length;
-  if (captains < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  twoCaptainsAtLeast(captains);
   if (!(await isDrawn(db, tournamentId))) throw new HttpError(409, "Set the order first.");
   // The first time, only with enough to pick from: every team its captain and two more (a reopened one carries on)
   const picked = await first<{ n: number }>(db, `SELECT (${PICKS}) n`, [tournamentId]);
@@ -156,7 +164,7 @@ export async function openDraft(db: D1Database, tournamentId: number, agenda = t
 /** An admin closes the draft: once everyone's picked, or leaving the rest out on purpose. Then it's locked. */
 export async function closeDraft(db: D1Database, tournamentId: number, leaveOut: boolean) {
   const t = await tournamentOf(db, tournamentId);
-  if (t.state !== "open") throw new HttpError(409, "The draft isn't open.");
+  draftMustBeOpen(t);
   const left = await first<{ n: number }>(db, `SELECT COUNT(*) n FROM (${POOL})`, [
     tournamentId,
     tournamentId,
@@ -350,7 +358,7 @@ export async function pick(
 /** Someone running the draft takes back the last pick. */
 export async function undoPick(db: D1Database, tournamentId: number) {
   const t = await tournamentOf(db, tournamentId);
-  if (t.state !== "open") throw new HttpError(409, "The draft isn't open.");
+  draftMustBeOpen(t);
   const res = await run(
     db,
     `DELETE FROM tournament_team_players WHERE id = (
@@ -560,7 +568,7 @@ export async function setTeamsAtRandom(db: D1Database, tournamentId: number, by:
       [tournamentId, tournamentId, tournamentId],
     ),
   ]);
-  if (teams.length < 2) throw new HttpError(409, "A draft needs at least two captains.");
+  twoCaptainsAtLeast(teams.length);
   const numbers = new Set(taken.map((x) => x.n));
   const left = [...pool];
   const picks: D1PreparedStatement[] = [];

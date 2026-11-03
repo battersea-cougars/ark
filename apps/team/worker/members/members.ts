@@ -6,7 +6,7 @@ import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
 import { londonToday } from "@cougars/shared/london";
-import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
+import { QUARTER, memberExists, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
 
 export interface MemberJson {
   id: number;
@@ -209,7 +209,7 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
   );
   const id = Number(res.meta.last_row_id);
   await giveReference(env.DB, id, name);
-  const emailed = emailThem && (await tellTheyreIn(env, name, address, origin));
+  const emailed = emailThem && (await tellTheyreIn(env, { name }, address, origin));
   return { id, emailed };
 }
 
@@ -218,15 +218,15 @@ export async function addMember(env: AuthEnv, o: Record<string, unknown>, origin
  * someone in the club (active) with an email; whether it went is in the reply, as for an add.
  */
 export async function sendAppLink(env: AuthEnv, id: number, origin: string): Promise<{ emailed: boolean }> {
-  const m = await first<{ name: string; email: string | null; status: string }>(
+  const m = await first<{ name: string; webName: string | null; email: string | null; status: string }>(
     env.DB,
-    "SELECT name, email, status FROM members WHERE id = ?",
+    "SELECT name, web_name webName, email, status FROM members WHERE id = ?",
     [id],
   );
   if (!m) throw new HttpError(404, "No such member.");
   if (m.status !== "active") throw new HttpError(409, "They're not in the club, so there's no link to send.");
   if (!m.email) throw new HttpError(400, "They've no email: add one on their card first.");
-  return { emailed: await tellTheyreIn(env, m.name, m.email, origin) };
+  return { emailed: await tellTheyreIn(env, m, m.email, origin) };
 }
 
 /**
@@ -420,7 +420,7 @@ export async function setEverydayRole(
  * same rule as their own: one that can do less than they can; and only for a member the caller may change at all.
  */
 export async function setMemberEverydayRole(db: D1Database, id: number, o: Record<string, unknown>, by: By) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+  await memberExists(db, id);
   await mayChange(db, by.actions, id);
   await setEverydayRole(
     db,
@@ -508,7 +508,7 @@ export const attendanceOn = (db: D1Database, id: number, sessionIds: number[]) =
  * and whether they came. Sessions they never answered are there too (signup null), so an admin can mark them.
  */
 export async function attendanceOf(db: D1Database, id: number, year: string, today: string) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+  await memberExists(db, id);
   const rows = await all<{
     sessionId: number;
     heldOn: string;

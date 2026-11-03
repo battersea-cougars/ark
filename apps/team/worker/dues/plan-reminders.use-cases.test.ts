@@ -66,6 +66,13 @@ describe("who's told, five days before the quarter", () => {
     expect(w.mails).toEqual([]);
   });
 
+  it("the email greets them by the name they go by, a nickname whole", async () => {
+    await choosesQuarterly("quin@example.com");
+    w.db.raw.prepare("UPDATE members SET web_name = 'Q The Great' WHERE email = 'quin@example.com'").run();
+    await hourly("2026-12-27T10:07");
+    expect(w.mails[0].text).toContain("Hi Q The Great,");
+  });
+
   it("someone without the app gets an email instead, saying the same", async () => {
     await choosesQuarterly("quin@example.com");
     await hourly("2026-12-27T10:07");

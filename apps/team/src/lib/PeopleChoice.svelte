@@ -1,10 +1,11 @@
 <script lang="ts">
   // Choose one of a tournament's players (apps/team/worker/tournaments/README.md): big rows, one tap, the one chosen ticked, each with their team
   // under them. No drop-down: a member's vote, and the admin's live call at the reveal, both in a sheet.
+  import { teamsOf } from "./tournament-teams";
   import Icon from "../app/shell/Icon.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament } from "../demo/model";
-  import { goesByOf, nameOfTeam } from "./names";
+  import { goesByOf } from "./names";
 
   let {
     tournament,
@@ -20,7 +21,7 @@
     "aria-label"?: string;
   } = $props();
 
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const teamOf = (id: number) =>
     tournament.teams.find((t) => t.captainMemberId === id || t.players.some((p) => p.memberId === id));
   const rows = $derived(
@@ -42,7 +43,7 @@
     >
       <span class="who">
         <span class="name">{p.name}</span>
-        {#if p.team}<span class="hint">{nameOfTeam(p.team, tournament.teams, (id) => byId(id))}</span>{/if}
+        {#if p.team}<span class="hint">{teamsOf(tournament.teams).nameOf(p.team.id)}</span>{/if}
       </span>
       <!-- The tick's room kept, so choosing moves nothing -->
       <span class="tick"

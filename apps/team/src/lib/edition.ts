@@ -4,19 +4,23 @@ import type { Tournament } from "../demo/model";
 import type { Stage } from "../app/nav-routes";
 import { isDone } from "@cougars/shared/results";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
-import { champion } from "./fixtures";
 import { clockRange, formatDayDate, londonEvening, londonISO, londonToday } from "./dates";
 import { signupOpen } from "./signup";
 
 export type EditionState = "live" | "done" | "open" | "planned";
 
-/** The champions, once it's decided. */
-export const championOf = (t: Tournament) =>
-  champion(
-    t.teams.flatMap((x) => (x.id ? [x.id] : [])),
-    t.games ?? [],
-    { win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss },
-  );
+export { championOf } from "./fixtures";
+
+/** How the champions won the final, in a line: "Beat Team Sam 3–1 in the final". */
+export function wonTheFinal(
+  final: { homeTeamId: number | null; awayTeamId: number | null; homeGoals: number | null; awayGoals: number | null },
+  championId: number | null,
+  nameOf: (teamId: number | null) => string,
+) {
+  const home = final.homeTeamId === championId;
+  const [us, them] = home ? [final.homeGoals, final.awayGoals] : [final.awayGoals, final.homeGoals];
+  return `Beat ${nameOf(home ? final.awayTeamId : final.homeTeamId)} ${us}–${them} in the final`;
+}
 
 /**
  * Where it stands, by its games more than its settings: under way once a game's being scored or has a result, done

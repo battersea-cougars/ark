@@ -15,7 +15,8 @@ function sourceFiles(dir) {
   });
 }
 
-const files = sourceFiles(src).map((path) => ({
+// The worker's emails greet members by name too, so it's read as well ("../worker/…" from src)
+const files = [...sourceFiles(src), ...sourceFiles(join(src, "../worker"))].map((path) => ({
   path: relative(src, path),
   code: readFileSync(path, "utf8"),
 }));
@@ -52,13 +53,72 @@ const RULES = [
     pattern: /<Sheet[^>]*>\s*(?:<ManageList|\{@render (?:ask|body|toolList|manageTools|kindList)\(\)\})/,
     home: "lib/Drawer.svelte",
   },
+  {
+    what: 'a first name by hand, `name.split(" ")[0]` (lib/names.ts shortName keeps a chosen name whole)',
+    pattern:
+      /(?:(?<![.\w])name|(?<!form)\.name|nameOf\([^)]*\)|goesBy\w*\([^)]*\)|webName[^\n]*\))\.split\((?:" "|\/\\s\+\/)\)\[0\]/,
+    home: "lib/names.ts",
+  },
+  {
+    what: 'a Manage row of its own, `class="tool"` (lib/ManageList: disabled, here, now, armed, notes)',
+    pattern: /class="tool[\s"]/,
+    home: "lib/ManageList.svelte",
+  },
+  {
+    what: "a tap-twice of its own (lib/arm.svelte.ts Arm)",
+    pattern: /let (?:arming|sure|confirming) = \$state<[^>]*(?:string|"|null)/,
+    home: "lib/arm.svelte.ts",
+  },
+  {
+    what: "a red yes by hand, `class=\"btn danger\"` (lib/Confirm; an editor's foot: SaveBar, the tournament's Delete)",
+    pattern: /class="btn danger/,
+    home: "lib/Confirm.svelte",
+    allow: ["lib/SaveBar.svelte", "lib/TournamentEditorPanel.svelte"],
+  },
+  {
+    what: "a red fill of its own for a button (app.css .btn.danger)",
+    pattern:
+      /background: var\(--red\);\s*color: var\(--on-red\);\s*\}\s*[^{}]*:hover[^{]*\{\s*background: var\(--red-hot\)/,
+    home: "app.css",
+  },
+  {
+    what: "a tournament's table, points or final worked out by hand (lib/fixtures.ts recordsOf, groupTableOf, finalOf)",
+    pattern: /win: \w+\.pointsWin|b\.position > a\.position|seed \? ordinal\(seed\)/,
+    home: "lib/fixtures.ts",
+  },
+  {
+    what: "a member looked up by hand, `PLAYERS.find(…)` (demo/data.ts playerOf)",
+    pattern: /PLAYERS\.find\(/,
+    home: "demo/data.ts",
+  },
+  {
+    what: "the worn-ink noise copied into a component (app.css --ink-worn)",
+    pattern: /width='140' height='70'%3E%3Cfilter/,
+    home: "app.css",
+  },
+  {
+    what: "a component's own copy of one of app.css's keyframes (pulse, rise, menu-in, fade-in, fade-out)",
+    pattern: /@keyframes (?:pulse|rise|menu-in|fade-in|fade-out) \{/,
+    home: "app.css",
+  },
+  {
+    what: 'a "is it the Kumite?" of its own (lib/motif.ts isKumite)',
+    pattern: /slug === "kumite"|!!kanjiFor\(/,
+    home: "lib/motif.ts",
+  },
+  {
+    what: "a team named or its crest's names worked out by hand (lib/tournament-teams.ts teamsOf)",
+    pattern: /\bnameOfTeam\(|\bteamNamesOf\(/,
+    home: "lib/tournament-teams.ts",
+    allow: ["lib/names.ts", "lib/TeamsField.svelte"],
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {
   for (const rule of RULES) {
     it(`has no ${rule.what}`, () => {
       const hits = files
-        .filter((f) => f.path !== rule.home && (!rule.only || rule.only.test(f.path)))
+        .filter((f) => f.path !== rule.home && !rule.allow?.includes(f.path) && (!rule.only || rule.only.test(f.path)))
         .filter((f) => rule.pattern.test(f.code))
         .map((f) => f.path);
       expect(hits, `use the one in ${rule.home}`).toEqual([]);

@@ -10,6 +10,7 @@ import { quietUntil } from "../push/push.rules";
 import { saveLevels } from "./usage.levels";
 import { CPU_LIMIT_MS, readUsage, type Usage } from "./usage";
 import { runsOutAt } from "./usage.sanity";
+import { plural } from "../../src/lib/dates";
 
 const log = scribe.logger("usage");
 
@@ -135,7 +136,7 @@ function cpuAlerts(usage: Usage): Alert[] {
   const stopped = (usage.cpu?.workers ?? []).filter((w) => w.stopped);
   if (!stopped.length) return [];
   const total = stopped.reduce((sum, w) => sum + w.stopped, 0);
-  const requests = `${total} request${total === 1 ? "" : "s"}`;
+  const requests = plural(total, "request");
   return [
     {
       claims: [[usage.day, "cpu"]],

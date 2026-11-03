@@ -3,11 +3,12 @@
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
-  import { clock, formatDayDate, formatTime, londonEvening, londonToday, ordinal, pounds } from "../lib/dates";
+  import { teamsOf } from "../lib/tournament-teams";
+  import { clock, formatDayDate, formatTime, londonEvening, londonToday, pounds } from "../lib/dates";
   import { untrack } from "svelte";
-  import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
+  import { shortName, shortNameOf } from "../lib/names";
   import { can } from "../access/actions";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { owedBy, unpaidCharges } from "../demo/dues.svelte";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
@@ -17,8 +18,7 @@
   import EventCard from "../lib/EventCard.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { myTurnLine } from "../lib/draft";
-  import { kickOff, slotMinutes } from "../lib/fixtures";
-  import { teamTone } from "../lib/team-tones";
+  import { kickOff, placeLabel, slotMinutes } from "../lib/fixtures";
   import { leftOn, overdue } from "../lib/dues";
   import {
     homeFeed,
@@ -177,7 +177,7 @@
     );
     await loadBreakGlass();
   }
-  const nameOf = (id: number) => shortNameOf(PLAYERS.find((p) => p.id === id)) || "An admin";
+  const nameOf = (id: number) => shortNameOf(playerOf(id)) || "An admin";
 
   // What you owe (apps/team/worker/dues/README.md): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
   // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
@@ -348,16 +348,13 @@
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
   function matchOf({ type, t, game, teamId }: Fight) {
-    const person = (id: number | null) => PLAYERS.find((p) => p.id === id);
-    const side = (id: number | null, seed: number | null) => {
-      const i = t.teams.findIndex((x) => x.id === id);
-      return {
-        id,
-        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : seed ? ordinal(seed) : "",
-        logo: t.teams[i]?.logo ?? null,
-        tone: teamTone(i),
-      };
-    };
+    const look = teamsOf(t.teams);
+    const side = (id: number | null, seed: number | null) => ({
+      id,
+      name: look.indexOf(id) >= 0 ? look.nameOf(id) : placeLabel(seed),
+      logo: look.logoOf(id),
+      tone: look.toneOf(id),
+    });
     const home = side(game.homeTeamId, game.homeSeed);
     const away = side(game.awayTeamId, game.awaySeed);
     const where = tournamentBookable(t);
@@ -374,7 +371,7 @@
       },
       ours: game.awayTeamId === teamId ? away : home,
       them: game.awayTeamId === teamId ? home : away,
-      crests: teamNamesOf(t.teams, person),
+      crests: look.names,
       game: game.name || `Game ${game.position}`,
     };
   }
@@ -518,7 +515,7 @@
     ids
       .filter((id) => id !== who.id)
       .slice(0, 3)
-      .map((id) => shortNameOf(PLAYERS.find((p) => p.id === id)))
+      .map((id) => shortNameOf(playerOf(id)))
       .join(", ");
 </script>
 

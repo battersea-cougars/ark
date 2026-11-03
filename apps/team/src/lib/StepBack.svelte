@@ -5,7 +5,7 @@
   import { londonToday, plural } from "./dates";
   import type { Tournament, TournamentType } from "../demo/model";
   import { stepBack } from "../app/backend.svelte";
-  import { backFrom, backTo, type BackFrom } from "./step-back";
+  import { BACK_DONE, backFrom, backTo, type BackFrom } from "./step-back";
   import Drawer from "./Drawer.svelte";
   import Confirm from "./Confirm.svelte";
 
@@ -53,20 +53,11 @@
   let open = $state(false);
   let busy = $state(false);
   // What it said it'd do, as the toast
-  const DONE: Record<BackFrom, string> = {
-    awards: "Every award's face down again",
-    results: "Back to the fight card",
-    fixtures: "Back to the teams",
-    teams: "The draft is open again",
-    draft: "Back to the drawn order",
-    order: "Back to before the draw",
-    signup: "Sign-up is open again",
-  };
   async function go(f: BackFrom) {
     if (busy) return;
     busy = true;
     try {
-      await stepBack(tournament.id, f, DONE[f]);
+      await stepBack(tournament.id, f, BACK_DONE[f]);
       open = false;
     } finally {
       busy = false;

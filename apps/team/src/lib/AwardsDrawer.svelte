@@ -1,6 +1,7 @@
 <script module lang="ts">
   // Which tournament's awards are being confirmed, if any: opened from the Awards section or the Manage sheet
-  import { goesBy, nameOfTeam, teamNamesOf } from "./names";
+  import { teamsOf } from "./tournament-teams";
+  import { goesBy } from "./names";
   let editing = $state<{ id: number | null }>({ id: null });
   /** Open the awards for this tournament, to confirm. */
   export const enterAwards = (tournamentId: number) => (editing.id = tournamentId);
@@ -10,7 +11,7 @@
   // Confirming a tournament's awards (apps/team/worker/tournaments/README.md), the after-party's step before the reveal:
   // each decided as it says (lib/awards.ts), a vote counted by the Worker (how many voted shows, never who for), a tie
   // or the judges' call chosen here. Confirming closes voting and sets every winner.
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { setWinners } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -18,7 +19,6 @@
   import TeamCrest from "./TeamCrest.svelte";
   import AwardCallSheet from "./AwardCallSheet.svelte";
   import { awardFromData, decidedByOf, playersOf, votersOf, type Award, type AwardWinner } from "./awards";
-  import { teamTone } from "./team-tones";
   import { onDestroy } from "svelte";
 
   // The page going while it's open (a back swipe, a link) closes it too: left set, it opened by itself the next time
@@ -27,15 +27,9 @@
 
   const tournament = $derived(db.tournaments.find((t) => t.id === editing.id));
   const teams = $derived(tournament?.teams ?? []);
+  const look = $derived(teamsOf(teams));
   const awards = $derived(tournament?.awards ?? []);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
-  const teamIndex = (id: number | null) => teams.findIndex((t) => t.id === id);
-  const teamName = (id: number | null) => {
-    const t = teams[teamIndex(id)];
-    return nameOfTeam(t, teams, byId);
-  };
-  const teamOf = (memberId: number | null) =>
-    teams.find((t) => t.captainMemberId === memberId || t.players.some((p) => p.memberId === memberId))?.id ?? null;
+  const byId = (id: number | null) => playerOf(id);
   const players = $derived(
     teams
       .flatMap((t) => [t.captainMemberId, ...t.players.map((p) => p.memberId)])
@@ -146,26 +140,19 @@
     }
   }
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, byId));
 </script>
 
 {#snippet winner(w: AwardWinner)}
   {#if w.teamId}
     <span class="who">
-      <TeamCrest
-        among={crestNames}
-        name={teamName(w.teamId)}
-        logo={teams[teamIndex(w.teamId)]?.logo ?? null}
-        tone={teamTone(teamIndex(w.teamId))}
-        size="2.5rem"
-      />
-      <span class="who-name">{teamName(w.teamId)}</span>
+      <TeamCrest {...look.crestOf(w.teamId)} size="2.5rem" />
+      <span class="who-name">{look.nameOf(w.teamId)}</span>
     </span>
   {:else if w.memberId}
     <span class="who">
       <span class="who-text"
         ><span class="who-name">{byId(w.memberId)?.name ?? ""}</span><span class="hint"
-          >{teamName(teamOf(w.memberId))}</span
+          >{look.nameOf(look.teamOf(w.memberId))}</span
         ></span
       >
     </span>
@@ -198,7 +185,7 @@
               <span class="who-text"
                 ><span class="who-name">Shared by {d.winners.length}</span><span class="hint"
                   >{d.winners
-                    .map((w) => (w.teamId ? teamName(w.teamId) : (byId(w.memberId)?.name ?? "")))
+                    .map((w) => (w.teamId ? look.nameOf(w.teamId) : (byId(w.memberId)?.name ?? "")))
                     .join(", ")}</span
                 ></span
               >
@@ -243,7 +230,7 @@
             <div class="pick">
               {#each players as p (p.id)}
                 <button class="pick-row" onclick={() => pick(a.name, p.id)}
-                  ><span>{p.name}</span><span class="hint">{teamName(teamOf(p.id))}</span></button
+                  ><span>{p.name}</span><span class="hint">{look.nameOf(look.teamOf(p.id))}</span></button
                 >
               {/each}
             </div>

@@ -3,13 +3,13 @@
   // who's going (faces, first names, the count and spaces left) with In and Out on that row. Each kind has its own icon
   // and colour (an admin's, per type). Nothing moves when you answer.
   import { keeps, nextUp, onSide, roomFor } from "./places";
-  import { goesByOf } from "./names";
+  import { shortNameOf } from "./names";
   import type { Snippet } from "svelte";
   import type { Bookable } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { answerFor } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { londonTime, londonToday, timeRange } from "./dates";
   import DateBlock from "./DateBlock.svelte";
@@ -79,19 +79,14 @@
   const queue = (list: number[]) => (training ? onSide(list, keeps(id)) : list);
 
   // Who's going: the first five faces, in sign-up order, and first names (you first in both, when you're in)
-  const nameOf = (pid: number) => goesByOf(PLAYERS.find((p) => p.id === pid));
+  const nameOf = (pid: number) => shortNameOf(playerOf(pid));
   // Home's lead on a phone shows fewer, so the faces and counts stay on one line and the buttons never move
   const tight = $derived(glance && phone.current);
   const faces = $derived(
     (inIt ? [id, ...entries.going.filter((x) => x !== id)] : entries.going).slice(0, tight ? 3 : 5),
   );
   const others = $derived(entries.going.filter((x) => x !== id));
-  const names = $derived(
-    others
-      .slice(0, 3)
-      .map((x) => nameOf(x).split(" ")[0])
-      .filter(Boolean),
-  );
+  const names = $derived(others.slice(0, 3).map(nameOf).filter(Boolean));
   const rest = $derived(others.length - names.length);
   // "You, Aman, Chris" (then "and 4 more", a link to the full list), and "7 / 21 in · 14 spaces · 2 waiting": built here, so a formatter can't eat a space
   const crowd = $derived([inIt ? "You" : "", ...names].filter(Boolean).join(", "));
@@ -208,7 +203,7 @@
     }
     // A training's list is one order, Quarterly skaters first (apps/team/worker/training/README.md): the card places you as the server will
     const ahead = entries.quarterly ?? [];
-    const skater = (pid: number) => PLAYERS.find((p) => p.id === pid)?.position !== "G";
+    const skater = (pid: number) => playerOf(pid)?.position !== "G";
     const quarterly =
       event.kind === "training" && skater(id) && db.members.find((m) => m.player.id === id)?.plan === "Subscription";
     /** Into a list after the Quarterly skaters already in it */

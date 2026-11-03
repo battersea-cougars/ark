@@ -22,10 +22,10 @@
   // and the view slides in from the way you went. History is a quiet link at the foot.
   // Once the after-party's over it's history: with nothing on, the page says so, big (the Kumite in its Bloodsport
   // motif), with an admin's Next Kumite, and every past one under it, newest first, each opening its own page.
-  import { nameOfTeam } from "../lib/names";
+  import { teamsOf } from "../lib/tournament-teams";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+
   import {
     currentTournament,
     pastTournaments,
@@ -39,7 +39,7 @@
   import { closeSignup } from "../app/backend.svelte";
   import { signupOpen } from "../lib/signup";
   import Kanji from "../lib/Kanji.svelte";
-  import { kanjiFor } from "../lib/motif";
+  import { isKumite, kanjiFor } from "../lib/motif";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
   import AllTimeLeaders from "../lib/AllTimeLeaders.svelte";
@@ -103,9 +103,9 @@
   );
   // Its after-party's evening (lib/edition.ts atAfters): The Anchor; any other day, a past one's results
   const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
-  const kumite = $derived(!!kanjiFor(type, "onTheMat"));
+  const kumite = $derived(isKumite(type));
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
+  const look = $derived(teamsOf(teams));
   const manage = $derived(can(perms, "manage:Tournament"));
   const today = $derived(londonToday());
 
@@ -133,7 +133,7 @@
   );
   const holding = $derived(duty?.keeperId === me().id);
   const vs = (g: { homeTeamId: number | null; awayTeamId: number | null }) =>
-    [g.homeTeamId, g.awayTeamId].map((id) => teamName(teams.findIndex((t) => t.id === id))).join(" v ");
+    [g.homeTeamId, g.awayTeamId].map(look.nameOf).join(" v ");
   const at = (position: number) =>
     tournament ? clock(kickOff(tournament.startTime, slotMinutes(tournament), position)) : "";
 

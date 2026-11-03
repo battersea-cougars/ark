@@ -164,7 +164,7 @@
   {#snippet footer()}
     <button class="btn ghost" type="button" onclick={() => finish(null)}>Back</button>
     <button
-      class="btn {cancelling ? 'cancel' : 'primary'}"
+      class="btn {cancelling ? 'danger' : 'primary'}"
       type="button"
       disabled={!ready}
       aria-describedby={ready ? undefined : "clash-why"}
@@ -180,14 +180,6 @@
 </Sheet>
 
 <style>
-  /* The one red fill: the tap that calls something off */
-  .cancel {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .cancel:hover:not(:disabled) {
-    background: var(--red-hot);
-  }
   .swap {
     display: inline-grid;
   }

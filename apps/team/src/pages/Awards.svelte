@@ -7,7 +7,7 @@
   import { nextAward, revealAward } from "../app/backend.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { editionPath } from "../lib/edition-address";
   import { isDone } from "@cougars/shared/results";
@@ -119,7 +119,7 @@
   } as const;
 
   // Before they're confirmed, for whoever runs it: the votes so far and what's still to choose
-  const positionOf = (id: number) => PLAYERS.find((p) => p.id === id)?.position;
+  const positionOf = (id: number) => playerOf(id)?.position;
   const toConfirm = $derived(t ? toConfirmOf(t, { positionOf }) : "");
 </script>
 

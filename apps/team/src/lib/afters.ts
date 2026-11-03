@@ -2,7 +2,7 @@
 // at a time, in the order listed. How many are out is the tournament's (`awardsRevealed`); the Worker sends a member an
 // award's winner only once it's out.
 import type { Tournament } from "../demo/model";
-import { champion, table } from "./fixtures";
+import { championOf, finalOf, groupTableOf } from "./fixtures";
 import { isDone } from "@cougars/shared/results";
 import { awardsToReveal, candidatesOf, decidedByOf, votersOf, type Positions } from "./awards";
 
@@ -107,17 +107,9 @@ export function beatOf(was: Card, now: Card): "reveal" | "next" | null {
  * rest as the table had them (points, goal difference, goals for). Each with its table row.
  */
 export function finalOrder(t: Pick<Tournament, "teams" | "games" | "pointsWin" | "pointsDraw" | "pointsLoss">) {
-  const ids = t.teams.flatMap((x) => (x.id ? [x.id] : []));
-  const games = t.games ?? [];
-  const points = { win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss };
-  const rows = table(
-    ids,
-    games.filter((g) => g.stage === "group"),
-    points,
-  );
-  const champ = champion(ids, games, points);
-  const playoffs = games.filter((g) => g.stage === "playoff");
-  const final = playoffs.length ? playoffs.reduce((a, b) => (b.position > a.position ? b : a)) : undefined;
+  const rows = groupTableOf(t);
+  const champ = championOf(t);
+  const final = finalOf(t);
   const runnerUp = champ && final ? (final.homeTeamId === champ ? final.awayTeamId : final.homeTeamId) : null;
   const first = [champ, runnerUp].filter((id): id is number => !!id);
   return [

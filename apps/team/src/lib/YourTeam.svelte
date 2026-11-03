@@ -1,19 +1,21 @@
 <script lang="ts">
   // You're on Team X (apps/team/worker/tournaments/README.md): the lead of a tournament's front page once the teams are set. Its crest, its name big,
   // its captain and your teammates, on the page (not a card); a tap opens the team.
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { nameOfMember, nameOfPlayer, nameOfTeam, teamNamesOf } from "./names";
-  import { teamHref, teamTone } from "./team-tones";
+  import { nameOfMember, nameOfPlayer } from "./names";
+  import { teamHref } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
   import Icon from "../app/shell/Icon.svelte";
 
   let { type, tournament: t, index }: { type: TournamentType; tournament: Tournament; index: number } = $props();
 
   const team = $derived(t.teams[index]);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
-  const name = $derived(nameOfTeam(team, t.teams, byId));
+  const byId = (id: number | null) => playerOf(id);
+  const look = $derived(teamsOf(t.teams));
+  const name = $derived(look.names[index]);
   const captain = $derived(
     team.captainMemberId === me().id
       ? "You're the captain"
@@ -26,12 +28,10 @@
       .map((p) => nameOfPlayer(p, byId))
       .filter(Boolean),
   );
-  // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(t.teams, byId));
 </script>
 
 <a class="your-team" href={team.id ? teamHref(type.slug, team.id) : undefined}>
-  <TeamCrest among={crestNames} {name} logo={team.logo} tone={teamTone(index)} size="4.5rem" />
+  <TeamCrest {...look.crestOf(team.id)} size="4.5rem" />
   <span class="words">
     <span class="eyebrow">You're on</span>
     <span class="name display">{name}</span>

@@ -2,15 +2,15 @@
   // One award on the awards page's stage (apps/team/worker/tournaments/README.md): a fixed-size card, sealed till its
   // reveal, when the winner rolls in and the hanko lands; the champions' card is the bigger finale. `beat` is what's
   // playing (lib/afters beatOf), its timing lib/award-reveal.css; `small` is the grid's size down.
+  import { teamsOf } from "./tournament-teams";
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { revealOf } from "./afters";
   import BoardWords from "./BoardWords.svelte";
   import HankoPress from "./HankoPress.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { kanjiFor } from "./motif";
-  import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
-  import { teamTone } from "./team-tones";
+  import { isKumite, kanjiFor } from "./motif";
+  import { nameOfMember } from "./names";
 
   type Award = ReturnType<typeof revealOf>["awards"][number];
 
@@ -51,14 +51,10 @@
   } = $props();
 
   const teams = $derived(t.teams);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
-  const teamIndex = (id: number | null) => teams.findIndex((x) => x.id === id);
-  const teamName = (id: number | null) => nameOfTeam(teams[teamIndex(id)], teams, byId);
-  const teamOf = (memberId: number | null) =>
-    teams.find((x) => x.captainMemberId === memberId || x.players.some((p) => p.memberId === memberId))?.id ?? null;
-  const crestNames = $derived(teamNamesOf(teams, byId));
+  const look = $derived(teamsOf(teams));
+  const byId = (id: number | null) => playerOf(id);
   const won = $derived((t.winners ?? []).filter((w) => w.award === award.name));
-  const kumite = $derived(!!kanjiFor(type, "awards"));
+  const kumite = $derived(isKumite(type));
   const mark = $derived(kanjiFor(type, finale ? "champions" : "awards"));
   const revealing = $derived(beat === "reveal" && face === "up");
   const sealMark = $derived(kanjiFor(type, "awardSealed"));
@@ -107,25 +103,19 @@
           >
           <!-- A big tie: who shares it, a line under it -->
           {#if won.length}<span class="shared-names"
-              >{won.map((w) => (w.teamId ? teamName(w.teamId) : nameOfMember(w.memberId, byId))).join(" · ")}</span
+              >{won.map((w) => (w.teamId ? look.nameOf(w.teamId) : nameOfMember(w.memberId, byId))).join(" · ")}</span
             >{/if}
         {:else}
           {#each won as w, k (k)}
             {#if w.teamId}
               <span class="who who-team">
-                <TeamCrest
-                  among={crestNames}
-                  name={teamName(w.teamId)}
-                  logo={teams[teamIndex(w.teamId)]?.logo ?? null}
-                  tone={teamTone(teamIndex(w.teamId))}
-                  size={sizes.crest}
-                />
-                <BoardWords text={teamName(w.teamId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
+                <TeamCrest {...look.crestOf(w.teamId)} size={sizes.crest} />
+                <BoardWords text={look.nameOf(w.teamId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
               </span>
             {:else}
               <span class="who who-player">
                 <BoardWords text={nameOfMember(w.memberId, byId)} size={sizes.who} lines={won.length > 1 ? 1 : 2} />
-                <span class="team-line">{teamOf(w.memberId) ? teamName(teamOf(w.memberId)) : " "}</span>
+                <span class="team-line">{look.teamOf(w.memberId) ? look.nameOf(look.teamOf(w.memberId)) : " "}</span>
               </span>
             {/if}
           {/each}
@@ -296,12 +286,8 @@
       inset 0 0 0 0.3rem var(--red),
       inset 0 0 0 calc(0.3rem + 2px) color-mix(in srgb, var(--primary) 55%, transparent);
     /* The worn ink (noise) over the ink's body (a soft disc the drain shrinks, edges first) */
-    -webkit-mask-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-      radial-gradient(closest-side, #000 72%, transparent);
-    mask-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.4 1.55'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-      radial-gradient(closest-side, #000 72%, transparent);
+    -webkit-mask-image: var(--ink-worn), radial-gradient(closest-side, #000 72%, transparent);
+    mask-image: var(--ink-worn), radial-gradient(closest-side, #000 72%, transparent);
     -webkit-mask-size:
       140px 70px,
       220% 220%;

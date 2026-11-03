@@ -238,13 +238,7 @@
     border-radius: var(--r-md);
     background: var(--surface-2);
     box-shadow: var(--shadow-pop);
-    animation: pop var(--t-fast) var(--ease);
-  }
-  @keyframes pop {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
+    animation: menu-in var(--t-fast) var(--ease);
   }
   .option {
     display: flex;

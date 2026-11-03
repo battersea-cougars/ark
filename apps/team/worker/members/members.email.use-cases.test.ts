@@ -57,6 +57,14 @@ describe("changing your own email", () => {
     expect((await w.ask(w.browser(), "reg@example.com")).devCode).toBeUndefined();
   });
 
+  it("the old address's email greets him by the name he goes by, a nickname whole", async () => {
+    const reg = await w.signedIn("reg@example.com");
+    w.db.raw.prepare("UPDATE members SET web_name = 'Big Reg' WHERE email = 'reg@example.com'").run();
+    expect((await confirm(reg, (await ask(reg, "reg.new@example.com")).body)).status).toBe(200);
+    const told = w.mails.find((m) => m.subject.endsWith("Your Cougars sign-in email has changed"));
+    expect(told?.text).toContain("Hi Big Reg,");
+  });
+
   it("his other sign-ins end, and this one stays", async () => {
     const phone = await w.signedIn("reg@example.com");
     const laptop = await w.signedIn("reg@example.com");

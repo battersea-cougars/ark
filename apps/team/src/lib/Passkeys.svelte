@@ -3,7 +3,8 @@
   // row, by device and the day you added it, with Remove. Signing in with one needs no email, so it works while Gmail's
   // down; the emailed code is still there for a new phone. Removing asks first, in a sheet.
   import Icon from "../app/shell/Icon.svelte";
-  import Sheet from "./Sheet.svelte";
+  import Drawer from "./Drawer.svelte";
+  import Confirm from "./Confirm.svelte";
   import { reportUnexpected } from "../app/errors.early";
   import { addPasskey, checkName, myPasskeys, passkeysWork, removePasskey, type Passkey } from "../app/passkeys";
   import { formatDayDate } from "./dates";
@@ -103,15 +104,19 @@
   <p class="hint note" class:failed role="status">{note}</p>
 </section>
 
-<Sheet bind:open={sheetOpen} title="Remove this passkey?">
-  <p class="hint">
-    {removing?.name} won't sign you in any more. You stay signed in where you are; next time there, it's a code.
-  </p>
-  {#snippet footer()}
-    <button class="btn ghost" type="button" onclick={() => (sheetOpen = false)}>Keep it</button>
-    <button class="btn danger" type="button" disabled={busy} onclick={remove}>Remove it</button>
-  {/snippet}
-</Sheet>
+<Drawer short bind:open={sheetOpen} title="Remove this passkey?">
+  <Confirm
+    cancel="Keep it"
+    confirm="Remove it"
+    kind="danger"
+    {busy}
+    oncancel={() => (sheetOpen = false)}
+    onconfirm={remove}
+    ><p>
+      {removing?.name} won't sign you in any more. You stay signed in where you are; next time there, it's a code.
+    </p></Confirm
+  >
+</Drawer>
 
 <style>
   .passkeys {

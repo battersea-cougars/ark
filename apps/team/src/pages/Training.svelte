@@ -7,12 +7,15 @@
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player } from "../demo/data";
+  import { POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player, playerOf } from "../demo/data";
   import { rosterGroups } from "../lib/roster-groups";
   import { nextUp, placesLeft } from "../lib/places";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import Icon from "../app/shell/Icon.svelte";
+  import ManageList, { type ManageItem, type ManageNote } from "../lib/ManageList.svelte";
+  import { Arm } from "../lib/arm.svelte";
+  import Confirm from "../lib/Confirm.svelte";
   import EventCard from "../lib/EventCard.svelte";
   import Person from "../lib/Person.svelte";
   import PlayerCard from "../lib/PlayerCard.svelte";
@@ -30,7 +33,7 @@
   import { phone } from "../lib/viewport.svelte";
   import { cardMoveMs, deal, easeOut, prefersReducedMotion, sift } from "../app/motion";
   import { flip } from "svelte/animate";
-  import { clock, clockRange, formatDayDate, londonEvening, londonToday } from "../lib/dates";
+  import { clock, clockRange, formatDayDate, londonEvening, londonToday, plural } from "../lib/dates";
   import { describeRule } from "../lib/recurrence";
   import { lineUp, makeTeams, slotIn, strength, type Team } from "../lib/balance";
   import { shuffleAndDeal, type Show } from "../lib/shuffle";
@@ -91,7 +94,7 @@
   // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
   const planIn = (id: number): Plan =>
     byId(id).position === "G" ? "Keeper" : ahead.has(id) ? "Subscription" : "Pay as you go";
-  const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
+  const byId = (id: number): Player => playerOf(id)!;
 
   let registering = $state(false);
   // The card that's been picked up, and where it lies on the page
@@ -407,8 +410,7 @@
   // Manage: an admin's tools for this session, in one place (a sheet on a phone, a side drawer on a desktop). The
   // ones that can't be undone take a second tap, which lapses after a few seconds.
   let manageOpen = $state(false);
-  let confirming = $state<"remake" | "reset" | null>(null);
-  let lapse: ReturnType<typeof setTimeout> | undefined;
+  const arm = new Arm<"remake" | "reset">(4000);
   // Make teams: the team maker's call to action, always there for them (greyed until someone's in), so nothing
   // moves when the first person signs up. On a phone it sits in a bar above the tabs, where the thumb is; on a
   // desktop at the right of the toolbar. Once the teams are out it's Remake teams, with Clear teams beside it.
@@ -426,17 +428,11 @@
     manageOpen = false;
     run();
   }
-  function twice(which: "remake" | "reset", run: () => void) {
-    clearTimeout(lapse);
-    if (confirming !== which) {
-      confirming = which;
-      lapse = setTimeout(() => (confirming = null), 4000);
-      return;
-    }
-    confirming = null;
-    manageOpen = false;
-    run();
-  }
+  const twice = (which: "remake" | "reset", run: () => void) =>
+    arm.tap(which, () => {
+      manageOpen = false;
+      run();
+    });
   // Cancel this night (ADR 0065): asked first, saying who hears it's off; then the night's own cancel, as the
   // training editor's (apps/team/worker/training/README.md). The page moves on to the next night, this one struck through above it.
   let cancelAsk = $state(false);
@@ -471,6 +467,82 @@
     s.walkIns = [];
     s.noShows = [];
     void resetSession(s.id);
+  }
+
+  // Manage's jobs, those this admin may do on this night; the ones that can't be undone take a second tap
+  const manageItems = $derived.by(() => {
+    const items: (ManageItem | ManageNote)[] = [];
+    const training = can(perms, "manage:Training");
+    if (training)
+      items.push({
+        icon: "settings",
+        label: "Training settings",
+        sub: "Its days, times, place and fee, for every session.",
+        run: () => (settingsOpen = true),
+      });
+    if (closed)
+      items.push({ note: `The register closed ${registerClosesOn(session!.heldOn)} morning: who came is the record.` });
+    if (session && !closed && can(perms, "record:Attendance"))
+      items.push({
+        icon: "userPlus",
+        label: "Add player",
+        sub: "Someone who turned up, or signing up for someone.",
+        run: () => (registering = true),
+      });
+    if (training && session && !session.cancelledAt && !closed)
+      items.push({
+        icon: "x",
+        label: "Cancel this night",
+        sub: `${cancelDay}: whoever's in or waiting hears it's off.`,
+        run: () => (cancelAsk = true),
+      });
+    if (training)
+      for (const night of nights.off)
+        items.push({
+          icon: "refresh",
+          label: "It's back on",
+          sub: `${formatDayDate(sessionBookable(night).startsAt)}, ${offWhy(night, tournamentName)}: on again, sign-ups as they were.`,
+          now: true,
+          run: () => void setCancelled(night.id, false),
+        });
+    if (session && !closed && can(perms, "update:Event"))
+      items.push({
+        icon: "undo",
+        label: arm.is("reset") ? "Tap again to reset" : "Reset this session",
+        sub: "Nobody in, nobody waiting, no teams. Can't be undone.",
+        now: true,
+        armed: arm.is("reset"),
+        stays: true,
+        run: () => twice("reset", reset),
+      });
+    return items;
+  });
+
+  // Move: each team with its numbers, the one they're on said but not offered, then their card
+  function moveItems(m: { id: number; from: string }): ManageItem[] {
+    const teamsTo = (ordered ?? []).map((team): ManageItem => {
+      const head = strength(team.players, byId);
+      const theirs = team.name === m.from;
+      return {
+        icon: "teams",
+        label: theirs ? `On ${team.name}` : `To ${team.name}`,
+        sub: `${plural(head.players, "player")}${ratings && head.average !== null ? ` · avg ${head.average}` : ""}`,
+        here: theirs,
+        run: () => moveTo(team.name),
+      };
+    });
+    const card: ManageItem = {
+      icon: "cards",
+      label: "See their card",
+      sub: "Who they are, and their bio.",
+      run: () => {
+        const row = document.querySelector<HTMLElement>(`[data-player="${m.id}"]`);
+        const el = row && zoomFrom(row);
+        moveOpen = false;
+        if (el) lifted = { id: m.id, el };
+      },
+    };
+    return [...teamsTo, card];
   }
 </script>
 
@@ -655,11 +727,11 @@
 {#snippet makeButton(size: string)}
   <button
     class="btn primary make {size}"
-    class:keep-label={confirming === "remake"}
+    class:keep-label={arm.is("remake")}
     disabled={!canGenerate || !!deck}
     onclick={() => (teams ? twice("remake", generate) : generate())}
     ><Icon name="teams" size={size === "sm" ? 16 : 18} />
-    {!teams ? "Make teams" : confirming === "remake" ? "Tap again to remake" : "Remake teams"}</button
+    {!teams ? "Make teams" : arm.is("remake") ? "Tap again to remake" : "Remake teams"}</button
   >
 {/snippet}
 
@@ -939,72 +1011,13 @@
   {/if}
 </div>
 
-{#snippet manageTools()}
-  <div class="tools">
-    {#if can(perms, "manage:Training")}
-      <button class="tool" onclick={() => go(() => (settingsOpen = true))}>
-        <Icon name="settings" size={22} />
-        <span class="tool-text"
-          ><strong>Training settings</strong><span>Its days, times, place and fee, for every session.</span></span
-        >
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/if}
-    {#if closed}
-      <p class="tool-note hint">
-        The register closed {registerClosesOn(session!.heldOn)} morning: who came is the record.
-      </p>
-    {/if}
-    {#if session && !closed && can(perms, "record:Attendance")}
-      <button class="tool" onclick={() => go(() => (registering = true))}>
-        <Icon name="userPlus" size={22} />
-        <span class="tool-text"
-          ><strong>Add player</strong><span>Someone who turned up, or signing up for someone.</span></span
-        >
-        <Icon name="chevronRight" size={18} />
-      </button>
-    {/if}
-    {#if can(perms, "manage:Training")}
-      {#if session && !session.cancelledAt && !closed}
-        <button class="tool" aria-haspopup="dialog" onclick={() => go(() => (cancelAsk = true))}>
-          <Icon name="x" size={22} />
-          <span class="tool-text"
-            ><strong>Cancel this night</strong><span>{cancelDay}: whoever's in or waiting hears it's off.</span></span
-          >
-          <Icon name="chevronRight" size={18} />
-        </button>
-      {/if}
-      {#each nights.off as night (night.id)}
-        <button class="tool" onclick={() => go(() => void setCancelled(night.id, false))}>
-          <Icon name="refresh" size={22} />
-          <span class="tool-text"
-            ><strong>It's back on</strong><span
-              >{formatDayDate(sessionBookable(night).startsAt)}, {offWhy(night, tournamentName)}: on again, sign-ups as
-              they were.</span
-            ></span
-          >
-        </button>
-      {/each}
-    {/if}
-    {#if session && !closed && can(perms, "update:Event")}
-      <button class="tool" class:armed={confirming === "reset"} onclick={() => twice("reset", reset)}>
-        <Icon name="undo" size={22} />
-        <span class="tool-text"
-          ><strong>{confirming === "reset" ? "Tap again to reset" : "Reset this session"}</strong><span
-            >Nobody in, nobody waiting, no teams. Can't be undone.</span
-          ></span
-        >
-      </button>
-    {/if}
-  </div>
-{/snippet}
-
 {#if canManage}
   <Drawer
     bind:open={manageOpen}
     short
     title="Manage {series.shortName}"
-    sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}>{@render manageTools()}</Drawer
+    sub={session ? formatDayDate(sessionBookable(session).startsAt) : undefined}
+    ><ManageList items={manageItems} {go} /></Drawer
   >
 {/if}
 
@@ -1020,25 +1033,31 @@
 {/if}
 
 {#if session && !session.cancelledAt && can(perms, "manage:Training")}
-  <Sheet bind:open={cancelAsk} title="Cancel {cancelDay}?">
-    <p class="ask">{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (cancelAsk = false)}>Keep it on</button>
-      <button class="btn clear-yes" type="button" onclick={callOff}>Cancel this night</button>
-    {/snippet}
-  </Sheet>
+  <Drawer short bind:open={cancelAsk} title="Cancel {cancelDay}?">
+    <Confirm
+      cancel="Keep it on"
+      confirm="Cancel this night"
+      kind="danger"
+      oncancel={() => (cancelAsk = false)}
+      onconfirm={callOff}
+      ><p>{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p></Confirm
+    >
+  </Drawer>
 {/if}
 
 {#if maker && teams}
-  <Sheet bind:open={clearAsk} title="Clear the teams?">
-    <p class="ask">
-      Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.
-    </p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (clearAsk = false)}>Keep them</button>
-      <button class="btn clear-yes" type="button" onclick={takeDown}>Clear teams</button>
-    {/snippet}
-  </Sheet>
+  <Drawer short bind:open={clearAsk} title="Clear the teams?">
+    <Confirm
+      cancel="Keep them"
+      confirm="Clear teams"
+      kind="danger"
+      oncancel={() => (clearAsk = false)}
+      onconfirm={takeDown}
+      ><p>
+        Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.
+      </p></Confirm
+    >
+  </Drawer>
 {/if}
 
 {#if arranging && teams}
@@ -1051,38 +1070,7 @@
       : undefined}
   >
     {#if moving}
-      {@const m = moving}
-      <div class="tools">
-        {#each ordered ?? [] as team (team.name)}
-          {@const head = strength(team.players, byId)}
-          {@const theirs = team.name === m.from}
-          <button class="tool" disabled={theirs} onclick={() => moveTo(team.name)}>
-            <Icon name="teams" size={22} />
-            <span class="tool-text"
-              ><strong>{theirs ? `On ${team.name}` : `To ${team.name}`}</strong><span class="num"
-                >{head.players}
-                {head.players === 1 ? "player" : "players"}{ratings && head.average !== null
-                  ? ` · avg ${head.average}`
-                  : ""}</span
-              ></span
-            >
-            {#if !theirs}<Icon name="chevronRight" size={18} />{/if}
-          </button>
-        {/each}
-        <button
-          class="tool"
-          onclick={() => {
-            const row = document.querySelector<HTMLElement>(`[data-player="${m.id}"]`);
-            const el = row && zoomFrom(row);
-            moveOpen = false;
-            if (el) lifted = { id: m.id, el };
-          }}
-        >
-          <Icon name="cards" size={22} />
-          <span class="tool-text"><strong>See their card</strong><span>Who they are, and their bio.</span></span>
-          <Icon name="chevronRight" size={18} />
-        </button>
-      </div>
+      <ManageList items={moveItems(moving)} go={(run) => run()} />
     {/if}
   </Sheet>
 {/if}
@@ -1203,19 +1191,6 @@
   }
   .page.has-dock:has(> .hybrid) {
     padding-bottom: calc(var(--s-4) + var(--dock-h));
-  }
-  .ask {
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.5;
-  }
-  /* The armed "are you sure": the one red fill (ADR 0009) */
-  .clear-yes {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .clear-yes:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   /* The make-teams show (lib/shuffle.ts): cards over everything, each placed by its centre on the window's */
   .deck-layer {
@@ -1466,55 +1441,6 @@
   }
   .cards .let-in {
     margin-top: var(--s-2);
-  }
-  .tools {
-    display: grid;
-    gap: var(--s-2);
-  }
-  .tool {
-    display: flex;
-    align-items: center;
-    gap: var(--s-4);
-    min-height: 4.25rem;
-    padding: var(--s-3) var(--s-4);
-    border: 0;
-    border-radius: var(--r-lg);
-    background: var(--surface-2);
-    color: var(--fg-muted);
-    font: inherit;
-    text-align: left;
-  }
-  /* Move: the team they're on, said but not offered */
-  .tool:disabled {
-    background: none;
-  }
-  .tool:active {
-    background: var(--surface-3);
-  }
-  /* The second tap's the real one: said in red, the only red here */
-  .tool.armed {
-    box-shadow: inset 0 0 0 1.5px var(--red-hot);
-  }
-  .tool.armed strong {
-    color: var(--red-hot);
-  }
-  .tool-note {
-    margin: 0;
-    padding: var(--s-2) var(--s-4);
-  }
-  .tool-text {
-    display: grid;
-    flex: 1;
-    gap: 0.15rem;
-    min-width: 0;
-  }
-  .tool-text strong {
-    color: var(--fg);
-    font-size: var(--text-md);
-    font-weight: 600;
-  }
-  .tool-text span {
-    font-size: var(--text-sm);
   }
   /* Moving players: a grip to drag by, the full height of the row and a thumb wide; the rest of the row a tap that
      asks where to; the team you're over lit, the row following the pointer */

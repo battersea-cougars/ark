@@ -60,6 +60,12 @@ export function table(
   return [...rows.values()].sort((x, y) => y.pts - x.pts || y.gf - y.ga - (x.gf - x.ga) || y.gf - x.gf);
 }
 
+/** A tournament's final: its last playoff game, if it has playoffs. */
+export function finalOf<G extends { stage: "group" | "playoff"; position: number }>(games: readonly G[]) {
+  const playoffs = games.filter((g) => g.stage === "playoff");
+  return playoffs.length ? playoffs.reduce((a, b) => (b.position > a.position ? b : a)) : undefined;
+}
+
 /**
  * Who won the tournament, once it's decided: with playoffs, whoever wins the last one (the final); without, the top
  * of the table once every game's played. A drawn final crowns nobody until a result settles it.
@@ -69,9 +75,8 @@ export function champion(
   games: (Result & { stage: "group" | "playoff"; position: number })[],
   points?: { win: number; draw: number; loss: number },
 ): number | null {
-  const playoffs = games.filter((g) => g.stage === "playoff");
-  if (playoffs.length) {
-    const final = playoffs.reduce((a, b) => (b.position > a.position ? b : a));
+  const final = finalOf(games);
+  if (final) {
     if (final.status !== "done" || final.homeGoals == null || final.awayGoals == null) return null;
     if (final.homeGoals === final.awayGoals) return null;
     return final.homeGoals > final.awayGoals ? final.homeTeamId : final.awayTeamId;
