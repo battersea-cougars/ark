@@ -2489,12 +2489,12 @@
   }
   /* After the finale, the Seal the teams card rises in, its 決 fading up last, as if the stamp is waiting */
   .seal-arrive.arrive {
-    animation: rise 520ms var(--ease) both;
+    animation: rise-far 520ms var(--ease) both;
   }
   .seal-arrive.arrive :global(.hanko-press) {
     animation: wait-stamp 700ms 380ms ease-out both;
   }
-  @keyframes rise {
+  @keyframes rise-far {
     from {
       opacity: 0;
       transform: translateY(1.25rem);

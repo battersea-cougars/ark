@@ -272,16 +272,10 @@
     border-radius: var(--r-md);
     background: var(--surface-2);
     box-shadow: var(--shadow-pop);
-    animation: pop var(--t-fast) var(--ease);
+    animation: menu-in var(--t-fast) var(--ease);
   }
   .pop:focus {
     outline: none;
-  }
-  @keyframes pop {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
   }
   .head {
     display: flex;

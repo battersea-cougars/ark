@@ -214,11 +214,6 @@
   .drawer.leaving::backdrop {
     opacity: 0;
   }
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-  }
   .drawer.wide {
     width: min(36rem, 100vw);
   }

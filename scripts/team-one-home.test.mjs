@@ -89,6 +89,16 @@ const RULES = [
     pattern: /PLAYERS\.find\(/,
     home: "demo/data.ts",
   },
+  {
+    what: "the worn-ink noise copied into a component (app.css --ink-worn)",
+    pattern: /width='140' height='70'%3E%3Cfilter/,
+    home: "app.css",
+  },
+  {
+    what: "a component's own copy of one of app.css's keyframes (pulse, rise, menu-in, fade-in, fade-out)",
+    pattern: /@keyframes (?:pulse|rise|menu-in|fade-in|fade-out) \{/,
+    home: "app.css",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

@@ -1078,16 +1078,6 @@
   .closing .scrim {
     animation: fade-out 300ms 80ms var(--ease) both;
   }
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-  }
-  @keyframes fade-out {
-    to {
-      opacity: 0;
-    }
-  }
   .turning {
     position: fixed;
     z-index: 2;

@@ -392,11 +392,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  @keyframes pulse {
-    50% {
-      opacity: 0.35;
-    }
-  }
   .keys {
     display: flex;
     flex-shrink: 0;
