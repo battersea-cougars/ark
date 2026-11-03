@@ -1,7 +1,8 @@
 // A tournament's awards and how each is decided (apps/team/worker/tournaments/README.md). Stats and draws are worked
 // out here for the admin to check as they confirm; the Worker counts the votes by the same rules
 // (worker/tournaments/awards.ts).
-import { champion, table, type Result } from "@cougars/shared/results";
+import { table, type Result } from "@cougars/shared/results";
+import { championOf, teamIdsOf } from "./fixtures";
 import { plural } from "./dates";
 
 /** The stats we track that decide an award (apps/team/worker/tournaments/README.md). */
@@ -130,10 +131,7 @@ function scores(stat: PlayerStat, t: AwardsData, { positionOf }: Positions) {
   const played = (t.games ?? []).filter((g) => g.status === "done");
   const out = new Map<number, { keys: number[]; why: string }>();
   if (stat === "goalsAgainst") {
-    const rows = table(
-      t.teams.flatMap((x) => (x.id ? [x.id] : [])),
-      played,
-    );
+    const rows = table(teamIdsOf(t), played);
     for (const r of rows) {
       if (!r.p) continue;
       const team = t.teams.find((x) => x.id === r.teamId);
@@ -215,8 +213,7 @@ export function awardFromData(
   if (how.kind !== "stat") return null;
   if (!(t.games ?? []).some((g) => g.status === "done")) return null;
   if (how.stat === "table") {
-    const teamIds = t.teams.flatMap((x) => (x.id ? [x.id] : []));
-    const id = champion(teamIds, t.games ?? [], { win: t.pointsWin, draw: t.pointsDraw, loss: t.pointsLoss });
+    const id = championOf(t);
     const final = (t.games ?? []).some((g) => g.stage === "playoff");
     return id ? { winners: [{ teamId: id, memberId: null }], why: final ? "Won the final" : "Top of the table" } : null;
   }

@@ -8,17 +8,14 @@
   import Leaderboard from "./Leaderboard.svelte";
   import ChampionCard from "./ChampionCard.svelte";
   import FixtureRow from "./FixtureRow.svelte";
+  import { finalOf } from "./fixtures";
   import Kanji from "./Kanji.svelte";
   import { kanjiFor } from "./motif";
 
   let { type, tournament }: { type: TournamentType; tournament: Tournament } = $props();
 
   const games = $derived([...(tournament.games ?? [])].sort((a, b) => a.position - b.position));
-  const final = $derived(
-    games
-      .filter((g) => g.stage === "playoff")
-      .reduce<(typeof games)[number] | undefined>((a, b) => (!a || b.position > a.position ? b : a), undefined),
-  );
+  const final = $derived(finalOf(tournament));
 </script>
 
 <div class="results">

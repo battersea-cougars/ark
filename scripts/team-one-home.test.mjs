@@ -79,6 +79,11 @@ const RULES = [
     pattern: /background: var\(--red\);\s*color: var\(--on-red\);\s*\}\s*[^{}]*:hover[^{]*\{\s*background: var\(--red-hot\)/,
     home: "app.css",
   },
+  {
+    what: "a tournament's table, points or final worked out by hand (lib/fixtures.ts recordsOf, groupTableOf, finalOf)",
+    pattern: /win: \w+\.pointsWin|b\.position > a\.position|seed \? ordinal\(seed\)/,
+    home: "lib/fixtures.ts",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

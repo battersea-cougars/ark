@@ -3,7 +3,7 @@
   // club's announcements), then the hero: the club's next event, whatever it is, your part in it shown on its card
   // (your match, In and Out, or You're out); then what's coming up after it, what needs you, the admins' lines, and what
   // you owe at the foot.
-  import { clock, formatDayDate, formatTime, londonEvening, londonToday, ordinal, pounds } from "../lib/dates";
+  import { clock, formatDayDate, formatTime, londonEvening, londonToday, pounds } from "../lib/dates";
   import { untrack } from "svelte";
   import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
@@ -17,7 +17,7 @@
   import EventCard from "../lib/EventCard.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { myTurnLine } from "../lib/draft";
-  import { kickOff, slotMinutes } from "../lib/fixtures";
+  import { kickOff, placeLabel, slotMinutes } from "../lib/fixtures";
   import { teamTone } from "../lib/team-tones";
   import { leftOn, overdue } from "../lib/dues";
   import {
@@ -353,7 +353,7 @@
       const i = t.teams.findIndex((x) => x.id === id);
       return {
         id,
-        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : seed ? ordinal(seed) : "",
+        name: i >= 0 ? nameOfTeam(t.teams[i], t.teams, person) : placeLabel(seed),
         logo: t.teams[i]?.logo ?? null,
         tone: teamTone(i),
       };

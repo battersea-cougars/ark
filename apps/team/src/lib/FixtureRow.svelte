@@ -2,11 +2,11 @@
   // One game, as a row in a list: its kick-off, the two teams (or the places a playoff waits on, 1st v 2nd), and the
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
   // both teams, the goals, and where it's scored or an admin puts a result right (apps/team/worker/tournaments/README.md).
-  import { clock, ordinal } from "./dates";
+  import { clock } from "./dates";
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { PLAYERS } from "../demo/data";
-  import { matchTime, table } from "./fixtures";
+  import { matchTime, placeLabel, recordsOf } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import RollNumber from "./RollNumber.svelte";
   import { teamHref, teamTone } from "./team-tones";
@@ -49,17 +49,7 @@
   const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
 
   // Each team's record from the group games with a result: won-drawn-lost and points, as a league writes it
-  const records = $derived(
-    big
-      ? new Map(
-          table(
-            teams.flatMap((t) => (t.id ? [t.id] : [])),
-            (tournament.games ?? []).filter((x) => x.stage === "group"),
-            { win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss },
-          ).map((r) => [r.teamId, r]),
-        )
-      : null,
-  );
+  const records = $derived(big ? recordsOf(tournament) : null);
   const recordOf = (id: number) => records?.get(id);
   // Once played, who won it (nobody, a draw): the winner's name stays bright, the loser's fades
   const won = $derived(
@@ -89,7 +79,7 @@
     {#if id}<a class="tn linked" href={teamHref(typeById(tournament.typeId)?.slug ?? "", id)}>{teamName(id)}</a><span
         class="tn plain">{teamName(id)}</span
       >
-    {:else}<span class="tn">{seed ? ordinal(seed) : ""}</span>{/if}
+    {:else}<span class="tn">{placeLabel(seed)}</span>{/if}
     {#if big && id}
       {@const r = recordOf(id)}
       {#if r}

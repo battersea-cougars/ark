@@ -8,7 +8,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
   import { championOf } from "./edition";
-  import { table } from "./fixtures";
+  import { finalOf, pointsOf, table, teamIdsOf } from "./fixtures";
   import { teamHref, teamTone } from "./team-tones";
   import Kanji from "./Kanji.svelte";
   import { kanjiFor } from "./motif";
@@ -25,18 +25,13 @@
   };
   // How they won it: the final's score, or their points at the top of the table
   const how = $derived.by(() => {
-    const playoffs = (tournament.games ?? []).filter((g) => g.stage === "playoff");
-    if (playoffs.length) {
-      const f = playoffs.reduce((a, b) => (b.position > a.position ? b : a));
+    const f = finalOf(tournament);
+    if (f) {
       const home = f.homeTeamId === winnerId;
       const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
       return `Beat ${nameOf(home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
     }
-    const top = table(
-      teams.flatMap((t) => (t.id ? [t.id] : [])),
-      tournament.games ?? [],
-      { win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss },
-    )[0];
+    const top = table(teamIdsOf(tournament), tournament.games ?? [], pointsOf(tournament))[0];
     return top ? `Top of the table, ${top.pts} points from ${top.p}` : "";
   });
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)

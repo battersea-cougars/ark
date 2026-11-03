@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { champion, kickOff, roundRobin, scorekeepers, slotMinutes, table, teamsForPlayoffs } from "./fixtures";
+import {
+  champion,
+  championOf,
+  finalOf,
+  kickOff,
+  recordsOf,
+  roundRobin,
+  scorekeepers,
+  slotMinutes,
+  table,
+  teamsForPlayoffs,
+} from "./fixtures";
 
 describe("table", () => {
   it("ranks by points, then goal difference, and leaves out games without a result", () => {
@@ -123,5 +134,37 @@ describe("how many teams the playoffs need", () => {
         { home: 1, away: 2 },
       ]),
     ).toBe(4);
+  });
+});
+
+describe("a tournament's records and final", () => {
+  const game = (stage: "group" | "playoff", position: number, home: number, away: number, hg: number, ag: number) => ({
+    stage,
+    position,
+    homeTeamId: home,
+    awayTeamId: away,
+    homeGoals: hg,
+    awayGoals: ag,
+    status: "done",
+  });
+  const cup = {
+    teams: [{ id: 1 }, { id: 2 }, { id: null }],
+    pointsWin: 2,
+    pointsDraw: 1,
+    pointsLoss: 0,
+    games: [game("group", 1, 1, 2, 3, 1), game("group", 2, 2, 1, 2, 2), game("playoff", 4, 2, 1, 5, 0), game("playoff", 3, 1, 2, 1, 0)],
+  };
+
+  it("a team's record counts the group games only, at the tournament's own points; a team not saved yet has none", () => {
+    const records = recordsOf(cup);
+    expect(records.get(1)).toMatchObject({ w: 1, d: 1, l: 0, pts: 3 });
+    expect(records.get(2)).toMatchObject({ w: 0, d: 1, l: 1, pts: 1 });
+    expect(records.size).toBe(2);
+  });
+
+  it("the final is the last playoff game, and its winner the champions", () => {
+    expect(finalOf(cup)?.position).toBe(4);
+    expect(championOf(cup)).toBe(2);
+    expect(finalOf({ games: cup.games.filter((g) => g.stage === "group") })).toBeUndefined();
   });
 });

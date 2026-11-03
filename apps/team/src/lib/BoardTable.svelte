@@ -10,7 +10,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import InkStamp from "./InkStamp.svelte";
   import { kanjiFor } from "./motif";
-  import { champion, table, type TableRow } from "./fixtures";
+  import { championOf, groupTableOf, type TableRow } from "./fixtures";
 
   let {
     type,
@@ -24,25 +24,10 @@
   } = $props();
 
   // This tournament's own points (apps/team/worker/training/README.md)
-  const points = $derived({ win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss });
   const teams = $derived(tournament.teams);
-  const group = $derived((tournament.games ?? []).filter((g) => g.stage === "group"));
-  const rows = $derived(
-    order ??
-      table(
-        teams.flatMap((t) => (t.id ? [t.id] : [])),
-        group,
-        points,
-      ),
-  );
+  const rows = $derived(order ?? groupTableOf(tournament));
   // Who won, once it's decided: the final's winner, else the top of the table (lib/fixtures.ts)
-  const champ = $derived(
-    champion(
-      teams.flatMap((t) => (t.id ? [t.id] : [])),
-      tournament.games ?? [],
-      points,
-    ),
-  );
+  const champ = $derived(championOf(tournament));
   const teamName = (id: number) => {
     const t = teams.find((x) => x.id === id);
     return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));

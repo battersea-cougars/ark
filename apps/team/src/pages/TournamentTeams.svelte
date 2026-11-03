@@ -13,7 +13,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import TeamRecord from "../lib/TeamRecord.svelte";
-  import { table } from "../lib/fixtures";
+  import { recordsOf, type TableRow } from "../lib/fixtures";
   import { teamHref, teamTone } from "../lib/team-tones";
   import EmptyState from "../lib/EmptyState.svelte";
   import { editTournament } from "../lib/tournament-panel.svelte";
@@ -32,17 +32,7 @@
   // Yours first
   const order = $derived(teams.map((_, i) => i).sort((a, b) => Number(isMine(b)) - Number(isMine(a))));
   // The record from the group games with a result: won, drawn, lost (in words), and points
-  const records = $derived(
-    tournament
-      ? new Map(
-          table(
-            teams.flatMap((t) => (t.id ? [t.id] : [])),
-            (tournament.games ?? []).filter((g) => g.stage === "group"),
-            { win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss },
-          ).map((r) => [r.teamId, r]),
-        )
-      : new Map(),
-  );
+  const records = $derived(tournament ? recordsOf(tournament) : new Map<number, TableRow>());
   const admin = $derived(can(granted(), "manage:Tournament"));
   const draftNight = $derived(tournament?.draftOn ? formatDayDate(londonISO(tournament.draftOn, "12:00")) : null);
   const played = $derived((tournament?.games ?? []).some((g) => g.homeGoals !== null));

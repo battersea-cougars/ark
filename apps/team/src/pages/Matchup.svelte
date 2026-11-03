@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { clock, ordinal } from "../lib/dates";
+  import { clock } from "../lib/dates";
   import { waitingFor } from "../app/editions.svelte";
   // One game's matchup (apps/team/worker/tournaments/README.md), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
@@ -18,7 +18,7 @@
   import TournamentHead from "../lib/TournamentHead.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import { teamHref, teamTone } from "../lib/team-tones";
-  import { kickOff, slotMinutes, table } from "../lib/fixtures";
+  import { kickOff, placeLabel, recordsOf, slotMinutes, type TableRow } from "../lib/fixtures";
   import BoxScore from "../lib/BoxScore.svelte";
   import GameTimeline from "../lib/GameTimeline.svelte";
   import { meetings, type PastMeeting } from "../lib/matchups";
@@ -45,17 +45,7 @@
   const teamName = (i: number) => nameOfTeam(teams[i], teams, byId);
 
   // The two sides, home then away: the team (or the place a playoff waits on), its squad, its record so far
-  const records = $derived(
-    tournament
-      ? new Map(
-          table(
-            teams.flatMap((t) => (t.id ? [t.id] : [])),
-            (tournament.games ?? []).filter((g) => g.stage === "group"),
-            { win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss },
-          ).map((r) => [r.teamId, r]),
-        )
-      : new Map(),
-  );
+  const records = $derived(tournament ? recordsOf(tournament) : new Map<number, TableRow>());
   const sides = $derived(
     game
       ? [
@@ -67,7 +57,7 @@
           return {
             i,
             team: t,
-            name: t ? teamName(i) : seed ? ordinal(seed) : "",
+            name: t ? teamName(i) : placeLabel(seed),
             captain: byId(t?.captainMemberId ?? null),
             squad: t ? rosterOf(t, byId) : [],
             record: t?.id ? records.get(t.id) : undefined,
