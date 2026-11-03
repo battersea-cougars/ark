@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A tournament series' defaults (Settings → Tournament Series): a kind of tournament the club runs again and again
-  // (The Cougars Kumite), set once. Its rules, the fee and location each new tournament in it starts with, its awards
-  // and how it looks in the menu. Each tournament is edited on its own card (TournamentDateEditor). A new series gets
-  // its own section in the menu.
+  // A tournament series' defaults (Settings → Tournament Series), set once for a kind the club runs again and again:
+  // the rules, fee, location, awards and look in the menu each new tournament starts with. Each tournament is edited on
+  // its own card (TournamentDateEditor).
   import TimeSelect from "./TimeSelect.svelte";
   import { tick } from "svelte";
   import PlayoffsField from "./PlayoffsField.svelte";
@@ -77,7 +76,7 @@
   const starting = (): TournamentType | null => {
     const t = selected === "new" ? blank() : db.tournamentTypes.find((x) => x.id === selected);
     const loaded = t ? structuredClone($state.snapshot(t)) : null;
-    // Each award saying how it's decided (one saved before it said: the old guess from its name, ADR 0044)
+    // Each award saying how it's decided (one saved before it said: the old guess from its name, apps/team/worker/tournaments/README.md)
     return loaded && { ...loaded, awards: withDecidedBy(loaded.awards) };
   };
   // The form takes its starting values as it opens (the page mounts a fresh editor for each series), and again only
@@ -153,7 +152,7 @@
                   Short name <input class="input" bind:value={form.shortName} placeholder="e.g. Cup" maxlength="12" />
                 </label>
               </div>
-              <!-- How its tournaments make teams (ADR 0030); each tournament copies it -->
+              <!-- How its tournaments make teams (apps/team/worker/tournaments/README.md); each tournament copies it -->
               <div class="field">
                 <span id="series-kind">Type</span>
                 <div class="seg kind" role="group" aria-labelledby="series-kind">
@@ -202,7 +201,7 @@
                 </label>
               </div>
             </FormSection>
-            <!-- Where everyone goes after (ADR 0074): every one in the series gets it without retyping -->
+            <!-- Where everyone goes after (apps/team/worker/tournaments/README.md): every one in the series gets it without retyping -->
             <FormSection title="Afterwards" description="Where everyone goes after, on every one in the series.">
               <AfterFields
                 id="series-after"
@@ -211,7 +210,7 @@
                 bind:note={form.afterNote}
               />
             </FormSection>
-            <!-- The series' own rules, as written (ADR 0074): everyone reads them under Format & rules -->
+            <!-- The series' own rules, as written (apps/team/worker/tournaments/README.md): everyone reads them under Format & rules -->
             <FormSection title="House rules" description="A rule a line. Everyone sees them under Format & rules.">
               <label class="field">
                 <span class="sr-only">House rules</span>
@@ -238,13 +237,13 @@
                   Minutes a period
                   <input class="input num" type="number" min="1" max="90" bind:value={form.gameMinutes} />
                 </label>
-                <!-- Between periods (ADR 0061): the scorekeeper's screen counts it down; it's in each game's slot -->
+                <!-- Between periods (apps/team/worker/tournaments/README.md): the scorekeeper's screen counts it down; it's in each game's slot -->
                 <label class="field">
                   Break between periods
                   <input class="input num" type="number" min="0" max="15" bind:value={form.breakMinutes} />
                 </label>
               </div>
-              <!-- A game's periods (ADR 0061): the clock runs per period, the slot on the day is all of them -->
+              <!-- A game's periods (apps/team/worker/tournaments/README.md): the clock runs per period, the slot on the day is all of them -->
               <div class="field">
                 Periods
                 <Choice
@@ -253,12 +252,12 @@
                   aria-label="Periods"
                 />
               </div>
-              <!-- How a penalty's served (ADR 0061): each new tournament copies it -->
+              <!-- How a penalty's served (apps/team/worker/tournaments/README.md): each new tournament copies it -->
               <div class="field">
                 Penalties
                 <Choice bind:value={form.penaltyRule} options={PENALTY_RULE_OPTIONS} aria-label="Penalties" />
               </div>
-              <!-- The length the penalty sheet starts on (ADR 0061); too many players and a bench minor stay 2 -->
+              <!-- The length the penalty sheet starts on (apps/team/worker/tournaments/README.md); too many players and a bench minor stay 2 -->
               <div class="field">
                 Usual penalty
                 <Choice

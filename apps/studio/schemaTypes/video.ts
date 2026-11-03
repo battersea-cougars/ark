@@ -1,7 +1,7 @@
 import { defineField, defineType } from "sanity";
 import { youtubeUrlRule } from "./shared";
 
-// Videos on the club YouTube channel appear on the website by themselves (docs/adr/0016-photos-and-videos-read-live.md).
+// Videos on the club YouTube channel appear on the website by themselves (ADR 0016).
 // A document here changes one of them, matched by its YouTube link, or adds a video from somewhere else.
 export const video = defineType({
   name: "video",

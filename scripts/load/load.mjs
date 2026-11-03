@@ -7,11 +7,15 @@
 //   npm run load -- friday-rush          120 members open the app and tap In within 10 s; the crons; teams published
 //   npm run load -- live-draft           8 captains picking, 60 players watching the draft room live
 //   npm run load -- scoring              1 scorekeeper, 80 members following the game live (--followers 20)
+//   npm run load -- register             the night's register: 42 marked here, 60 phones following (--followers)
+//   npm run load -- reveals              the after-party: each award turned over, 80 phones in the room
+//   npm run load -- club-send            every member's phone told at once; the outbox drained by the crons
 //   npm run load -- all                  each, one after another, each on a fresh Worker
 //   npm run load -- soak --minutes 60    the scenarios in turn, with a pause between, the crons running
 //   npm run load -- cpu                  the Worker's own CPU a request (the fake world, D1's time taken off)
 //
 //   --members 120     the run's members      --one-address   everyone on one address (the rink's wifi)
+//   --weeks 52        (own target) a past behind the club: weeks of training nights, a Kumite a quarter (seed-history)
 //   --no-build        use the last build      --keep          keep the run's D1 folder
 //   --target local    the run's own Worker, its members and sessions minted as on dev (the dev path, locally)
 //   --target dev      dev (through env-pull; see "Against dev"): --dry-run first, then --yes; --cleanup for leftovers
@@ -29,7 +33,17 @@ import { devHandles, devTarget, localTarget, ownTarget } from "./load.target.mjs
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
 const value = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
-const valued = new Set(["--members", "--followers", "--target", "--minutes", "--pause", "--budget", "--from", "--to"]);
+const valued = new Set([
+  "--weeks",
+  "--members",
+  "--followers",
+  "--target",
+  "--minutes",
+  "--pause",
+  "--budget",
+  "--from",
+  "--to",
+]);
 const asked = args.find((a, i) => !a.startsWith("--") && !valued.has(args[i - 1]));
 const where = value("--target", "own");
 const members = Number(value("--members", 120));
@@ -66,10 +80,18 @@ const minutes = Number(value("--minutes", asked === "soak" ? 30 : 0));
 if (asked === "soak" && !minutes) fail("soak takes --minutes");
 
 /**
- * D1 rows read a run of each reads (docs/load-testing.md, after #112, 120 members, a fresh database), for a club of
- * `size`: rows read grow about with the members (each read lists them, their answers and places).
+ * D1 rows read a run of each reads (docs/load-testing.md; measured with 120 members on a fresh database), for a club
+ * of `size`: rows read grow about with the members (each read lists them, their answers and places).
  */
-const ROWS = { baseline: 50_000, "friday-rush": 620_000, "live-draft": 1_670_000, scoring: 140_000 };
+const ROWS = {
+  baseline: 50_000,
+  "friday-rush": 620_000,
+  register: 1_080_000,
+  "live-draft": 2_590_000,
+  scoring: 140_000,
+  reveals: 265_000,
+  "club-send": 525_000,
+};
 const estimate = (name, size) => Math.round((ROWS[name] * size) / 120);
 const pct = (n) => `${((100 * n) / FREE.rowsReadPerDay).toFixed(0)}%`;
 
@@ -95,7 +117,7 @@ async function checkDev() {
         ? `Today so far (UTC day): ${today.rowsRead} D1 rows read (${pct(today.rowsRead)} of the free 5M), ${today.rowsWritten} written, ${today.requests} team requests`
         : "Today so far: unknown (no CLOUDFLARE_ANALYTICS_TOKEN)",
       `This run reads about ${cost} rows (${pct(cost)})${minutes ? " a round" : ""}, writes a few thousand; ` +
-        `the free day resets at 00:00 UTC; past 80% dev's hourly check emails its admins (ADR 0059)`,
+        `the free day resets at 00:00 UTC; past 80% dev's hourly check emails its admins (ADR 0003)`,
     ].join("\n"),
   );
   if (!nothingLeft(left)) fail("Clean up first: npm run load -- --cleanup --target dev");
@@ -146,7 +168,7 @@ async function runAll() {
 /** One scenario on a fresh target: its report, then the run's people and what they made taken away. */
 async function runOne(name, build) {
   const open = { own: ownTarget, local: localTarget, dev: devTarget }[where];
-  const target = await open({ members, build, log });
+  const target = await open({ members, build, weeks: Number(value("--weeks", 0)), log });
   let stopping = false;
   target.stopping = () => stopping;
   // Ctrl-C or a kill: stop sending, take everything away, then go

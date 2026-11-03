@@ -1,19 +1,6 @@
-// Email through the Gmail API (HTTPS, not SMTP), for the website and the team app. Pattern from gwenda-hackney/ark
-// (packages/shared/gmail-send.js), with the club's consumer Gmail account: an OAuth refresh token (send-only) instead of a
-// Workspace service account. Setup: docs/secrets.md#gmail. Decision: docs/adr/0027-email-through-gmail-api.md.
-//
-// Outside production nothing reaches a real person (sendMail always runs safeMail):
-//   - production means SITE_ENV is exactly "production"; anything else, including unset, is not;
-//   - every recipient is replaced by one safe address: MAIL_SAFE_TO, or else the sending account itself (dev sends
-//     from the developer account to itself); the real recipients go in the subject and a header;
-//   - the club's own inbox (Sanity → Club → Contact email, club-contact.ts) is refused, as the safe address and as the
-//     sending account; while it isn't known, the dev allow list is ignored;
-//   - without Gmail credentials (a laptop, tests) it logs the email instead of sending.
-//
-// Gmail is behind a circuit breaker (packages/shared/breaker.ts, ADR 0055): when it's down or has rate-limited the account,
-// sends fail at once for a while instead of each waiting for Google, and the sign-in page can say so up front. How
-// each send went is told to the config's `onOutcome` (mail-health.ts), which tells a cancelled token (Google's
-// invalid_grant: the account's password changed, its access was removed, or 6 months unused) from Gmail being busy.
+// Email through the Gmail API (HTTPS, not SMTP) for the website and the team app, with the club's Gmail account's
+// send-only OAuth refresh token (ADR 0027, setup in docs/secrets.md#gmail). Outside production nothing reaches a real
+// person (safeMail); without Gmail credentials an email is logged instead of sent.
 import { BreakerOpen, HttpFailure, QuotaError, guard, pausedUntil, retryAfter } from "./breaker";
 import { scribe } from "./scribe";
 
@@ -77,7 +64,10 @@ export interface MailConfig {
 export type MailFailure = "cancelled" | "paused" | "failed";
 export type MailOutcome = { ok: true; account: string } | { ok: false; failure: MailFailure };
 
-/** Google refused the refresh token (invalid_grant): it was cancelled, and only signing in again makes a new one. */
+/**
+ * Google refused the refresh token (invalid_grant): it was cancelled (the account's password changed, its access was
+ * removed, or six months unused), and only signing in again makes a new one.
+ */
 export class TokenCancelled extends HttpFailure {}
 
 /** What a failed send means for whoever looks after the email. */
@@ -94,8 +84,10 @@ export class MailRefused extends Error {}
 export const isProduction = (siteEnv: string | undefined) => siteEnv === "production";
 
 /**
- * The email as it may leave this environment. Production: unchanged. Anywhere else: to the safe address only, with
- * the real recipients in the subject and X-Cougars-Original-To. Throws MailRefused rather than risk a real inbox.
+ * The email as it may leave this environment. Production (SITE_ENV exactly "production", never unset): unchanged.
+ * Anywhere else: to the safe address only (MAIL_SAFE_TO, else the sending account itself), with the real recipients
+ * in the subject and X-Cougars-Original-To. The club's own inbox is refused as the safe address. Throws MailRefused
+ * rather than risk a real inbox.
  */
 export function safeMail(
   mail: Mail,
@@ -190,7 +182,7 @@ function accountOf(idToken: string): string {
 }
 
 /**
- * Send one email, safely (see the top of this file). Without credentials it logs and returns "logged". Throws on a
+ * Send one email, safely (safeMail). Without credentials it logs and returns "logged". Throws on a
  * refusal or a Gmail error; callers that run it after the response (waitUntil) catch and log.
  */
 export async function sendMail(
@@ -206,8 +198,14 @@ export async function sendMail(
       club: config.club,
     });
     outbox.capture?.(safe);
-    // Never a secret in a log (#74): a deploy missing its Gmail secrets would otherwise log live sign-in codes
+    // Never a secret in a log: a deploy missing its Gmail secrets would otherwise log live sign-in codes
     const hide = (v: string | undefined) => redact(v, mail.secrets);
+    // Production without Gmail is a failure nobody would see (the mail just doesn't go): reported, and only who it was
+    // for and its subject, never its words (an enquiry's name, phone and message, a member's details)
+    if (isProduction(config.siteEnv)) {
+      log.error("mail.unconfigured", { to: safe.to, subject: hide(safe.subject) });
+      return { status: "logged", to: safe.to };
+    }
     log.info("mail.logged", { to: safe.to, subject: hide(safe.subject), text: hide(safe.text), html: hide(safe.html) });
     return { status: "logged", to: safe.to };
   }
@@ -236,6 +234,8 @@ async function sendThroughGmail(
   gmail: GmailCredentials,
   { fetch, now }: { fetch: typeof globalThis.fetch; now: () => number },
 ): Promise<{ result: SendResult; account: string }> {
+  // Behind the circuit breaker (breaker.ts): while Gmail is down or has rate-limited the account, sends fail at once
+  // and the sign-in page can say so up front
   const { token, account } = await guard("gmail", () => accessToken(gmail, { fetch, now }));
   const club = config.club?.trim().toLowerCase() || null;
   if (!isProduction(config.siteEnv) && account === club) {

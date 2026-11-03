@@ -1,8 +1,5 @@
-// The club's free Cloudflare allowance (ADR 0059): admins see today's use on the Usage page, and an hourly check
-// emails them, and tells their phones, once a day when anything passes 70% and again at 90%, or when a request was
-// stopped for using too much CPU (ADR 0059, #157).
-// The live hub's requests and time (ADR 0072) are Durable Objects' own allowance, shown and checked the same way.
-// Cloudflare's analytics API is faked; everything else is real.
+// The club's free allowance (apps/team/worker/settings/README.md): admins see today's use on the Usage page, and the
+// hourly check tells them at 70% and 90%. Cloudflare's analytics API is faked; everything else is real.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Mail } from "@cougars/shared/email";
 import { captureLogs } from "@cougars/shared/testing/scribe";
@@ -108,6 +105,11 @@ describe("an admin checks the club's free Cloudflare allowance", () => {
     });
   });
 
+  it("a member is refused, and Cloudflare isn't asked", async () => {
+    expect((await usageAs("reg@example.com")).status).toBe(403);
+    expect(asked).toEqual([]);
+  });
+
   it("says how to set it up when there's no analytics token", async () => {
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     const res = await usageAs("dana@example.com");
@@ -115,7 +117,7 @@ describe("an admin checks the club's free Cloudflare allowance", () => {
     expect(res.body.metrics).toEqual([]);
   });
 
-  it("sees when the club's database was last backed up, and why, even without the analytics token (ADR 0106)", async () => {
+  it("sees when the club's database was last backed up, and why, even without the analytics token (ADR 0050)", async () => {
     delete (w.env as Json).CLOUDFLARE_ANALYTICS_TOKEN;
     expect((await usageAs("dana@example.com")).body.backup).toBeNull();
     w.db.raw.exec(`INSERT INTO backups (taken_at, why, bytes) VALUES
@@ -192,7 +194,7 @@ describe("the hourly check", () => {
   });
 });
 
-// Before any limit runs out, the admins see it on Home (#148): each hourly check keeps the limits at 70% or more, and
+// Before any limit runs out, the admins see it on Home: each hourly check keeps the limits at 70% or more, and
 // they come with the club (the bootstrap's forAdmins) to whoever sees Usage, so Home's For admins says the nearest in
 // one line from first paint (lib/usage-near.ts). Push and email at these levels are below.
 describe("the admins' Home says when a free limit is getting close", () => {
@@ -276,7 +278,7 @@ describe("the admins' Home says when a free limit is getting close", () => {
   });
 });
 
-// Sanity has no usage API, so the website and this app count their own requests to it (ADR 0059), a row per day,
+// Sanity has no usage API, so the website and this app count their own requests to it (apps/team/worker/settings/README.md), a row per day,
 // project and quota in sanity_requests. Admins see this month's against Sanity's free plan, and are emailed at 50%,
 // 80% and when the month's pace would run out before the 1st.
 describe("an admin checks the club's Sanity requests this month", () => {
@@ -378,7 +380,7 @@ describe("an admin checks the club's Sanity requests this month", () => {
   });
 });
 
-// When they aren't looking (#157): at 70% and at 90% of a free limit, each admin's phone is told as well as their
+// When they aren't looking: at 70% and at 90% of a free limit, each admin's phone is told as well as their
 // inbox, once per limit and level, today's for Cloudflare's and this month's for Sanity's; a limit back under 70%
 // says nothing, and the next day's crossing tells them again. A phone's notification waits out quiet hours (ADR 0108)
 // unless the limit resets first, when there'd be nothing left to tell; the email goes at once. It's its own topic,
@@ -499,6 +501,35 @@ describe("the admins are told when a free limit is getting close", () => {
     expect((await hour(late)).mails).toHaveLength(1);
     await w.cron(new Date("2026-10-07T07:00:00Z"));
     expect(fcm.asked).toEqual([]);
+  });
+
+  it("an email that fails is reported, and the rest still go, phones too", async () => {
+    const reported: string[] = [];
+    captureLogs({ report: (_e, entry) => void reported.push(entry.msg) });
+    cloudflare({ requests: [75_000], rowsRead: 3_700_000 });
+    const sent: string[] = [];
+    let first = true;
+    const send = async (m: Mail) => {
+      if (first) {
+        first = false;
+        throw new Error("Gmail said no");
+      }
+      sent.push(m.subject);
+    };
+    await checkUsage(w.env, NOW, { send });
+    await w.cron(new Date(NOW.getTime() + 60_000));
+    expect(sent).toHaveLength(1);
+    expect(reported).toEqual(["usage.email_failed"]);
+    expect(fcm.asked).toHaveLength(2);
+  });
+
+  it("two checks at once tell them once", async () => {
+    cloudflare({ requests: [75_000] });
+    const [mails, phones] = [w.mails.length, fcm.asked.length];
+    await Promise.all([checkUsage(w.env, NOW), checkUsage(w.env, NOW)]);
+    await w.cron(new Date(NOW.getTime() + 60_000));
+    expect(w.mails.length - mails).toBe(1);
+    expect(fcm.asked.length - phones).toBe(1);
   });
 
   it("an admin who switched Free limits off isn't told on their phone, and still gets the email", async () => {

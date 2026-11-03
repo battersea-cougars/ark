@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Email members what they owe (ADR 0007): who gets one, and what it says, before anything goes. Everyone who owes
+  // Email members what they owe (apps/team/worker/dues/README.md): who gets one, and what it says, before anything goes. Everyone who owes
   // (Unpaid fees → Send reminders), or one member (their card's Dues tab). Anyone reminded in the last week is held
   // back, and so is anyone with no email; the server checks both again. Opened in a drawer or a sheet by the page it's on.
   import Icon from "../app/shell/Icon.svelte";

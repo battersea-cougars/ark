@@ -1,4 +1,4 @@
-// Seal and open a database backup (ADR 0106). A backup is a D1 export, members' names and emails included, and it's
+// Seal and open a database backup (ADR 0050). A backup is a D1 export, members' names and emails included, and it's
 // kept as a GitHub artifact on a public repo, so it's compressed and then encrypted with the environment's BACKUP_KEY
 // (AES-256-GCM, the key stretched with scrypt and a fresh salt each time). GCM also notices a changed byte.
 // Layout: "CGBK1" | salt (16) | iv (12) | tag (16) | ciphertext.

@@ -44,6 +44,7 @@ import { onTheWebsite, tournamentOfPath, wantRebuild } from "../website/website"
 import { WEBSITE_ROUTES } from "../website/website.routes";
 import { scribe } from "@cougars/shared/scribe";
 import { sentryTunnel } from "@cougars/shared/sentry-tunnel";
+import { errorReportAllowed } from "@cougars/shared/error-report-cap";
 
 const log = scribe.logger("api");
 
@@ -77,15 +78,15 @@ export const ROUTES: Route[] = [
   ...EDITIONS_ROUTES,
   ...DRAFT_ROUTES,
   ...SCORING_ROUTES,
-  // A Kumite from before the app, recorded after the fact (ADR 0126)
+  // A Kumite from before the app, recorded after the fact (apps/team/worker/tournaments/README.md)
   ...PAST_ROUTES,
-  // Dev only (ADR 0123): the Kumite played on to its after-party
+  // Dev only (ADR 0010): the Kumite played on to its after-party
   ...SIMULATE_ROUTES,
   // Everything else on the calendar, and the club's own settings
   ...EVENTS_ROUTES,
   ...SETTINGS_ROUTES,
   ...MAIL_ROUTES,
-  // The club's website: its rebuilds and its links (#107)
+  // The club's website: its rebuilds and its links
   ...WEBSITE_ROUTES,
 ];
 
@@ -117,7 +118,7 @@ async function health(env: Env): Promise<Response> {
 
 const FROM_HERE = "Too many requests from here. Wait a minute.";
 
-/** What sign-in's routes and the app's error reports may send: a form, a Sentry envelope (#73). */
+/** What sign-in's routes and the app's error reports may send: a form, a Sentry envelope. */
 const MAX_AUTH_BODY = 16 * 1024;
 const MAX_ERRORS_BODY = 256 * 1024;
 
@@ -138,7 +139,7 @@ export async function handleApi(
     .filter((x) => x.m);
   const hit = match.find((x) => x.r.method === request.method);
   // Generous limits (ADR 0055); sign-in and changes have tighter ones of their own. Someone not signed in is counted
-  // by their address; a member as themselves, as a squad on the rink's wifi shares one address (#113)
+  // by their address; a member as themselves, as a squad on the rink's wifi shares one address
   const address = addressOf(request);
   // A request with a session cookie is counted apart from the strangers', so one device using their allowance up
   // (sign-in, error reports, pages that aren't there) never turns away the signed-in phones on its wifi; a cookie
@@ -157,7 +158,7 @@ export async function handleApi(
     const signingIn = url.pathname.startsWith("/api/auth/");
     if (errors || signingIn || !hit) await enforce("api", address, LIMITS.perAddress, FROM_HERE);
     else await unknown(false);
-    // A body over its route's limit is refused before anything reads it, signed in or not (#73)
+    // A body over its route's limit is refused before anything reads it, signed in or not
     const max = errors ? MAX_ERRORS_BODY : signingIn ? MAX_AUTH_BODY : hit?.r.maxBody;
     request = await withinLimit(request, max);
   } catch (e) {
@@ -165,7 +166,9 @@ export async function handleApi(
     throw e;
   }
   // The app's own errors on their way to Sentry (ADR 0110), signed in or not: an error at sign-in counts too
-  if (url.pathname === "/api/errors") return sentryTunnel(request, env.SENTRY_DSN);
+  // Past the club's daily cap of browser reports (finding 13), dropped
+  if (url.pathname === "/api/errors")
+    return sentryTunnel(request, env.SENTRY_DSN, { allowed: () => errorReportAllowed(env.DB, now) });
   if (url.pathname.startsWith("/api/auth/")) {
     try {
       return (await handleAuth(request, env, now, waitUntil)) ?? json({ error: "Not found." }, 404);
@@ -210,7 +213,7 @@ export async function handleApi(
     const { action } = hit.r;
     if (action !== "authenticated" && !actions.has("manage:all") && !actions.has(action)) {
       // Refused for want of an action: on the record (ADR 0024), so poking at admin routes is seen, once a minute at
-      // most per member (#73); every one is in the log
+      // most per member; every one is in the log
       await auditRefused(env.DB, now, signedIn, { method: request.method, path: url.pathname, action });
       return json({ error: "Your role can't do that." }, 403);
     }
@@ -227,10 +230,10 @@ export async function handleApi(
       waitUntil,
       alsoChanged: [],
     };
-    // On the record (ADR 0095): what the change is to, before it
+    // On the record (ADR 0024): what the change is to, before it
     const record = writes && hit.r.audit && "event" in hit.r.audit ? hit.r.audit : null;
     const before = record ? await record.subject(ctx) : undefined;
-    // A finished tournament's result is on the website's pages (ADR 0100): a change to it, or one that finishes it,
+    // A finished tournament's result is on the website's pages (ADR 0016): a change to it, or one that finishes it,
     // wants a rebuild. Read before too, so deleting one or making it private counts.
     const tournament = writes ? tournamentOfPath(url.pathname) : null;
     const wasOnWebsite = tournament ? await onTheWebsite(env.DB, tournament) : false;
@@ -253,9 +256,9 @@ export async function handleApi(
     }
     if (tournament && res.ok && (wasOnWebsite || (await onTheWebsite(env.DB, tournament))))
       await wantRebuild(env.DB, now);
-    if (writes && res.ok && hit.r.changes?.includes("charges")) {
-      // Who came, a fee or a quarterly membership changed: so may what people owe (ADR 0007)
-      await recharge(env.DB, ctx.today, ctx.now);
+    if (writes && res.ok && [...(hit.r.changes ?? []), ...ctx.alsoChanged].includes("charges")) {
+      // Who came, a fee or a quarterly membership changed: so may what people owe (apps/team/worker/dues/README.md)
+      await recharge(env.DB, ctx.today, ctx.now, ctx.charged);
     }
     if (notice && res.ok) {
       const reply = (await res
@@ -276,11 +279,11 @@ export async function handleApi(
       const declared = [...(hit.r.changes ?? []), ...ctx.alsoChanged];
       const calendar = hit.r.calendar !== false && declared.some((d) => SCHEDULE.includes(d));
       const changes = calendar ? [...declared, "agenda" as const] : declared;
-      // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new (#178)
+      // A change: every member's bootstrap is out of date (ADR 0053), and these parts are new
       const at = await bumpDataVersion(env.DB, changes);
       const { version } = at;
-      // ...and everyone on a live page hears which parts, and the version (ADR 0072), with a live match as it is
-      // (#161), once this reply is on its way
+      // ...and everyone on a live page hears which parts, and the version (ADR 0053), with a live match as it is
+      //, once this reply is on its way
       const told = pushedWith(ctx, hit.r, changes).then((pushed) => notifyLive(env, changes, version, pushed));
       if (waitUntil) waitUntil(told);
       else await told;
@@ -289,7 +292,7 @@ export async function handleApi(
           ? { ...ctx, actions: await actionsOf(env.DB, memberId) }
           : ctx;
         const reply = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-        // ...the core's parts of what it touched, and the pages' this phone holds (src/app/club-parts.ts, #178)
+        // ...the core's parts of what it touched, and the pages' this phone holds (src/app/club-parts.ts)
         const touched = touchedFor(now, changes, heldBy(request));
         const out = json({ ...reply, changed: await slices(now, touched, at) }, res.status);
         // Read after the version went up: the app's copy has this change's parts at least as new (src/app/catch-up.ts)

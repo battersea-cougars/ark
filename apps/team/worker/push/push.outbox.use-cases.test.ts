@@ -1,10 +1,5 @@
-// When a notification goes (ADR 0108): the push outbox holds each one, a row per member and notice, until it's due.
-// Quiet hours, 22:00 to 08:00 in London (across the clock changes): what's news but not urgent waits for 08:00, and
-// what's about something happening now (the draft on the night, the awards at the after-party) goes at once. The
-// debounce: a member told something about one thing (their place on a night) isn't told about it again within two
-// minutes; what comes in that time replaces what's waiting, the latest wins, and if it ends where they were last told,
-// nothing's sent. A club-wide send, held overnight, goes out from 08:00 a batch an invocation, never more than the
-// free plan allows. Driven through the real handlers and the cron in the fake world (ADR 0031), Firebase faked.
+// When a notification goes (ADR 0108): quiet hours in London, the debounce, and club-wide sends in batches the free
+// plan allows. Driven through the real handlers and the cron in the fake world (ADR 0031), Firebase faked.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -50,10 +45,9 @@ const cronAt = (t: Date) => w.scheduled(t.getUTCMinutes() % 5 ? "* * * * *" : "*
 /** Firebase on, Reg and Mo with the app, Dana to post. */
 async function twoPhones() {
   const fcm = await w.firebase();
-  await phone("reg@example.com");
-  await phone("mo@example.com");
+  const phones = [await phone("reg@example.com"), await phone("mo@example.com")];
   const dana = await w.signedIn("dana@example.com");
-  return { fcm, dana, heard: () => fcm.asked.map((a) => `${a.token} ${a.title}`).sort() };
+  return { fcm, dana, phones, heard: () => fcm.asked.map((a) => `${a.token} ${a.title}`).sort() };
 }
 
 describe("quiet hours, 22:00 to 08:00 in London", () => {
@@ -110,7 +104,10 @@ describe("quiet hours, 22:00 to 08:00 in London", () => {
   });
 
   it("the night the clocks go forward (Sunday 28 March 2027), 08:00 is 08:00 BST, an hour earlier in UTC", async () => {
-    const { fcm, dana } = await twoPhones();
+    const { fcm, dana, phones } = await twoPhones();
+    // Reg, Mo and Dana opened the app in the winter, so they're still signed in (a sign-in left 90 days ends)
+    for (const day of ["2026-12-01", "2027-02-01"])
+      for (const p of [...phones, dana]) expect((await p.club({ now: at(`${day}T12:00:00Z`) })).status).toBe(200);
     // Saturday 27 March, 23:00 GMT
     await dana.call("POST", "/api/announcements", news("Clocks forward"), { now: at("2027-03-27T23:00:00Z") });
     await w.cron(at("2027-03-28T06:55:00Z"));
@@ -186,7 +183,7 @@ describe("a club-wide send held overnight, within the free plan", () => {
   });
 });
 
-// A Quarterly Member signing up for a full night bumps the last in paying as they go (ADR 0131); one going out lets
+// A Quarterly Member signing up for a full night bumps the last in paying as they go (apps/team/worker/training/README.md); one going out lets
 // the first waiting in. Each is news on the `places` topic, about that member's place on that night.
 describe(`the debounce: ${DEBOUNCE_MINUTES} minutes per member and thing`, () => {
   let taps = 0;

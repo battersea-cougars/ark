@@ -1,7 +1,7 @@
 <script lang="ts">
   // One game, as a row in a list: its kick-off, the two teams (or the places a playoff waits on, 1st v 2nd), and the
   // score once there is one. A tap on it opens the game's own page (its matchup, or the full result once played):
-  // both teams, the goals, and where it's scored or an admin puts a result right (ADR 0061).
+  // both teams, the goals, and where it's scored or an admin puts a result right (apps/team/worker/tournaments/README.md).
   import { clock, ordinal } from "./dates";
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
@@ -71,8 +71,8 @@
   );
   const crest = $derived(feature ? "4rem" : big ? "2.75rem" : "2rem");
 
-  // The game's matchup (a tap on the row, ADR 0061), and Live: the clock and the score for everyone, and the scoresheet for
-  // whoever keeps score (ADR 0061)
+  // The game's matchup (a tap on the row, apps/team/worker/tournaments/README.md), and Live: the clock and the score for everyone, and the scoresheet for
+  // whoever keeps score (apps/team/worker/tournaments/README.md)
   const gameHref = $derived(`/tournaments/${typeById(tournament.typeId)?.slug ?? ""}/games/${g.id}`);
   const clockHref = $derived(`${gameHref}/live`);
   const playable = $derived(g.status !== "done" && !!g.homeTeamId && !!g.awayTeamId);

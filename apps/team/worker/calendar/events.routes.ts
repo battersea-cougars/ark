@@ -1,4 +1,4 @@
-// Club events: one-offs on the calendar (ADR 0042), and what's already on when something new would be (ADR 0122).
+// Club events: one-offs on the calendar (ADR 0016), and what's already on when something new would be.
 import { places } from "../push/push.notices";
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
@@ -11,7 +11,7 @@ export const EVENTS_ROUTES: Route[] = [
     path: /^\/api\/calendar\/clashes$/,
     // What's on the calendar, which every member sees; whether it's theirs to cancel is in each answer
     action: "read:Event",
-    // ?startsAt=&endsAt=[&except=tournament:5]: asked before a save, so the admin can say what's off (ADR 0122).
+    // ?startsAt=&endsAt=[&except=tournament:5]: asked before a save, so the admin can say what's off (apps/team/worker/calendar/README.md).
     // A training's editor asks with its rule (?weekdays=fri&repeatEvery=&startsOn=&endsOn=&startTime=&endTime=
     // [&series=1]): what's on over the nights the save adds or moves
     handle: async (c) => {

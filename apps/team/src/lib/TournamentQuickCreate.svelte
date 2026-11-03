@@ -1,16 +1,7 @@
 <script lang="ts">
-  // The next date in a series, as a wizard (ADR 0128, lib/Wizard ADR 0117), its steps the full editor's tabs by the
-  // same names and its fields the editor's own (lib/Tournament*Fields, #163): Details (its season, its day once that's
-  // known, its hours, the series' usual ones filled in), Sign-up (when it opens), Teams (a draft series only: the
-  // draft's day, and the captains, a set whose pick order the draft draws, with the whole step to find them in), then
-  // Check, a look over it with a way back to each answer, and Schedule it. Only the season is needed, so every step is
-  // open from the start; the draft's day shows as TBC and the captains as "to be named" until they're set.
-  //
-  // Advanced is a mode of the same wizard, not another form: each step shows the rest of its fields in place (Details:
-  // the venue and afterwards, the name and type; Sign-up: when it closes, the places, the fee, the website; Teams for
-  // teams that enter too), and Rules & awards comes in as a step before Check. Without it, each step says in a line
-  // what it takes from the series ("£10 · 24 places · change it"), and "change it" turns Advanced on at that field.
-  // The series' usual values stay in the series' settings.
+  // The next date in a series as a wizard (lib/Wizard, apps/team/worker/tournaments/README.md), its steps and fields
+  // the full editor's (lib/Tournament*Fields): Details, Sign-up, Teams (a draft series), Check. Only the season is
+  // needed. Advanced shows each step's other fields in place and adds Rules & awards; the series' values stay its own.
   import { tick } from "svelte";
   import { createTournament, saving } from "../app/backend.svelte";
   import { cancelClashes } from "../app/clashes.backend";
@@ -168,7 +159,7 @@
     failed = "";
     creating = true;
     const t = toTournament(values);
-    // Over something already on (Friday Training)? Asked first; closing the question schedules nothing (ADR 0122)
+    // Over something already on (Friday Training)? Asked first; closing the question schedules nothing (apps/team/worker/training/README.md)
     const window = tournamentWindow(t);
     const chosen = window ? await clashSheet?.ask(window, t.name) : [];
     if (chosen === null) return void (creating = false);

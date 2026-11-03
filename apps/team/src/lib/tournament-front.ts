@@ -1,7 +1,6 @@
-// A tournament's front page follows its stage (ADR 0074): a track at the top says which one it's at (sign-up, the
-// draft, the teams, the fight card, the day), what happens next under it, then that stage's one thing. Sign-up: are
-// you in. The draft on: the draft. The teams set: your team, and the fight card to come. The fixtures out: the first
-// match. On the day: the match on now and the next (the page's own). The teams themselves live on their tab.
+// A tournament's front page follows its status (apps/team/worker/tournaments/README.md): a track at the top says which
+// it's at, what happens next under it, then that status's one thing (are you in, the draft, your team, the first match,
+// the match on now). The teams live on their tab.
 import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 import { atAfters, editionState, stageOf } from "./edition";
 import { gamePhase } from "./phase";
@@ -24,9 +23,7 @@ export function nextFightOf(t: Tournament, me: number): TournamentGame | undefin
 }
 
 /**
- * Where a tournament is, as a status (ADR 0074): "Fight Card is confusing if we think of the kumite in stages. It
- * should really be a status: Draft Open, Draft Completed, Fixtures Created, Kumite!" (the user, 2026-10-22). Its one
- * page shows the status it's at, or (from the track) one it's been through, read-only.
+ * Where a tournament is, as a status (apps/team/worker/tournaments/README.md), not a stage. Its one page shows the status it's at, or (from the track) one it's been through, read-only.
  */
 export type Status = "signup" | "draft" | "teams" | "fixtures" | "day" | "afters";
 
@@ -42,7 +39,7 @@ export const STATUS_PATH: Record<Status, string> = {
 
 /**
  * The statuses it goes through, in order: a draft has the draft open; then, draft or not, the teams set; after the
- * day, the after-party (ADR 0074).
+ * day, the after-party (apps/team/worker/tournaments/README.md).
  */
 export function statusList(t: Pick<Tournament, "kind">): Status[] {
   return t.kind === "draft"
@@ -130,7 +127,7 @@ export function viewOf(t: Tournament, today: string, rest: string): Status {
 }
 
 /**
- * What the page's pane shows for a status: the draft is its captains' and whoever runs it (ADR 0060), everyone else
+ * What the page's pane shows for a status: the draft is its captains' and whoever runs it (apps/team/worker/tournaments/README.md), everyone else
  * fights blind until it's done. Whoever runs it sees the draft before there are captains too: it asks them to name them.
  * Once it's all played, its draft is everyone's to look back on.
  */
@@ -208,9 +205,9 @@ export const STATUS_MARK: Record<Status, MotifKey> = {
 
 /**
  * The stamp in a tournament's header (every page of the series): the status it's at, as the track says it, with the
- * status's kanji (ADR 0074). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
+ * status's kanji (apps/team/worker/tournaments/README.md). Every one the same ink stamp ("on"); before sign-up opens it's Coming up, faint; the day
  * (KUMITE!, or a match under way) the loudest; every match played, the after-party's name that evening, then Done.
- * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00 (#168).
+ * `evening`: the evening it is now (lib/dates.ts londonEvening), which runs past midnight till 06:00.
  */
 export function stageBadge(
   t: Tournament,
@@ -227,11 +224,11 @@ export function stageBadge(
     return afterMomentOf(t, evening) === "now" && !revealOf(t).all
       ? { label, tone: "done", mark }
       : { label: "Done", tone: "done", mark };
-  if (status === "signup" && editionState(t) !== "open") return { label: "Coming up", tone: "quiet", mark };
+  if (status === "signup" && editionState(t, today) !== "open") return { label: "Coming up", tone: "quiet", mark };
   return { label, tone: status === "day" ? "live" : "on", mark };
 }
 
-/** When the afterwards shows on the front page (ADR 0074). */
+/** When the afterwards shows on the front page (apps/team/worker/tournaments/README.md). */
 export type AfterMoment =
   /** Before the day: a quiet line under what's next. */
   | "before"
@@ -258,11 +255,11 @@ export function afterNoteWords(note: string) {
 }
 
 /**
- * The match the matches' carousel brings forward (ADR 0074): the one on now, else the next to be played (in the day's
+ * The match the matches' carousel brings forward (apps/team/worker/tournaments/README.md): the one on now, else the next to be played (in the day's
  * order), else, every one played, the last (the final).
  */
 export function currentMatchOf<G extends Pick<TournamentGame, "status" | "position">>(games: readonly G[]) {
-  // By its status, never its kick-off (lib/phase.ts, #182): one running late is still the one, the next stays next
+  // By its status, never its kick-off (lib/phase.ts): one running late is still the one, the next stays next
   const ordered = [...games].sort((a, b) => a.position - b.position);
   return ordered.find((g) => gamePhase(g) === "on") ?? ordered.find((g) => gamePhase(g) !== "past") ?? ordered.at(-1);
 }

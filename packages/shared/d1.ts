@@ -1,10 +1,14 @@
-// Thin helpers over a D1 binding. No ORM: write SQL, keep it in one place per
-// domain (e.g. apps/web/src/lib/server/enquiries.ts). Pattern borrowed from
-// gwenda-hackney/ark packages/shared/d1.js.
-// Each call is a round trip to D1, and each costs the Worker CPU time (ADR 0059): a job that writes several rows
-// builds its statements and sends them with `batch`, never `run` in a loop.
+// Thin helpers over a D1 binding. No ORM: write SQL, keep it in one place per domain (e.g.
+// apps/web/src/lib/server/enquiries.ts). Each call is a round trip and costs the Worker CPU time (ADR 0003): a job
+// that writes several rows sends its statements with `batch`, never `run` in a loop.
 
 export type Param = string | number | null;
+
+/**
+ * D1 refusing a statement because the database is being exported (`wrangler d1 export`: the nightly backup, ADR 0050).
+ * It holds the database for the export, half a minute or so, and refuses everything else meanwhile.
+ */
+export const exporting = (error: unknown) => error instanceof Error && /long-running export/.test(error.message);
 
 export async function all<T>(db: D1Database, sql: string, params: Param[] = []): Promise<T[]> {
   const { results } = await db

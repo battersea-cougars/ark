@@ -1,10 +1,8 @@
 // Members' phones for a load run (docs/load-testing.md): each signed in as itself, with its own address unless the run
 // says they share one (the rink's wifi; against dev every phone is this machine's one address), doing what the team
-// app does: the bootstrap with its ETag at the version its
-// copy holds (ADR 0053), a change with the page's Origin and its reply's parts put in place, and a live page's stream
-// (ADR 0072), its copy of the club reading the parts an event names, or taking the live match it brings (the app's own
-// catch-up.ts, #112, #161).
-import { ClubCopy, withMatch } from "../../apps/team/src/app/catch-up.ts";
+// app does (ADR 0053): the bootstrap with its ETag, changes with the page's Origin, and a live page's stream, taken in
+// as the app's own catch-up.ts does.
+import { ClubCopy, withAwards, withMatch } from "../../apps/team/src/app/catch-up.ts";
 import { atVersion, VERSION_HEADER } from "../../apps/team/src/app/club-tag.ts";
 import { HOLDS_HEADER, partsChanged } from "../../apps/team/src/app/club-parts.ts";
 
@@ -50,7 +48,7 @@ async function devSignIn(url, email, base) {
 }
 
 /**
- * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag (the core, #178),
+ * A member's phone: `call` for a request (timed into `stats`), `boot` for the bootstrap with its ETag (the core),
  * `page` for a page's own parts as the app reads them when it's opened, `follow` for a live page's stream. `target`: { url, signIn? } (load.mjs); with `signIn` (a session minted for it, load.club.mjs)
  * the phone sends that cookie, else it signs in as dev-sign-in does. `address`: the cf-connecting-ip it claims, on a
  * local server only (Cloudflare sets its own).
@@ -64,7 +62,7 @@ export async function phone(target, email, stats, { address } = {}) {
   let club = null;
   /** Whether the last read of the whole club got an answer. */
   let booted = false;
-  /** The pages' parts this phone has read (#178): a change sends them back, and the hub's events count them in. */
+  /** The pages' parts this phone has read: a change sends them back, and the hub's events count them in. */
   const holds = new Set();
   /** The pages following along, each told when the copy changes. */
   const following = new Set();
@@ -90,9 +88,17 @@ export async function phone(target, email, stats, { address } = {}) {
       club = { ...club, ...slices };
       onScreen();
     },
-    // A live match the hub sent (#161), as the app puts it in place
+    // A live match the hub sent, as the app puts it in place
     applyMatch: (match) => {
       const tournaments = withMatch(club?.tournaments, match);
+      if (!tournaments) return false;
+      club = { ...club, tournaments };
+      onScreen();
+      return true;
+    },
+    // The after-party's drum the hub sent, as the app puts it in place
+    applyAwards: (awards) => {
+      const tournaments = withAwards(club?.tournaments, awards);
       if (!tournaments) return false;
       club = { ...club, tournaments };
       onScreen();
@@ -150,7 +156,7 @@ export async function phone(target, email, stats, { address } = {}) {
     return club;
   }
 
-  /** A page's own parts of the club (#178), as the app reads them when the page is opened: kept, and followed. */
+  /** A page's own parts of the club, as the app reads them when the page is opened: kept, and followed. */
   async function page(label, names) {
     const r = await call(label, "GET", `/api/slices?names=${names.join(",")}`);
     if (r.status === 200) {

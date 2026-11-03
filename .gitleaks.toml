@@ -63,3 +63,8 @@ paths = ['''^team-manager/lib/constants\.ts$''']
 description = "The Secrets page's shape checks (#149): a regular expression describing what a PKCS#8 private key looks like (its BEGIN/END lines around base64 characters), with no key in it"
 targetRules = ["private-key"]
 paths = ['''^scripts/lib/secret-shapes\.mjs$''']
+
+[[allowlists]]
+description = "scribe's masking tests: a made-up JWT (and bearer and query tokens) that the test checks are redacted from every log line"
+targetRules = ["jwt"]
+paths = ['''^packages/shared/scribe\.test\.ts$''']

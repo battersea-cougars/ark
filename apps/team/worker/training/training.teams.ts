@@ -1,6 +1,4 @@
-// Teams for a session (T3): made in the app (lib/snake.ts), published here, so everyone sees the same ones.
-// Publishing replaces whatever was there. Someone who drops out or is taken off comes off their team too
-// (entries.ts).
+// Teams for a session: made in the app (lib/snake.ts) and published here, so everyone sees the same ones.
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 import { refuseClosedRegister } from "./training.register";
@@ -28,6 +26,7 @@ export function teamsFrom(
   return out;
 }
 
+/** Publish a session's teams, replacing whatever was there. Someone who drops out comes off theirs (offTeams). */
 export async function publishTeams(
   db: D1Database,
   sessionId: number,
@@ -87,7 +86,7 @@ export async function removeTeams(db: D1Database, sessionId: number) {
 
 /**
  * Start a session again: nobody in, waiting or out, and no teams. For a session set up wrong, or a test run; not
- * once its register's closed (the morning after, #11): who came, and what it charged, is the record.
+ * once its register's closed (the morning after): who came, and what it charged, is the record.
  */
 export async function resetSession(db: D1Database, sessionId: number, now: string) {
   const session = await first<{ heldOn: string }>(db, "SELECT held_on heldOn FROM training_sessions WHERE id = ?", [
@@ -101,7 +100,7 @@ export async function resetSession(db: D1Database, sessionId: number, now: strin
   ]);
 }
 
-/** A session's day and how many said anything: what a reset takes away (the record, ADR 0095). */
+/** A session's day and how many said anything: what a reset takes away (the record, ADR 0024). */
 export const sessionSignups = (db: D1Database, sessionId: number) =>
   first<{ heldOn: string; signups: number }>(
     db,

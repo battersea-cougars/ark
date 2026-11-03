@@ -1,7 +1,5 @@
-// Draft night, everyone at once (docs/load-testing.md): eight captains with the page open, whoever runs the draft
-// beside them, taps landing together. A real D1 runs each statement atomically but interleaves two requests'
-// statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Driven through the real
-// Worker handlers, each person signed in as themselves (ADR 0031).
+// Draft night, everyone at once (docs/load-testing.md): captains' taps landing together, with the fake D1
+// interleaving requests' statements as a real one does. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

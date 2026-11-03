@@ -1,7 +1,9 @@
 import type { APIRoute } from "astro";
+import { env } from "cloudflare:workers";
 import * as Sentry from "@sentry/cloudflare";
 import { rateLimit } from "@cougars/shared/rate-limit";
 import { scribe } from "@cougars/shared/scribe";
+import { errorReportAllowed } from "@cougars/shared/error-report-cap";
 import { withinLimit } from "../../lib/server/body-limit";
 import { browserErrorEvent } from "../../lib/server/client-errors";
 
@@ -10,7 +12,7 @@ const log = scribe.logger("browser");
 export const prerender = false;
 
 // A visitor's browser hit an error in our scripts (lib/server/client-errors.ts, ADR 0110). Only our own pages, a few
-// reports per visitor at most (Sentry's free 5k a month is for real errors), and always a quiet 204: a broken page
+// reports per visitor at most and a hundred a day across the club (Sentry's free 5k a month is for real errors), and always a quiet 204: a broken page
 // has nothing to do with the answer.
 export const POST: APIRoute = async ({ request, clientAddress }) => {
   const done = new Response(null, { status: 204 });
@@ -20,7 +22,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     limit: 10,
     windowSeconds: 10 * 60,
   });
-  // Over its limit, or past this visitor's few, it isn't read at all (#73)
+  // Over its limit, or past this visitor's few, it isn't read at all
   if (!allowed) return done;
   const sent = await withinLimit(request, 10_000);
   if (!sent) return done;
@@ -35,6 +37,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!event) return done;
   // The log's copy is a warning: the event goes to Sentry itself, just below, so an error line would send it twice
   log.warn("browser.error", { page: event.tags.page, error: event.exception.values[0].value });
-  Sentry.captureEvent(event);
+  // Past the club's daily cap (finding 13, #201): only the log has it, so made-up reports can't spend Sentry's month
+  if (await errorReportAllowed(env.DB)) Sentry.captureEvent(event);
   return done;
 };

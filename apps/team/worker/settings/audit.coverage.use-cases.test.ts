@@ -1,4 +1,4 @@
-// Everything an admin, a team maker, a scorer or a treasurer does is on the record (ADR 0095, #80), not just roles,
+// Everything an admin, a team maker, a scorer or a treasurer does is on the record (apps/team/worker/settings/README.md), not just roles,
 // members and money: a venue, a training's fee, the register on the night. A member's own changes stay off it, and
 // say why in the route table (api.security.test.ts). Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -42,7 +42,7 @@ describe("an admin's changes are on the record", () => {
     const b = (await dana.club()).body;
     const reg = b.members.find((m: Json) => m.name === "Reg Player").id;
     const session = b.sessions.find((s: Json) => s.heldOn === "2026-10-02").id;
-    // Past midnight, the night over, before its register closes at 6am (#11): a walk-in on the record
+    // Past midnight, the night over, before its register closes at 6am: a walk-in on the record
     await dana.call(
       "POST",
       `/api/sessions/${session}/register`,

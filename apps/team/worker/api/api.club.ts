@@ -1,8 +1,6 @@
-// The club as the team app reads it (ADR 0057): one statement, so opening the app is one round trip to D1, not one per
-// table. Each part is a list of rows the database turns into JSON; the domain modules shape them (training.ts,
-// members.ts, ...). Who's asking is a row of its own (`viewer`), so what they may not see never leaves the database
-// (ADR 0036): someone else's email, an "out" or a no-show, a team's contact. A SQLite view can't take who's asking or
-// the day, so this is the view, as a query.
+// The club as the team app reads it (ADR 0053): one statement, so opening the app is one round trip to D1. Who's asking
+// is a row of its own (`viewer`), so what they may not see never leaves the database (ADR 0024); it's a query, not a
+// view, since a view can't take who's asking or the day.
 import { doneSql } from "@cougars/shared/results";
 import { quarterlyOn } from "../entries/entries";
 import { REVEAL_PLACE } from "../tournaments/awards";
@@ -30,15 +28,15 @@ export interface Viewer {
   seesContacts: boolean;
   /** A draft night on the agenda, for whoever runs the draft (its captains see their own) */
   runsDraft: boolean;
-  /** Everyone's charges and payments (ADR 0007): who sees Unpaid fees or records payments */
+  /** Everyone's charges and payments (apps/team/worker/dues/README.md): who sees Unpaid fees or records payments */
   seesDues: boolean;
   /** Every award's winner as soon as it's confirmed: whoever runs tournaments (reveals them at the after-party) */
   seesAwards: boolean;
-  /** The free limits getting close, for Home's For admins (ADR 0059): whoever sees Usage */
+  /** The free limits getting close, for Home's For admins (ADR 0003): whoever sees Usage */
   seesUsage: boolean;
   /** Whether Google has cancelled the club's email (ADR 0027), for Home's For admins: whoever looks after it */
   keepsEmail: boolean;
-  /** London's evening now, its date (till 06:00, the night before's): the after-party's (ADR 0074) */
+  /** London's evening now, its date (till 06:00, the night before's): the after-party's (apps/team/worker/tournaments/README.md) */
   evening: string;
 }
 
@@ -103,7 +101,7 @@ const entries = (table: string, key: string, events: string) =>
        AND (e.signup IN ('in', 'waitlist') OR v.sees_register OR e.member_id = v.member_id)`,
   );
 
-/** A tournament's answers as everyone who sees the club alike sees them (#178): your own out comes beside them. */
+/** A tournament's answers as everyone who sees the club alike sees them: your own out comes beside them. */
 const sharedEntries = (table: string, key: string, events: string) =>
   rows(
     "eventId memberId signup walkIn attended ahead quarterly signedUpAt id",
@@ -125,9 +123,9 @@ const ownEntries = (table: string, key: string, events: string) =>
 /**
  * A training's answers (`nights`: which), as everyone who sees the club alike sees them: who's in and who's waiting, and
  * for whoever runs events everyone's out, walk-ins and no-shows too; and whether each is a Quarterly skater's on the day
- * (ADR 0131). Only the weeks shown are read, by index, then their answers: with SQLite left to choose the order it read
+ * (apps/team/worker/training/README.md). Only the weeks shown are read, by index, then their answers: with SQLite left to choose the order it read
  * every answer ever given, and with a correlated subquery for each column, a full night's sign-ups were about eight
- * rows an answer (docs/load-testing.md). Nothing in it is anyone's own, so it can be kept at the edge (#178); each
+ * rows an answer (docs/load-testing.md). Nothing in it is anyone's own, so it can be kept at the edge; each
  * member's own answers come beside it (`ownSessionEntries`), in place of theirs here.
  */
 const sessionEntries = (nights: string) =>
@@ -156,9 +154,9 @@ const ownSessionEntries = (nights: string) =>
      WHERE ${nights}`,
   );
 
-/** The nights Home and the app's next things show (#178): from London's evening on (till 06:00, last night's too). */
+/** The nights Home and the app's next things show: from London's evening on (till 06:00, last night's too). */
 const NEXT_NIGHTS = "s.held_on >= v.evening";
-/** The weeks just held (#178): a few weeks back, before London's evening. A page's, read when it's opened. */
+/** The weeks just held: a few weeks back, before London's evening. A page's, read when it's opened. */
 const PAST_NIGHTS = "s.held_on >= v.sessions_from AND s.held_on < v.evening";
 
 // The viewer first (a CROSS JOIN keeps the order), so the day picks the rows by index; left to choose, SQLite reads
@@ -167,7 +165,7 @@ const nightsShown = (nights: string) => `SELECT s.id FROM viewer v CROSS JOIN tr
 const EVENTS_SHOWN = "SELECT ce.id FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now";
 
 /**
- * Everyone whose dues are shown on Unpaid fees and the members' pages (ADR 0007): everyone, for who sees them; for
+ * Everyone whose dues are shown on Unpaid fees and the members' pages (apps/team/worker/dues/README.md): everyone, for who sees them; for
  * anyone else, nobody. As a list, so each member's charges and payments are found by index, not picked out of every
  * one there has ever been (ADR 0003). The viewer first: for anyone else the members aren't read at all.
  */
@@ -183,14 +181,14 @@ interface MemberView {
 /** Members' rows as a view says (`m`: the member, `v`: the viewer). */
 const memberRows = ({ mine, seesRoles, who }: MemberView) =>
   rows(
-    "id name email position rating cougar status payment_reference roles bio web_name phone played quarterly quarterlyNext everyday_role_id",
+    "id name email position rating cougar status payment_reference roles bio web_name phone photo_at played quarterly quarterlyNext everyday_role_id",
     `SELECT m.id, m.name, CASE WHEN ${mine} THEN m.email END email, m.position,
             CASE WHEN v.sees_ratings THEN m.rating ELSE 0 END rating, m.cougar, m.status,
             CASE WHEN ${mine} THEN m.payment_reference END payment_reference,
             CASE WHEN ${seesRoles} THEN
               (SELECT group_concat(name) FROM (SELECT r.name FROM member_roles mr JOIN roles r ON r.id = mr.role_id
                 WHERE mr.member_id = m.id ORDER BY r.is_system DESC, r.id DESC)) END roles,
-            m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone,
+            m.bio, m.web_name, CASE WHEN ${mine} THEN m.phone END phone, m.photo_at,
             ${playedOf("m", "v")} played,
             (${mine}) AND EXISTS (SELECT 1 FROM subscriptions sub WHERE sub.member_id = m.id AND sub.starts_on <= v.today
               AND (sub.ends_on IS NULL OR sub.ends_on >= v.today)) quarterly,
@@ -211,7 +209,7 @@ const nights = (which: string) =>
     `SELECT s.id, s.series_id seriesId, s.held_on heldOn, s.moved_from movedFrom, s.start_time startTime,
             s.end_time endTime, s.venue_id venueId, s.venue, s.map_url mapUrl, s.capacity, s.note,
             s.cancelled_at cancelledAt, s.called_off_at IS NOT NULL offByHand,
-            -- Why it's off (#186): the tournaments it's off for, by id ("3,5"); only a night that's off has any
+            -- Why it's off: the tournaments it's off for, by id ("3,5"); only a night that's off has any
             CASE WHEN s.cancelled_at IS NOT NULL THEN
               (SELECT group_concat(o.tournament_id) FROM training_session_offs o WHERE o.session_id = s.id) END offFor,
             s.register_closed_at registerClosedAt, s.fee_pence feePence
@@ -228,7 +226,7 @@ const nightTeams = (which: string) =>
   );
 
 /**
- * Home's people (#178): you, who you really are while viewing as someone, and whoever's named in your next things:
+ * Home's people: you, who you really are while viewing as someone, and whoever's named in your next things:
  * the nights from tonight (their answers and teams), the tournaments opening the app sends (their teams, captains,
  * players, answers, award winners) and the events still to come. As many as those things hold, however big the club.
  * A test for each (`m`: the member), not one UNION of them: D1 allows five terms in a compound SELECT.
@@ -252,9 +250,9 @@ const PEOPLE = `m.id IN (v.member_id, v.viewed_by)
 export const DONE = doneSql;
 
 /**
- * The tournaments opening the app sends (#175, #178): Home's and the calendar's. Every one not played yet (coming up,
+ * The tournaments opening the app sends: Home's and the calendar's. Every one not played yet (coming up,
  * on now, its day passed unplayed), and any played in the last fortnight, for its after-party and Home's results:
- * by its day, or by when a match kicked off, so one played weeks late still has its evening (ADR 0074, #182). One
+ * by its day, or by when a match kicked off, so one played weeks late still has its evening (apps/team/worker/tournaments/README.md). One
  * played early is sent, done, and the app shows it as past. The rest are a page's or history: each series' last one
  * played ("last time", LAST_PLAYED), read when its front door is opened, and the ones before, read when they're opened
  * (tournaments/editions.ts). Opening the app stays the same size however many there have been.
@@ -262,7 +260,7 @@ export const DONE = doneSql;
 const SHOWN_TOURNAMENTS = `SELECT t.id FROM tournaments t WHERE NOT ${DONE("t")}
     UNION SELECT t.id FROM viewer v CROSS JOIN tournaments t WHERE t.held_on >= date(v.today, '-14 days')
       OR (SELECT max(g.started_at) FROM tournament_games g WHERE g.tournament_id = t.id) >= date(v.today, '-14 days')`;
-/** Each series' last one played, unless opening the app sends it anyway: its front door's "last time" (#178). */
+/** Each series' last one played, unless opening the app sends it anyway: its front door's "last time". */
 const LAST_PLAYED = `SELECT id FROM (
     SELECT (SELECT d.id FROM tournaments d WHERE d.type_id = tt.id AND ${DONE("d")}
             ORDER BY d.held_on DESC, d.id DESC LIMIT 1) id FROM tournament_types tt)
@@ -305,7 +303,7 @@ export const LOGO_VERSION = (t: string) =>
   `CASE WHEN ${t}.logo IS NOT NULL THEN length(${t}.logo) || hex(substr(${t}.logo, 1 + length(${t}.logo) / 3, 6))
      || hex(substr(${t}.logo, 1 + 2 * length(${t}.logo) / 3, 6)) END`;
 
-/** A logo this small (a generated crest, about 0.3 KB) is sent as itself: one request for each would queue (#177). */
+/** A logo this small (a generated crest, about 0.3 KB) is sent as itself: one request for each would queue. */
 export const SMALL_LOGO = 2048;
 /**
  * A team's logo as a reply sends it: a small one as the image itself (a data URL), else its version, which names its
@@ -316,7 +314,7 @@ export const LOGO_SENT = (t: string) =>
 
 /**
  * A set of tournaments' parts (`shown`: which, a query of their ids): Home's and the calendar's (SHOWN_TOURNAMENTS), or
- * each series' last one played, a page's (#178). Nothing in them is anyone's own but `own...`, so the rest can be kept
+ * each series' last one played, a page's. Nothing in them is anyone's own but `own...`, so the rest can be kept
  * at the edge for everyone who sees the club alike.
  */
 const tournamentParts = (shown: string) => ({
@@ -335,8 +333,8 @@ const tournamentParts = (shown: string) => ({
      FROM tournaments t WHERE t.id IN (${shown}) ORDER BY t.held_on`,
   ),
   // In pick order (a draft) or the order they entered: the tournament's teams, and who keeps score (fixtures.ts). Each
-  // logo is its version (LOGO_VERSION), not the image: the image is at an address of its own (#175); a small one is
-  // sent as itself (LOGO_SENT, #177)
+  // logo is its version (LOGO_VERSION), not the image: the image is at an address of its own; a small one is
+  // sent as itself (LOGO_SENT)
   tournamentTeams: rows(
     "id tournamentId name logo captainMemberId captainName contact pick",
     `SELECT t.id, t.tournament_id tournamentId, t.name, ${LOGO_SENT("t")} logo, t.captain_member_id captainMemberId,
@@ -353,8 +351,8 @@ const tournamentParts = (shown: string) => ({
   games: games(`WHERE tournament_id IN (${shown})`),
   goals: goals(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${shown}))`),
   penalties: penalties(`WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id IN (${shown}))`),
-  // Who won each award (ADR 0044). On its evening an award's winner is a surprise until it's revealed at the
-  // after-party (ADR 0074): only whoever runs tournaments is sent it before then
+  // Who won each award (apps/team/worker/tournaments/README.md). On its evening an award's winner is a surprise until it's revealed at the
+  // after-party (apps/team/worker/tournaments/README.md): only whoever runs tournaments is sent it before then
   winners: rows(
     "tournamentId award teamId memberId title",
     `SELECT w.tournament_id tournamentId, w.award, w.team_id teamId, w.member_id memberId, w.title
@@ -363,7 +361,7 @@ const tournamentParts = (shown: string) => ({
        AND (v.sees_awards OR t.season IS NOT NULL OR t.held_on <> v.evening OR ${REVEAL_PLACE} < t.awards_revealed)
      ORDER BY w.tournament_id, w.position`,
   ),
-  // Which awards were given, and the judges' call's name tonight (ADR 0044): everyone's once the awards are confirmed,
+  // Which awards were given, and the judges' call's name tonight (apps/team/worker/tournaments/README.md): everyone's once the awards are confirmed,
   // before they're revealed (the sealed card says the name; a judges' call left out isn't revealed at all, lib/awards
   // awardsToReveal); who won each waits for the reveal
   awardTitles: rows(
@@ -371,7 +369,7 @@ const tournamentParts = (shown: string) => ({
     `SELECT tournament_id tournamentId, award, MAX(title) title FROM tournament_award_winners
      WHERE tournament_id IN (${shown}) GROUP BY tournament_id, award`,
   ),
-  // A voted award's votes (ADR 0044): how many are in; the one this member cast comes beside it (ownVotes). Who voted
+  // A voted award's votes (apps/team/worker/tournaments/README.md): how many are in; the one this member cast comes beside it (ownVotes). Who voted
   // for whom is never sent
   votes: rows(
     "tournamentId award cast mine",
@@ -381,7 +379,7 @@ const tournamentParts = (shown: string) => ({
      GROUP BY x.tournament_id, x.award`,
   ),
   tournamentEntries: sharedEntries("tournament_entries", "tournament_id", shown),
-  // Your own answers and votes, beside the shared ones (#178)
+  // Your own answers and votes, beside the shared ones
   ownTournamentEntries: ownEntries("tournament_entries", "tournament_id", shown),
   ownVotes: rows(
     "tournamentId award mine",
@@ -403,14 +401,14 @@ export { LAST as lastPart };
 
 const PARTS = {
   everydayRole: "json_array((SELECT m.everyday_role_id FROM members m, viewer v WHERE m.id = v.member_id))",
-  // Everyone, as everyone who sees the club alike sees them (#178): the same for all of a role, so it's kept at the
+  // Everyone, as everyone who sees the club alike sees them: the same for all of a role, so it's kept at the
   // edge. Your own private details aren't in it, unless you see everyone's: they're in Home's `people`
   members: memberRows({
     mine: "v.sees_private",
     seesRoles: "v.sees_roles",
     who: "v.sees_private OR m.status = 'active'",
   }),
-  // Home's people (#178): you, in full; who you really are, while viewing as someone; and whoever is in your next
+  // Home's people: you, in full; who you really are, while viewing as someone; and whoever is in your next
   // things (the nights from tonight, the tournaments and events opening the app sends), their names and cards
   people: memberRows({
     mine: "m.id = v.member_id",
@@ -428,10 +426,10 @@ const PARTS = {
      map_url capacity goalie_capacity signup_closes_mins signup_opens_days public active`,
     "SELECT * FROM training_series ORDER BY id",
   ),
-  // The nights from tonight, Home's and the next night's (#178); the weeks just held are a page's (pastSessions)
+  // The nights from tonight, Home's and the next night's; the weeks just held are a page's (pastSessions)
   sessions: nights(NEXT_NIGHTS),
   pastSessions: nights(PAST_NIGHTS),
-  // A training's fee, from each date (ADR 0007)
+  // A training's fee, from each date (apps/team/worker/dues/README.md)
   seriesFees: rows(
     "seriesId pence from",
     `SELECT series_id seriesId, amount_pence pence, effective_from "from" FROM series_fees
@@ -459,13 +457,13 @@ const PARTS = {
      FROM viewer v CROSS JOIN club_events ce WHERE ce.ends_at >= v.now ORDER BY ce.starts_at`,
   ),
   eventEntries: entries("club_event_entries", "event_id", EVENTS_SHOWN),
-  // Dues (ADR 0007, #177): your own charges with something left to pay (Home, your tab's header), found by index; the
+  // Dues (apps/team/worker/dues/README.md): your own charges with something left to pay (Home, your tab's header), found by index; the
   // rest of your ledger is read a page at a time (dues.ledger.ts)
   charges: rows(CHARGE_COLUMNS, chargeSelect(`c.member_id = (SELECT member_id FROM viewer) AND ${OWING("c")}`)),
   // What each owes, by age, and their credit: your own, or everyone's for who sees Unpaid fees, worked out here from
   // the charges not paid and the payments not spent, so it's the same size however long the club's been charging
   dues: rows(OWED_COLUMNS, owedSelect("SELECT member_id FROM viewer", "(SELECT today FROM viewer)")),
-  // Everyone's, for who sees Unpaid fees (a page's, #178); anyone else, none (their own is `dues`)
+  // Everyone's, for who sees Unpaid fees (a page's); anyone else, none (their own is `dues`)
   clubDues: rows(OWED_COLUMNS, owedSelect(CLUB_DUES, "(SELECT today FROM viewer)")),
   // What the club is owed in all, for an admin's Home: the total, by how many, and how much is over 90 days
   owedInAll: rows(
@@ -484,7 +482,7 @@ const PARTS = {
     `SELECT amount_pence pence, effective_from "from" FROM subscription_fees ORDER BY effective_from`,
   ),
   quips: rows("id kind text", "SELECT id, kind, text FROM quips ORDER BY id"),
-  // Home's announcements (#85): the two newest still on, less any this member dismissed
+  // Home's announcements: the two newest still on, less any this member dismissed
   announcements: rows(
     "id title body link endsOn createdAt",
     `SELECT a.id, a.title, a.body, a.link, a.ends_on endsOn, a.created_at createdAt FROM announcements a, viewer v
@@ -501,7 +499,7 @@ const PARTS = {
     "topic enabled",
     "SELECT p.topic, p.enabled FROM notification_prefs p, viewer v WHERE p.member_id = v.member_id",
   ),
-  // When each member was last reminded of what they owe (ADR 0007), for who sees everyone's dues
+  // When each member was last reminded of what they owe (apps/team/worker/dues/README.md), for who sees everyone's dues
   reminders: rows(
     "memberId at",
     `SELECT r.member_id memberId, MAX(COALESCE(r.sent_at, r.claimed_at)) at FROM dues_reminders r, viewer v
@@ -515,8 +513,8 @@ const PARTS = {
   ),
   // Why the club's email is failing, if it is (mail_health, ADR 0027), for whoever looks after it
   mailFailure: rows("failure", "SELECT h.failure FROM mail_health h, viewer v WHERE h.id = 1 AND v.keeps_email"),
-  // What's on (ADR 0042): from London's evening (last night's, till 06:00: its register's still open), and the day of
-  // a tournament not played yet whose day has gone by, which is still next (ADR 0074, #182). The app decides by each
+  // What's on (ADR 0016): from London's evening (last night's, till 06:00: its register's still open), and the day of
+  // a tournament not played yet whose day has gone by, which is still next (apps/team/worker/tournaments/README.md). The app decides by each
   // thing's status what's past (lib/phase.ts). A draft night is for whoever runs the draft and that tournament's
   // captains.
   agenda: rows(
@@ -541,7 +539,7 @@ export type Part = keyof typeof PARTS;
 export type Parts = Record<Part, any[]>;
 
 /**
- * What's someone's own, or depends on the moment (`now`), so never kept at the edge for others (#178): everything
+ * What's someone's own, or depends on the moment (`now`), so never kept at the edge for others: everything
  * else is the same for everyone who sees the club alike (the viewer's flags and the day). A part that reads who's
  * asking (`v.member_id`, `v.viewed_by`, `v.now`, the viewer's member) must be here: a test holds it to that.
  */
@@ -575,7 +573,7 @@ const byId = (row: Record<string, unknown>) => String(row.id);
 const byAward = (row: Record<string, unknown>) => `${row.tournamentId}:${row.award}`;
 const yourVote = (shared: Record<string, unknown>, own: Record<string, unknown>) => ({ ...shared, mine: own.mine });
 
-/** Each shared part that has someone's own rows beside it (#178): their answers in full, the vote they cast. */
+/** Each shared part that has someone's own rows beside it: their answers in full, the vote they cast. */
 const OVERLAYS: Partial<Record<Part, Overlay>> = {
   sessionEntries: { own: "ownSessionEntries", key: byId },
   pastSessionEntries: { own: "pastOwnSessionEntries", key: byId },
@@ -607,7 +605,7 @@ export interface EdgeRead {
  * The parts asked for, as this viewer may see them, in one statement, with the viewer's own rows in place in the
  * shared ones (OVERLAYS). `tournament`: that one's parts alone, whatever it is (a past one opened,
  * tournaments/editions.ts), in place of the ones the club read sends (SHOWN_TOURNAMENTS). `edge`: where the shared
- * parts are kept, so only what's this member's own is read from D1 when they're there (#178).
+ * parts are kept, so only what's this member's own is read from D1 when they're there.
  */
 export async function readClub(
   db: D1Database,
@@ -656,9 +654,9 @@ export interface MatchRows {
 }
 
 /**
- * A live match (ADR 0072, #161): one tournament's games as every member sees them, read with no viewer since nothing
+ * A live match (ADR 0053): one tournament's games as every member sees them, read with no viewer since nothing
  * in them is anyone's own, in one statement; null when the tournament isn't on (under way: lib/phase.ts), whatever its
- * date: one played early is live, a result put right once it's all played isn't (ADR 0074, #182).
+ * date: one played early is live, a result put right once it's all played isn't (apps/team/worker/tournaments/README.md).
  */
 export async function readMatch(db: D1Database, tournamentId: number): Promise<MatchRows | null> {
   const ofGames = "WHERE game_id IN (SELECT id FROM tournament_games WHERE tournament_id = ?)";

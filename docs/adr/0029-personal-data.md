@@ -30,7 +30,7 @@ emailed to the club inbox ([ADR 0027](0027-email-through-gmail-api.md)). The clu
 - **`scripts/seed-roster.mjs` only adds:** players not yet in `members` (matched by name, any case), an email where
   there's none, roles where they're missing. It never changes or removes anyone, so `deploy.yml` runs it on every
   deploy after the database rebuild, and what admins do in the app always wins. It bumps `data_version` so open apps
-  reload ([ADR 0053](0053-live-reads-are-cached.md)). It refuses a roster that lists a name twice.
+  reload ([ADR 0053](0053-how-the-team-app-gets-its-data.md)). It refuses a roster that lists a name twice.
 - Anything else personal that ever needs seeding follows the same path.
 
 **Enquiries are deleted 12 months after they're sent**, unless the person joined (`status = 'joined'`). The privacy
@@ -55,7 +55,7 @@ admin does the same for a member who asks by email (their member sheet → Delet
   opinion and hidden from members (the club's choice, 2026-10-10).
 - **Sign-in records are kept no longer than needed**, by the team app's hourly cron (`settings/retention.ts`): sign-in
   codes 30 days, a session 30 days after it ended, audit entries 2 years.
-- Backups keep a deleted account for up to 90 days ([ADR 0106](0106-database-backups.md)); the app's privacy notice says so.
+- Backups keep a deleted account for up to 90 days ([ADR 0050](0050-schema-and-seed-until-launch.md)); the app's privacy notice says so.
 - **The team app has its own privacy notice**, not the website's (members' details don't belong on the public site):
   `apps/team/src/lib/PrivacyNotice.svelte`, at `/privacy` in the app and on the sign-in screen, so anyone can read it
   before signing in. What it holds, who sees it, how long, and how to delete it. The website's `/privacy` covers the
@@ -84,26 +84,3 @@ admin does the same for a member who asks by email (their member sheet → Delet
   the same for the team app's (`retention.ts` and the app's notice).
 - The roster seed adds players by name, so someone who deleted their account comes back on the next deploy if they're
   still in a roster: take them off `TEAM_ROSTER__PRODUCTION` (and a local copy) too.
-
-## History
-
-- 2026-10-06: Enquiries deleted after 12 months by a SQL file run on every deploy; Gmail copies by hand (was 0029).
-- 2026-10-06: Personal data kept out of the repo; the roster seeded from Secrets Manager by an add-only script; only
-  non-personal data in migrations (was 0033).
-- 2026-10-07: Migrations replaced by schema plus seed until launch, so the non-personal seed is `db/seed/club.sql` and
-  the scripts run after the rebuild ([ADR 0050](0050-schema-and-seed-until-launch.md)).
-- 2026-10-09: Enquiries deleted by a daily cron on the website's Worker, not a SQL file run on deploys: deploys are per
-  app and only on change now (ADR 0010), so they're no clock.
-- 2026-10-10: Members can delete their account (erased in place, as a Former member) and download their data; sign-in
-  codes, ended sessions and audit entries are forgotten after 30 days, 30 days and 2 years; the privacy page covers
-  the team app (#30).
-- 2026-10-10: The team app's privacy notice moves into the app (`/privacy`, and the sign-in screen); the website's covers
-  the website only.
-- 2026-10-10: Dev and local hold made-up players, bar the admins: an anonymized seed and a script that swaps who's
-  already there.
-- 2026-10-17: The club's full roster is deleted from Bitwarden (`TEAM_ROSTER`); only production's two admins stay
-  (`TEAM_ROSTER__PRODUCTION`). Dev's database already has everyone, anonymized.
-- 2026-10-23: Deleting an account takes the member off teams for tournaments still to come, as saying out does (#138):
-  they'd stayed in its lineup as "Former member".
-- 2026-10-23: A team they captain for a tournament still to come keeps its place with no captain, as a team whose
-  captain is gone, and an admin names another (its page says No captain); it had kept them as its captain (#160).

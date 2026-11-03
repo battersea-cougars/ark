@@ -32,7 +32,7 @@ describe("reopening the app", () => {
     const first = await reg.club();
     const tag = first.headers.get("etag")!;
     expect(first.status).toBe(200);
-    // Never kept in the browser's cache, where members' details would outlast signing out (#81): the app asks with
+    // Never kept in the browser's cache, where members' details would outlast signing out: the app asks with
     // the tag itself
     expect(first.headers.get("cache-control")).toBe("private, no-store");
 
@@ -47,7 +47,7 @@ describe("reopening the app", () => {
     expect(after.headers.get("etag")).not.toBe(tag);
   });
 
-  it("hears which build of the app answered, so an app left open knows a newer one is out (ADR 0104)", async () => {
+  it("hears which build of the app answered, so an app left open knows a newer one is out (ADR 0022)", async () => {
     const reg = await w.signedIn("reg@example.com");
     const first = await reg.club();
     expect(first.headers.get("x-app-build")).toBe(APP_BUILD);
@@ -74,7 +74,7 @@ describe("reopening the app", () => {
   });
 
   it("asks the database a handful of times, not once for every part of the club", async () => {
-    // Each ask is a round trip the app waits on before it can show anything (ADR 0057)
+    // Each ask is a round trip the app waits on before it can show anything (ADR 0053)
     const reg = await w.signedIn("reg@example.com");
     await reg.call("GET", "/api/bootstrap"); // the day's first open also makes the coming training sessions
     const asks = vi.spyOn(w.db, "prepare");
@@ -148,7 +148,7 @@ describe("rate limits", () => {
   });
 
   // One device on the rink's wifi going through the strangers' allowance (a page that isn't there, sign-in, error
-  // reports, in a loop or on purpose) used to turn away every signed-in phone there too: members aren't behind it
+  // reports, in a loop or on purpose) mustn't turn away every signed-in phone there too: members aren't behind it
   it("let a squad on one wifi keep following while a stranger there uses up the strangers' allowance", async () => {
     const reg = await w.signedIn("reg@example.com");
     stubCaches();
@@ -160,7 +160,7 @@ describe("rate limits", () => {
     expect((await reg.call("PUT", "/api/me", PROFILE)).status).toBe(200);
   });
 
-  // The rink's wifi is one address (#113): a squad following a live game or the draft reloads once per change each,
+  // The rink's wifi is one address: a squad following a live game or the draft reloads once per change each,
   // so together they went over the address's 600 a minute and every phone there was turned away
   it("let a squad on one wifi keep following, each member counted on their own", async () => {
     const reg = await w.signedIn("reg@example.com");
@@ -202,7 +202,7 @@ describe("making a change", () => {
     const reg = await w.signedIn("reg@example.com");
     const r = await reg.call("PUT", "/api/me", { ...PROFILE, bio: "Stops pucks." });
     expect(r.status).toBe(200);
-    // Members, as Home names them and (for a phone that's read the roster) everyone (#178), and Home's For admins
+    // Members, as Home names them and (for a phone that's read the roster) everyone, and Home's For admins
     expect(Object.keys(r.body.changed).sort()).toEqual(["forAdmins", "members", "people"]);
     expect(r.body.changed.people.find((m: { email: string }) => m.email === "reg@example.com").bio).toBe(
       "Stops pucks.",

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Make an environment's Turnstile widget through Cloudflare's API (docs/secrets.md#turnstile, ADR 0028), or find the one that's
+// Make an environment's Turnstile widget through Cloudflare's API (docs/secrets.md#turnstile, ADR 0027), or find the one that's
 // there, and store its secret key straight in Secrets Manager: nobody sees it. Prints the site key (public), which goes
 // in deploy.yml. Safe to run again: it changes nothing that's already right.
 //   node scripts/env-pull.mjs -- node scripts/turnstile-setup.mjs dev
@@ -8,7 +8,7 @@
 import { ensureToken, setSecret } from "./lib/bitwarden.mjs";
 
 // One widget per account; a hostname covers its subdomains: the website, its PR previews, and the team app's sign-in
-// and Ask to join (team.cougars-dev.workers.dev, team.batterseacougars.com; #13), which use the same keys
+// and Ask to join (team.cougars-dev.workers.dev, team.batterseacougars.com), which use the same keys
 const WIDGETS = {
   dev: { domains: ["cougars-dev.workers.dev"], secret: "TURNSTILE_SECRET_KEY" },
   production: { domains: ["batterseacougars.com"], secret: "TURNSTILE_SECRET_KEY__PRODUCTION" },

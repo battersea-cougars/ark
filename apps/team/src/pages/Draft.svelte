@@ -1,19 +1,9 @@
 <script lang="ts">
-  // The Draft open view of a tournament's page (ADR 0074): a captains' draft (ADR 0060), led one step at a time, one main button each for whoever runs it: Shuffle (the pick
-  // order, drawn at random on the server; DraftOrder shuffles the names into it for whoever's watching), Open draft
-  // (each captain hears where they pick), the picking, then Close draft & make fixtures in one tap; closed, it says
-  // so, and Reopen is in Manage. The captains take turns, in snake order, picking from the members who said they're in
-  // (captains are in automatically, never picked). The captain on the clock picks on their own phone: Pick marks a
-  // player, End turn sends it. Whoever runs the draft can pick for them and undo the last pick. A team takes one
-  // goalie. Teams are edited on the Teams page, not here.
-  //
-  // Laid out as a draft room: a ticker of picks across the top (the one on the clock brought forward with a badge),
-  // then two views, Players and Teams: side by side on a wide screen; in the room on anything narrower, the teams are
-  // the page and the players open in a drawer from the button at its foot (Your pick, on your turn). The players are
-  // a plain list with a Pick on each row on your turn; a name opens the player's card. A captain's own team is the
-  // first of the teams, marked Yours, with their coming pick drawn in.
+  // The Draft open view of a tournament's page (apps/team/worker/tournaments/README.md): a captains' draft, led one step
+  // at a time (shuffle, open, pick, close), as a draft room: a ticker of picks, then the players and the teams, side by
+  // side on a wide screen; narrower, the teams are the page and the players open in a drawer.
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesBy, goesByOf, matchesName, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { goesBy, matchesName, nameOfMember, nameOfPlayer, shortNameOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
@@ -75,7 +65,7 @@
     signup?: boolean;
     /** Told which team the light's on, as the turn's timeline shows it (the room's bar says it at the same moment). */
     onshown?: (clock: number) => void;
-    /** Told whether it's being picked (open, players left), so a phone's page makes room for it (ADR 0074). */
+    /** Told whether it's being picked (open, players left), so a phone's page makes room for it (apps/team/worker/tournaments/README.md). */
     onpicking?: (picking: boolean) => void;
   } = $props();
 
@@ -105,9 +95,9 @@
     (tournament?.going ?? []).filter((id) => !picked.has(id) && !captains.has(id)).flatMap((id) => byId(id) ?? []),
   );
   const phase = $derived(tournament?.draftState ?? "none");
-  // Step 1 done: the pick order's drawn (ADR 0060)
+  // Step 1 done: the pick order's drawn (apps/team/worker/tournaments/README.md)
   const drawn = $derived(orderDrawn(teams));
-  // The draw as a moment (ADR 0060): before it, only the Draw the order card, the captains in it. A page that sees the
+  // The draw as a moment (apps/team/worker/tournaments/README.md): before it, only the Draw the order card, the captains in it. A page that sees the
   // order arrive (whoever pressed Shuffle, and every captain watching, via the live updates) shuffles the names in the
   // card (DraftOrder); once they're stamped into place the card lets go, leaving the order as the page's order row,
   // and the Open the draft card, the players and the teams come in under it. A page opened after, or asking for less
@@ -150,7 +140,7 @@
   // Done: the teams, or the pick log (its tab)
   let doneView = $state<"teams" | "log">("teams");
   // The picks to come, one for each player left, as slots of the snake: the turn follows the pick numbers, so a pick
-  // that came off (the player said they're out) is filled first, by its own team (#125). With no gaps, from `made`
+  // that came off (the player said they're out) is filled first, by its own team. With no gaps, from `made`
   const slots = $derived(
     nextSlots(
       picks.map((p) => p.pick),
@@ -197,16 +187,16 @@
     return myTurnLine(t.pick, picksUntil(teams.length, slots, myTeam));
   });
   const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => (id ? byId(id) : undefined));
-  // The captains in the server's order: as named until the draft opens and draws it (ADR 0060)
+  // The captains in the server's order: as named until the draft opens and draws it (apps/team/worker/tournaments/README.md)
   const order = $derived(
     teams.flatMap((t) =>
       t.captainMemberId
-        ? [{ id: t.captainMemberId, name: goesByOf(byId(t.captainMemberId)), you: t.captainMemberId === me().id }]
+        ? [{ id: t.captainMemberId, name: nameOfMember(t.captainMemberId, byId), you: t.captainMemberId === me().id }]
         : [],
     ),
   );
 
-  // Positions: what a team has, counting its captain; one keeper a team (ADR 0060)
+  // Positions: what a team has, counting its captain; one keeper a team (apps/team/worker/tournaments/README.md)
   const membersOf = (i: number) =>
     [teams[i].captainMemberId, ...teams[i].players.map((p) => p.memberId)].flatMap((id) =>
       id ? (byId(id) ?? []) : [],
@@ -362,14 +352,14 @@
     return () => ro.disconnect();
   });
   // The pick log: every pick so far, in order, who went where
-  // A pick someone made for the captain (whoever runs the draft) says who: `by` is their name (ADR 0060)
+  // A pick someone made for the captain (whoever runs the draft) says who: `by` is their name (apps/team/worker/tournaments/README.md)
   const pickerOf = (p: { pickedBy?: number | null }, team: number) =>
     p.pickedBy && p.pickedBy !== teams[team]?.captainMemberId ? shortNameOf(byId(p.pickedBy)) || "An admin" : "";
   const log = $derived(
     picks.map((p) => ({
       n: p.n,
       team: p.team,
-      name: p.memberId ? goesByOf(byId(p.memberId)) || p.name : p.name,
+      name: nameOfPlayer(p, byId),
       you: p.memberId === me().id,
       by: pickerOf(p, p.team),
     })),
@@ -410,7 +400,7 @@
     void made;
     chosen = null;
   });
-  // Whoever runs the draft picking for the captain on the clock: the buttons say so (ADR 0060)
+  // Whoever runs the draft picking for the captain on the clock: the buttons say so (apps/team/worker/tournaments/README.md)
   const forOther = $derived(canPick && !mine);
   const forName = $derived(clock >= 0 ? firstName(teams[clock].captainMemberId) : "");
   const chosenPlayer = $derived(chosen !== null && canPick ? pool.find((p) => p.id === chosen) : undefined);
@@ -670,12 +660,12 @@
 
   // The fixtures, if made
   const games = $derived(tournament?.games ?? []);
-  // The last step (ADR 0060): one tap closes the draft and makes the fixtures (fixtures already made are kept, as
+  // The last step (apps/team/worker/tournaments/README.md): one tap closes the draft and makes the fixtures (fixtures already made are kept, as
   // they're between the same teams). Without enough teams for the playoffs, and none made, it can only close
   const makesFixtures = $derived(!games.length && !tooFew);
   const finishes = $derived(games.length > 0 || !tooFew);
   const finishLabel = $derived(makesFixtures ? "Close draft & make fixtures" : "Close the draft");
-  // Fixtures made, the tournament's page moves on to Fixtures set by itself (ADR 0074): its own address shows the
+  // Fixtures made, the tournament's page moves on to Fixtures set by itself (apps/team/worker/tournaments/README.md): its own address shows the
   // status it's at, so whoever made them, from the draft's address, goes to it; captains watching stay where they are
   const home = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const finish = (leaveOut = false) =>
@@ -718,8 +708,8 @@
     }
   }
 
-  // While it's open, the other captains' picks show up as they're made, from the hub's stream (ADR 0072), with a
-  // check on the admins' beat as the fallback (ADR 0072). A check is a Worker request and a few small queries
+  // While it's open, the other captains' picks show up as they're made, from the hub's stream (ADR 0053), with a
+  // check on the admins' beat as the fallback (ADR 0053). A check is a Worker request and a few small queries
   // (session, roles, data version); a room of phones on one wifi stays inside the per-address limit (ADR 0055)
   // On the night, before it opens, the page follows too, so the draw arrives on every phone at once and shuffles in
   // (DraftOrder)
@@ -750,7 +740,7 @@
       <li class="row" class:you={t.captainMemberId === me().id}>
         <span class="c display" title="Captain" aria-label="Captain">C</span>
         <span class="name"
-          >{goesByOf(c)}{#if t.captainMemberId === me().id}<small>you</small>{/if}</span
+          >{nameOfMember(t.captainMemberId, byId)}{#if t.captainMemberId === me().id}<small>you</small>{/if}</span
         >
         {#if c}<span class="pos" class:g={c.position === "G"}><PositionIcon position={c.position} /></span>{/if}
       </li>
@@ -773,7 +763,7 @@
           {#if p.memberId !== null && p.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
           <span class="n num">{n + 1}</span>
           <span class="name"
-            >{goesByOf(m) || p.name}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
+            >{nameOfPlayer(p, byId)}{#if p.memberId === me().id}<small>you</small>{/if}{#if by}<small
                 class="by"
                 title="{by} chose them for {teamName(i)}">{by}'s choice</small
               >{/if}</span
@@ -1022,7 +1012,7 @@
         <div class="tools">
           {#if open && !fit && myPlace}<span class="mine num">{myPlace}</span>{/if}
           {#if open}
-            <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0072) -->
+            <!-- Picks show up as they're made while the hub's stream is open; else on the admins' beat (ADR 0053) -->
             <span
               class="updates hint"
               title={liveFeed.on
@@ -1031,13 +1021,13 @@
               ><Icon name={liveFeed.on ? "live" : "clock"} size={14} /><span class="lbl"><LiveNote /></span></span
             >
           {/if}
-          <!-- Rules and Manage are the page header's (ADR 0074): the draft's jobs are in its Manage, the rules in
+          <!-- Rules and Manage are the page header's (apps/team/worker/tournaments/README.md): the draft's jobs are in its Manage, the rules in
              Format & rules, the picks on the ticker and, once it's done, How the picks went -->
         </div>
       </div>{/if}
 
     <!-- Before it starts: the captains, no numbers until the order's drawn, then shuffled into it for everyone on the
-         page. The page leads whoever runs it one step at a time, one main button each (ADR 0060): Shuffle, then Open
+         page. The page leads whoever runs it one step at a time, one main button each (apps/team/worker/tournaments/README.md): Shuffle, then Open
          draft; the players and teams stay hidden until the order's drawn. Once it starts this folds away: the page is
          the draft, and the order's on the team cards -->
     {#if phase !== "open" && phase !== "closed"}
@@ -1215,7 +1205,7 @@
       <!-- The players and teams wait for the order: the first thing on the night is the draw; at sign-up, Who's in is
            the one list -->
     {:else if shows === "summary"}
-      <!-- The Kumite's page while it's picked (ADR 0060): who's picking, big; the last pick, burning in as it lands;
+      <!-- The Kumite's page while it's picked (apps/team/worker/tournaments/README.md): who's picking, big; the last pick, burning in as it lands;
            and the one way to the picking, the draft room -->
       <section class="summary" in:fade={viewsIn} aria-live="polite">
         <div class="on-clock panel">
@@ -1239,9 +1229,7 @@
           <p class="last" class:burning={lastPicked.memberId === burning}>
             {#if lastPicked.memberId === burning && !prefersReducedMotion}<BurnReveal />{/if}
             <span class="hint">Last choice</span>
-            <span class="name"
-              >{goesByOf(lastPicked.memberId ? byId(lastPicked.memberId) : undefined) || lastPicked.name}</span
-            >
+            <span class="name">{nameOfPlayer(lastPicked, byId)}</span>
             <span class="hint">to {teamName(lastPicked.team)}</span>
           </p>
         {/if}
@@ -1477,7 +1465,7 @@
     gap: var(--s-3);
     min-width: 0;
   }
-  /* A step of the night (ADR 0060). For whoever runs it, Shuffle, Open draft and Close draft & make fixtures are the
+  /* A step of the night (apps/team/worker/tournaments/README.md). For whoever runs it, Shuffle, Open draft and Close draft & make fixtures are the
      moment: the line and the one main button centred in the page column, stacked, with room round them, the order
      above and the players below. Two lines are kept for the text, so the step changing moves nothing. Everyone
      else's step (and a closed draft's See the fixtures) is a line with what's next beside it */
@@ -1635,7 +1623,7 @@
     padding-bottom: 5.5rem;
   }
   /* Never wider than the view: the shell clips sideways, so anything wider would be cut off, not scrolled */
-  /* A view of the tournament's page (ADR 0074): the page gives the frame, this its column */
+  /* A view of the tournament's page (apps/team/worker/tournaments/README.md): the page gives the frame, this its column */
   .draft {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2034,7 +2022,7 @@
       background-position: -20% 0;
     }
   }
-  /* Your turn: the same lit card as anyone's turn; the one red is its Your pick badge (colour's an accent, ADR 0084) */
+  /* Your turn: the same lit card as anyone's turn; the one red is its Your pick badge (colour's an accent, ADR 0009) */
   /* Yours on the clock: the italic caps in red, no wash behind them */
   .clock.yours {
     padding: 0;

@@ -1,9 +1,6 @@
-// Tokens kept in D1 (sealed_tokens) because nothing that writes them can write to Bitwarden (ADR 0002 point 8): the
-// Gmail token an admin reconnects in the team app (ADR 0027).
-//
-// Sealed in the Worker before it's written: AES-GCM (Web Crypto) with a key of the token's own (a Worker secret,
-// 32 random bytes, base64), the row's name bound in as associated data. So someone with the database (the dashboard,
-// an export, a backup) can't read one, change it unnoticed, or move a sealed value to another row. Never logged.
+// Tokens kept in D1 (sealed_tokens) because nothing that writes them can write to Bitwarden (ADR 0002): the Gmail
+// token an admin reconnects in the team app (ADR 0027). Sealed so someone with the database can't read one, change it
+// unnoticed, or move it to another row. Never logged.
 
 const utf8 = new TextEncoder();
 const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
@@ -16,7 +13,10 @@ async function aesKey(base64: string): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-/** The token sealed for the row `name`: base64 of a random 12-byte IV, then the ciphertext and its tag. */
+/**
+ * The token sealed for the row `name`: base64 of a random 12-byte IV, then the ciphertext and its tag. AES-GCM with
+ * the token's own key (a Worker secret, 32 random bytes, base64) and the row's name bound in as associated data.
+ */
 export async function seal(token: string, key: string, name: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const params = { name: "AES-GCM", iv, additionalData: associated(name) };

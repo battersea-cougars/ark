@@ -1,14 +1,7 @@
-// Whether a branch is safe to merge, mechanically (ADR 0115, docs/development.md#worktrees).
+// Whether a branch is safe to merge, mechanically (ADR 0115, docs/development.md#worktrees): run in the main checkout,
+// it scans the branch's commits for secrets, then runs the checks its diff asks for (scripts/lib/merge-check.mjs).
 //
 //   npm run merge:check -- <area>/<topic>
-//
-// In the main checkout. The branch must be on main's tip (a fast-forward) and its worktree clean. `git diff
-// main...<branch>` picks the tier (scripts/lib/merge-check.mjs): docs only, a format check of the changed files;
-// otherwise lint, knip, the tests, and the checks and builds of the apps the diff reaches. Either way the branch's
-// commits are scanned for secrets first (gitleaks, redacted). Steps run in two lanes side by
-// side, each printing pass or FAIL as it ends; a failure's output is printed whole at the end. It runs in the
-// branch's worktree, or a temporary checkout of it (.worktrees/.merge-check-*, removed after): never in the main
-// checkout's tree.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -48,6 +41,7 @@ if (tier === "none") {
   process.exit(0);
 }
 
+// The steps run in the branch's worktree, or a temporary checkout of it: never in the main checkout's tree
 const temporary = tree ? undefined : checkout();
 tree ??= temporary;
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
@@ -61,6 +55,7 @@ const FIRST_LANE = ["lint", "knip", "test"];
 const present = files.filter((f) => existsSync(join(tree, f)));
 const format = { name: "format (changed files)", cmd: ["npx", "prettier", "--check", "--ignore-unknown", ...present] };
 // Lane one: the secrets scan, lint, knip and the tests; lane two: the checks and builds, which share no output with them
+// Each step prints pass or FAIL as it ends; a failure's output is printed whole at the end
 const firstLane = steps.filter((k) => FIRST_LANE.includes(k)).map((k) => STEPS[k]);
 const secondLane = steps.filter((k) => !FIRST_LANE.includes(k)).map((k) => STEPS[k]);
 const lanes =

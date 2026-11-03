@@ -19,14 +19,14 @@
   import { withRibbon } from "@cougars/shared/ribbon";
 
   // A past one's page, or one of its games' or teams': read it if the app hasn't it, or ask again if it's changed
-  // since (#175, app/editions.svelte.ts). Its page shows it loading meanwhile. First, so the address below knows
+  // since (app/editions.svelte.ts). Its page shows it loading meanwhile. First, so the address below knows
   // it's on its way
   $effect.pre(() => {
     void editions.round;
     const asked = askedBy(router.path);
     if (asked && db.tournamentTypes.some((t) => t.slug === asked.slug)) untrack(() => wantEdition(asked));
   });
-  // A series' address with one on is that one's own (ADR 0074): replaced before the page shows, and again when the
+  // A series' address with one on is that one's own (apps/team/worker/tournaments/README.md): replaced before the page shows, and again when the
   // one on changes under it (the next one scheduled from No Kumite yet)
   $effect.pre(() => {
     const to = editionAddressOf(router.path);
@@ -42,7 +42,7 @@
   $effect(() => {
     if (allowed) void loadPage(route.page);
   });
-  // ...and its parts of the club beyond the core (#178, app/page-data.svelte.ts): one request, if they aren't in. An
+  // ...and its parts of the club beyond the core (app/page-data.svelte.ts): one request, if they aren't in. An
   // address that isn't a page yet (a member's, before the roster's in) is given everything, then found
   const needs = $derived(needsOf(allowed ? routeFor(all, router.path)?.page : "home", granted()));
   $effect(() => {
@@ -90,8 +90,8 @@
     {#if v.Page && ready}<v.Page {...v.params} />{/if}
   {/each}
 </Shell>
-<!-- Dev only (ADR 0123): the Kumite simulation's control, while one runs, over whichever page. Loaded only where the
-     simulator is, so no phone in production downloads it before Home paints (ADR 0120) -->
+<!-- Dev only (ADR 0010): the Kumite simulation's control, while one runs, over whichever page. Loaded only where the
+     simulator is, so no phone in production downloads it before Home paints (ADR 0053) -->
 {#if SIMULATOR}
   {#await import("./lib/SimulationControl.svelte") then { default: SimulationControl }}
     <SimulationControl focus={!!route.focus} />

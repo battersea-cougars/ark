@@ -1,8 +1,7 @@
 <script lang="ts">
-  // One training's editor, inside the panel a card opens (Settings → Training). A series is a rule (every N weeks on
-  // some days, from a first date, optionally to a last one) plus what every session shares (ADR 0030). Saving makes
-  // its sessions; each one can then be cancelled on its own. A save that puts nights on over something already on (the
-  // Kumite, another training, a one-off) asks first whether that's off (ADR 0122, ClashSheet).
+  // One training's editor, in the panel a card opens (Settings → Training): a rule (every N weeks on some days, from a
+  // first date) plus what every session shares (apps/team/worker/training/README.md). Saving makes its sessions, asking
+  // first over anything already on (ClashSheet).
   import type { Edits } from "./dirty.svelte";
   import TimeSelect from "./TimeSelect.svelte";
   import DateField from "../lib/DateField.svelte";
@@ -87,7 +86,7 @@
   // only after its own save: the club read again (a refused save, coming back to the tab, a live change) never puts
   // the saved copy over what's being typed, nor a refused save's retry sends the saved copy back
   let form = $state<TrainingSeries | null>(starting());
-  // The fee, going forward: a new amount applies from its date, to nights already held too (ADR 0007).
+  // The fee, going forward: a new amount applies from its date, to nights already held too (apps/team/worker/dues/README.md).
   // svelte-ignore state_referenced_locally
   let feeAmount = $state(feeText(form));
   let feeFrom = $state(londonToday());
@@ -99,7 +98,7 @@
     edits?.reset();
   }
 
-  // When a night's sign-up opens (ADR 0131): days before it, at midnight; any time is always open, and nobody's told
+  // When a night's sign-up opens (apps/team/worker/training/README.md): days before it, at midnight; any time is always open, and nobody's told
   const OPENS = [
     { value: "", label: "Any time" },
     { value: "0", label: "On the day" },
@@ -124,7 +123,7 @@
   let page = $state(0);
   let fetching = $state(false);
 
-  // Dues (ADR 0007): whoever sets fees sets a training's; whoever sees dues sees what each night collected
+  // Dues (apps/team/worker/dues/README.md): whoever sets fees sets a training's; whoever sees dues sees what each night collected
   const setsFees = $derived(can(granted(), "manage:Fees"));
   const seesDues = $derived(can(granted(), "read:Dues") || can(granted(), "record:Payment"));
 
@@ -152,7 +151,7 @@
       : [],
   );
 
-  // What each collected, read from the server for whoever sees dues (#177), again after a change to dues
+  // What each collected, read from the server for whoever sees dues, again after a change to dues
   let collected = $state<Collected[]>([]);
   $effect(() => {
     void db.dues;
@@ -215,7 +214,7 @@
     if (!form.shortName) form.shortName = form.name.split(" ")[0];
     applyFee();
     // Over something already on? Asked first; closing the question saves nothing. What was asked about goes with the
-    // save, which is refused if something else went on then since: asked again, once (ADR 0122)
+    // save, which is refused if something else went on then since: asked again, once (apps/team/worker/training/README.md)
     const question = trainingQuestion(
       form,
       db.series.find((x) => x.id === form!.id),

@@ -1,11 +1,8 @@
 <script lang="ts">
   /**
-   * The phone's one overlay (ADR 0065): a sheet up from the bottom, with a handle you can pull down to close it. A short
-   * job (Filters, + Event) is sized to what's in it; a `tall` one (a drawer's list, an editor) rises near the top and
-   * scrolls inside, its header and footer staying put. lib/Drawer and lib/EditorPanel are drawn as this on a phone.
-   * On a desktop it's a centred modal. A native modal dialog, so it sits above everything, traps focus and closes on
-   * Escape (and Android's back); a full click on the dimmed page closes it too. Nothing on the page moves when it opens.
-   * Every way out asks first when its form has unsaved changes (`edits`), as lib/Drawer does (lib/overlay.ts).
+   * The phone's one overlay (ADR 0065): a sheet up from the bottom with a handle to pull it down; a short job sized to
+   * what's in it, a `tall` one rising near the top and scrolling inside. A centred modal on a desktop. It keeps
+   * lib/Drawer's close contract (lib/overlay.ts), asking first over unsaved `edits`.
    */
   import type { Snippet } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -13,6 +10,7 @@
   import { phone } from "./viewport.svelte";
   import { swipeCloses } from "./sheet";
   import { backdropClicks, lockScroll, outside, rememberFocus, requestClose } from "./overlay";
+  import { closeOnBack } from "./back";
   import type { Edits } from "./dirty.svelte";
 
   let {
@@ -51,16 +49,19 @@
     edits?: Edits;
   } = $props();
 
-  /** The one way out: asks first if there are unsaved changes. */
-  export function close() {
-    requestClose(() => (open = false), edits?.guard);
+  /** The one way out: asks first if there are unsaved changes. Returns whether it's closing now. */
+  export function close(): boolean {
+    return requestClose(() => (open = false), edits?.guard);
   }
-  // While it's open: the page under it stays put, and focus goes back where it was once it's closed
+  // While it's open: the page under it stays put, Back closes it (lib/back.ts), and focus goes back where it was once
+  // it's closed
   let unlock: (() => void) | undefined;
   let refocus: (() => void) | undefined;
+  let offBack: (() => void) | undefined;
   function shown() {
     unlock = lockScroll();
     refocus = rememberFocus();
+    offBack = closeOnBack(close);
   }
 
   let dialog = $state<HTMLDialogElement | undefined>();
@@ -117,6 +118,7 @@
     stay();
     open = false;
     unlock?.();
+    offBack?.();
     refocus?.();
     edits?.closed();
     onclose?.();

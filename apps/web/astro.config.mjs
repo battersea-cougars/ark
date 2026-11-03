@@ -32,9 +32,12 @@ export default defineConfig({
   // Old Wix addresses. /gallery/<album> is a server route (pages/gallery/[slug].ts): a config redirect to a
   // server-rendered page would point at a prerendered file that doesn't exist.
   redirects: { "/gallery": "/photos" },
+  // The join form's only CSRF guard (ADR 0024): a POST to a live route from another site is refused. Astro's default,
+  // said here so an upgrade or a tidy can't quietly turn it off
+  security: { checkOrigin: true },
   // Not in the sitemap: the thanks page and the form saying what went wrong (noindex), and the pieces the home page
-  // fetches (the reel, What's on). The build's Sanity requests are counted into the environment's D1 (ADR 0059), and
-  // its _headers written for the environment (ADR 0036).
+  // fetches (the reel, What's on). The build's Sanity requests are counted into the environment's D1 (ADR 0003), and
+  // its _headers written for the environment (ADR 0024).
   integrations: [
     sitemap({
       filter: (page) => !/\/(join\/(thanks|invalid|rate)|videos\/reel|whats-on)(\/|$)/.test(new URL(page).pathname),
@@ -73,7 +76,7 @@ export default defineConfig({
       GMAIL_TOKEN_KEY: envField.string({ context: "server", access: "secret", optional: true }),
       // Where every email goes outside production; unset, the sending account itself (the developer Gmail account).
       MAIL_SAFE_TO: envField.string({ context: "server", access: "public", optional: true }),
-      // Cloudflare Turnstile on /join (packages/shared/turnstile.ts, ADR 0028). The site key is public, one per Cloudflare
+      // Cloudflare Turnstile on /join (packages/shared/turnstile.ts, ADR 0027). The site key is public, one per Cloudflare
       // account (deploy.yml); the default is Cloudflare's test key, which always passes, for a laptop. The secret is a
       // Worker secret; unset, nobody counts as verified (no auto-replies).
       TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", default: "1x00000000000000000000AA" }),
@@ -82,7 +85,7 @@ export default defineConfig({
       SMOKE_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       // Where the Worker's errors go (ADR 0110, src/worker.ts reads it): a Worker secret; unset, only the log
       SENTRY_DSN: envField.string({ context: "server", access: "secret", optional: true }),
-      // Cloudflare Web Analytics' site token (lib/analytics.ts, #92): public, in every page; production's, set in
+      // Cloudflare Web Analytics' site token (lib/analytics.ts): public, in every page; production's, set in
       // deploy.yml. Unset, the pages carry no beacon of their own.
       WEB_ANALYTICS_TOKEN: envField.string({ context: "server", access: "public", optional: true }),
       PUBLIC_BUILD_VERSION: envField.string({ context: "client", access: "public", default: "dev" }),
@@ -142,7 +145,7 @@ export default defineConfig({
     // deletes them before the files go live
     build: {
       sourcemap: "hidden",
-      // No inline scripts, however small, so the content security policy allows our own files only (ADR 0036)
+      // No inline scripts, however small, so the content security policy allows our own files only (ADR 0024)
       assetsInlineLimit: (file) => (file.endsWith(".js") ? false : undefined),
     },
     // The dev server keeps its own dependency cache: `astro build` and `astro check` rewrite

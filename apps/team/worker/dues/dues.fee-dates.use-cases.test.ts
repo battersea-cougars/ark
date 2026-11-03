@@ -1,9 +1,6 @@
-// A training's fee on a night's day (ADR 0007): a fee runs from its date until the next one starts, and a night costs
-// the one in force on its London day. The boundaries: a fee from the night itself, from the day after, two a day
-// apart, one changed back in time over nights whose register has closed (paid or not), one taken to nothing from a
-// date, a Quarterly Member across a change, and the hourly run at 00:30 BST, still the day before in UTC. Driven through
-// the real Worker handlers in the fake world (ADR 0031); the hourly Cron Trigger is chargeDue, as the Worker calls it.
-// The Fees journey (apps/team/journeys/fees.journey.ts) taps the same through the training's editor.
+// A training's fee on a night's day (apps/team/worker/dues/README.md) at its boundaries: fees a day apart, changed back
+// in time, taken to nothing, across a Quarterly Member and the hourly run near midnight. Driven through the real Worker
+// handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { chargeDue } from "./dues";
 import { NOW, onTheNight, testWorld } from "../testing";
@@ -154,7 +151,7 @@ describe("a fee on a night's day", () => {
     ]);
   });
 
-  // ADR 0007: "Overriding one session's fee is not built"; nothing in the API takes one yet
+  // apps/team/worker/dues/README.md: "Overriding one session's fee is not built"; nothing in the API takes one yet
   it.todo("a night's own fee beats the training's on that night only (not built yet)");
 });
 

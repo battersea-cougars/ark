@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-05 (decided at project start) · updated 2026-10-24
-- **Merges:** 0021
+- **Merges:** 0021, 0102
 
 ## Context
 
@@ -37,31 +37,16 @@ the Sanity helpers and the Europe/London date code. Gwenda's ark repo solves the
   ([ADR 0010](0010-environments-and-deploys.md)). Rules in CLAUDE.md say which project they apply to.
 - **The roadmap is GitHub milestones**, not a doc: each milestone is prefixed with its project (`Website:` or
   `Team app:`; `Housekeeping` is for both), and every piece of work is an issue in one. A checklist in a doc went stale as soon as work moved
-  faster than it was ticked.
+  faster than it was ticked. Issues are written from `.github/ISSUE_TEMPLATE/task.md` (modelled on typesmiths/ledger's), and a PR from
+  `.github/pull_request_template.md`, starting with the issue it closes.
 - The old app is not in the tree; it's in git history (`archive/team-manager/`, before 2026-10-09).
-- **The team generator runs in the browser** ([ADR 0102](0102-balanced-teams-by-swap-search.md)), so there is no
-  server to pay for ([ADR 0003](0003-free-tiers-only.md)).
+- **The team generator runs in the browser**, on the main thread (`apps/team/src/lib/balance.ts`), so there is no
+  server to pay for ([ADR 0003](0003-free-tiers-only.md)): not a linear programme but a greedy deal and a swap search
+  with a dozen seeded restarts, comparing a list of measures in order rather than weights. What it balances is in
+  [the training notes](../../apps/team/worker/training/README.md).
 
 ## Consequences
 
 - One PR can change the schema and both projects that use it.
 - Large drafts are solved on the organiser's phone or laptop, so solver speed on a phone matters.
 - A new app goes in `apps/`; code a second app needs moves to `packages/`, as a package of its own if it grows.
-
-## History
-
-- 2026-10-05: One monorepo with `apps/web`, `apps/studio` and a later `apps/ops` (port 4510); the team generator runs
-  in the browser on glpk.js (0006).
-- 2026-10-06: The team app becomes its own project, `team/app`, beside the website, instead of `apps/ops`; the website
-  is to move to `website/` (0021).
-- 2026-10-09: The roadmap docs (`docs/roadmap.md`, `docs/roadmap/`) are replaced by GitHub milestones and issues; the
-  free-tier budget moved to [0003](0003-free-tiers-only.md).
-- 2026-10-09: The website stays in `apps/` and the team app joins it (`apps/team`); `shared/` becomes the workspace
-  package `packages/shared` (`@cougars/shared`). The move to `website/` is dropped (#36).
-- 2026-10-09: The repo moved from `das974/cougars` to the club's organisation, `BatterseaCougars/cougars`.
-- 2026-10-09: `archive/team-manager/` was deleted; everything we kept from it is built, and history has the rest.
-- 2026-10-09: The glpk.js port was dropped for a swap search ([0102](0102-balanced-teams-by-swap-search.md)).
-- 2026-10-09: The organisation became `battersea-cougars` and the repo `ark`, the name of every monorepo built this
-  way (like gwenda-hackney/ark): `battersea-cougars/ark`.
-- 2026-10-24: London's date conversions became one copy in `packages/shared/london.ts`; `londonISO` had been written
-  three times (shared, the website's and the team app's `lib/dates.ts`). Display formats stay in each app (#35).

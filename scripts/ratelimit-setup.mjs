@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The domain's rate-limiting rule (#57, docs/setup.md): Cloudflare blocks one address that sends far more requests
+// The domain's rate-limiting rule (docs/accounts.md): Cloudflare blocks one address that sends far more requests
 // than a person could, before they reach (and cost) a Worker. The free plan allows one rule, counted per address per
 // data centre over 10 seconds, blocking for 10 seconds. Safe to run again: it writes the same rule.
 //   node scripts/env-pull.mjs --environment production -- node scripts/ratelimit-setup.mjs

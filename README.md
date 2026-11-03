@@ -31,6 +31,7 @@ secrets on your machine, break glass): [docs/development.md](docs/development.md
 
 ## Docs
 
-[docs/](docs/README.md) has every doc, by who it's for: editing the website, the club's accounts and secrets, and
+[docs/](docs/README.md) has every doc, by who it's for: editing the website, the club's accounts and secrets
+([accounts](docs/accounts.md), with each account's members page; [secrets](docs/secrets.md)), and
 for developers how it runs and is tested. Decisions and why: [docs/adr/](docs/adr/README.md). Conventions for
 contributors and AI agents: [CLAUDE.md](CLAUDE.md).

@@ -44,7 +44,7 @@ export interface Pub {
 }
 
 export interface Team {
-  /** Off: no team page, no team section on the home page, no menu link (ADR 0109). */
+  /** Off: no team page, no team section on the home page, no menu link (apps/web/src/README.md). */
   onWebsite: boolean;
   intro: string;
   league?: string | null;
@@ -52,7 +52,7 @@ export interface Team {
 }
 
 export interface Kumite {
-  /** Off: no Kumite page, no Kumite section on the home page, no menu link (ADR 0109). */
+  /** Off: no Kumite page, no Kumite section on the home page, no menu link (apps/web/src/README.md). */
   onWebsite: boolean;
   intro: string;
   /** Under the poster's title. */
@@ -65,7 +65,7 @@ export interface Kumite {
   awards: string[];
 }
 
-/** A tournament award: from the team app's tournament editor (ADR 0044), or a Sanity name with no line. */
+/** A tournament award: from the team app's tournament editor (apps/team/worker/tournaments/README.md), or a Sanity name with no line. */
 export interface Award {
   name: string;
   about?: string | null;
@@ -77,7 +77,7 @@ export interface Award {
 export interface SiteSettings extends Club, Fridays {
   pub: Pub;
   team: Team;
-  /** Its awards and the next one come from the team app, through the build's club snapshot (ADR 0044, 0042). */
+  /** Its awards and the next one come from the team app, through the build's club snapshot (ADR 0016, apps/team/worker/tournaments/README.md). */
   kumite: Omit<Kumite, "awards"> & {
     awards: Award[];
     next: { startsAt: string; venue: string; dateTbc: boolean; season: string | null } | null;

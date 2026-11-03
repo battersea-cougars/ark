@@ -1,8 +1,7 @@
 // Cloudflare's own numbers for a load run against dev (docs/load-testing.md, "Against dev"): the team Worker's
-// requests, errors and CPU time, D1's rows read and written, and the live hub's requests, for the run's window, from
-// the GraphQL Analytics API (as the Usage page reads the day's, worker/settings/usage.ts); CPU by route from Workers
-// Logs (scripts/cpu-by-route.mjs). Read with CLOUDFLARE_ANALYTICS_TOKEN (read-only, dev's, from env-pull). The
-// figures are the whole account's for the window: anyone else using dev then, and the crons, are in them too.
+// requests, errors and CPU, D1's rows and the live hub's requests for the run's window, from the GraphQL Analytics API,
+// and CPU by route from Workers Logs (scripts/cpu-by-route.mjs). Read with CLOUDFLARE_ANALYTICS_TOKEN (dev's).
+// The figures are the whole account's for the window: anyone else using dev then, and the crons, are in them too.
 import { cpuByRoute, cpuTable } from "../cpu-by-route.mjs";
 import { FREE } from "./load.report.mjs";
 

@@ -1,9 +1,5 @@
-// The club as the app holds it, from the core and the pages' parts (#178): each list the pages read is the core's and
-// a page's put together, so a page doesn't care which the rows came from. The roster's rows, with your own from
-// Home's people (the roster everyone of a role shares leaves your private details out) and anyone Home names that it
-// doesn't have; the nights from tonight and the weeks just held; Home's tournaments and each series' last one played;
-// your own dues line and everyone's. The app's store (demo/data.ts) and the tests' fake app (worker/testing.ts) both
-// put the club together here.
+// The club as the app holds it: each list the pages read is the core's and a page's put together, so a page doesn't
+// care which the rows came from. The app's store (demo/data.ts) and the tests' fake app (worker/testing.ts) use it.
 //
 // No imports: the tests' Worker side uses it too.
 

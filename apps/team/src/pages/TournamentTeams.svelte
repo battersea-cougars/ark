@@ -1,10 +1,11 @@
 <script lang="ts">
-  // The Teams set view of a tournament's page (ADR 0074): every team top to bottom, in full: its crest and name, its
+  // The Teams set view of a tournament's page (apps/team/worker/tournaments/README.md): every team top to bottom, in full: its crest and name, its
   // captain and every player with their position (the pick quietly beside them), a team with no goalie said so, and
   // its record once there are results; yours first and marked. Each a card that opens its own page (TournamentTeam),
   // where its captain (or an admin) edits it.
   import PositionIcon from "../lib/PositionIcon.svelte";
-  import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import { me } from "../demo/session.svelte";
   import { PLAYERS } from "../demo/data";
   import { typeById } from "../demo/schedule.svelte";
@@ -45,37 +46,9 @@
   const admin = $derived(can(granted(), "manage:Tournament"));
   const draftNight = $derived(tournament?.draftOn ? formatDayDate(londonISO(tournament.draftOn, "12:00")) : null);
   const played = $derived((tournament?.games ?? []).some((g) => g.homeGoals !== null));
-  // A team's squad, its captain first then the players in the order they were picked (the pick quietly beside them)
-  const squadOf = (i: number) => {
-    const t = teams[i];
-    const person = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
-    const cap = person(t.captainMemberId);
-    return [
-      ...(cap || t.captainName
-        ? [
-            {
-              key: `c${t.captainMemberId ?? t.captainName}`,
-              id: t.captainMemberId,
-              name: cap ? goesByOf(cap) : t.captainName,
-              position: cap?.position,
-              captain: true,
-              pick: null as number | null,
-            },
-          ]
-        : []),
-      ...t.players.map((p, k) => {
-        const m = person(p.memberId);
-        return {
-          key: `p${p.memberId ?? p.name}${k}`,
-          id: p.memberId,
-          name: m ? goesByOf(m) : p.name,
-          position: m?.position,
-          captain: false,
-          pick: typeof p.pick === "number" ? p.pick : null,
-        };
-      }),
-    ];
-  };
+  // A team's squad, its captain first then the players in the order they were picked (the pick quietly beside them);
+  // someone who's left keeps their place (lib/team-roster.ts)
+  const squadOf = (i: number) => rosterOf(teams[i], (id) => PLAYERS.find((p) => p.id === id));
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
   const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
 </script>
@@ -124,14 +97,14 @@
         {/if}
         <ol class="squad">
           {#each squad as p (p.key)}
-            <li class:you={p.id === me().id}>
+            <li class:you={p.memberId === me().id}>
               <span class="role"
                 >{#if p.captain}<span class="c" title="Captain">C</span>{:else if p.pick}<span class="num"
                     >{p.pick}</span
                   >{/if}</span
               >
               <span class="who"
-                >{p.name}{#if p.id === me().id}<small>you</small>{/if}</span
+                >{p.name}{#if p.memberId === me().id}<small>you</small>{/if}</span
               >
               <span class="pos" class:g={p.position === "G"}
                 >{#if p.position}<PositionIcon position={p.position} />{/if}</span

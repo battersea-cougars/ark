@@ -1,5 +1,5 @@
-// You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, ADR 0007), and
-// your data: download it, or delete your account (#30).
+// You: your own profile and sign-in email, next quarter's plan, the role the app opens as (ADR 0024, apps/team/worker/dues/README.md), and
+// your data: download it, or delete your account.
 import { places } from "../push/push.notices";
 import { ok, type Route } from "../api/api.route";
 import { body } from "../api/api.http";
@@ -7,6 +7,7 @@ import { choosePlan, memberEmail, memberStanding, planNext, setEverydayRole, upd
 import { askToChangeEmail, confirmEmailChange } from "./members.email";
 import { eraseMember, memberData } from "./members.erase";
 import { endLive } from "../live/live";
+import { MAX_PHOTO_BODY, setPhoto } from "./members.photo";
 
 export const ME_ROUTES: Route[] = [
   {
@@ -68,6 +69,16 @@ export const ME_ROUTES: Route[] = [
     changes: ["members"],
     // { code }: the new address is their sign-in email; their other sign-ins end
     handle: confirmEmailChange,
+  },
+  {
+    method: "PUT",
+    path: /^\/api\/me\/photo$/,
+    audit: { none: "a member's own profile photo: theirs to change" },
+    action: "authenticated",
+    changes: ["members"],
+    maxBody: MAX_PHOTO_BODY,
+    // { photo: "data:image/jpeg;base64,…" | null }: your profile photo, shrunk on your phone (apps/team/worker/members/README.md); null takes it down
+    handle: async (c) => (await setPhoto(c.env.DB, c.memberId, await body(c.request), c.now), ok()),
   },
   {
     method: "PUT",

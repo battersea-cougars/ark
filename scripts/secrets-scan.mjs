@@ -1,17 +1,18 @@
-// Secrets in the git history (#104, ADR 0002): gitleaks over the commits, with what it finds redacted, so a scan never
+// Secrets in the git history (ADR 0002): gitleaks over the commits, with what it finds redacted, so a scan never
 // prints a secret it found. Rules and the known non-secrets it lets through, each with why: .gitleaks.toml.
 //
 //   npm run secrets:scan                  every commit on this branch, from the first
 //   npm run secrets:scan -- --since main  only the commits since main (what a push or a PR adds)
 //
-// The gitleaks binary is a pinned release, checked against its published checksum before it runs (as the Bitwarden
-// CLI is, .github/actions/secrets), and kept in node_modules/.cache. Not gitleaks-action: it needs a licence key for
-// a repo owned by an organisation. Exits non-zero on a find: each one's rule, file, line and commit, never its value.
+// Exits non-zero on a find: each one's rule, file, line and commit, never its value.
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+// A pinned release, checked against its published checksum before it runs (as the Bitwarden CLI is,
+// .github/actions/secrets), kept in node_modules/.cache. Not gitleaks-action: it needs a licence key for an
+// organisation's repo.
 const VERSION = "8.30.1";
 // From gitleaks_8.30.1_checksums.txt; a new version means new sums here
 const SHA256 = {

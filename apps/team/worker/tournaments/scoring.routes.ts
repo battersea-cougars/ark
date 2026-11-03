@@ -1,4 +1,4 @@
-// Scoring a game as it's played (ADR 0130): the scoresheet, the clock and goals.
+// Scoring a game as it's played (apps/team/worker/tournaments/README.md): the scoresheet, the clock and goals.
 import { id, ok, rowOf, type Ctx, type Route } from "../api/api.route";
 import { scoreGame } from "./fixtures";
 import { body, int } from "../api/api.http";
@@ -26,7 +26,7 @@ const RESULT = `SELECT id, home_goals homeGoals, away_goals awayGoals, status,
     (SELECT coalesce(sum(minutes), 0) FROM tournament_penalties WHERE game_id = g.id) penaltyMinutes
   FROM tournament_games g WHERE id = ?`;
 /**
- * A game's result once it's over, else nothing (ADR 0095): goals, penalties and the clock aren't on the record tap by
+ * A game's result once it's over, else nothing (ADR 0024): goals, penalties and the clock aren't on the record tap by
  * tap, but as one game.scored when the game ends, and again for each edit after it's ended.
  */
 const finalScore = async (c: Ctx) => {
@@ -49,7 +49,7 @@ export const SCORING_ROUTES: Route[] = [
     // A game's final score; the last group result fills the playoffs
     handle: async (c) => (await scoreGame(c.env.DB, id(c), Number(c.params[1]), await body(c.request)), ok()),
   },
-  // Scoring a game as it's played (ADR 0130): whoever holds the scoresheet
+  // Scoring a game as it's played (apps/team/worker/tournaments/README.md): whoever holds the scoresheet
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer$/,
@@ -61,7 +61,7 @@ export const SCORING_ROUTES: Route[] = [
     // { action: "claim" | "release" }: Start scoring, or let it go
     handle: async (c) => (await holdScoresheet(c.env.DB, id(c), Number(c.params[1]), await body(c.request), c), ok()),
   },
-  // An admin's say over someone's scoresheet (#116): take it over, or free it. On the record, unlike holding your own
+  // An admin's say over someone's scoresheet: take it over, or free it. On the record, unlike holding your own
   {
     method: "POST",
     path: /^\/api\/tournaments\/(\d+)\/games\/(\d+)\/scorer\/admin$/,
@@ -119,7 +119,7 @@ export const SCORING_ROUTES: Route[] = [
     changes: ["tournaments"],
     calendar: false,
     liveMatch: true,
-    // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once (#114)
+    // ?goal=: the last goal the page shows, so Undo tapped twice takes it off once
     handle: async (c) => (await undoGoal(c.env.DB, id(c), Number(c.params[1]), c, named(c, "goal")), ok()),
   },
   {
@@ -156,7 +156,7 @@ export const SCORING_ROUTES: Route[] = [
     changes: ["tournaments"],
     calendar: false,
     liveMatch: true,
-    // ?penalty=: the last penalty the page shows (#114)
+    // ?penalty=: the last penalty the page shows
     handle: async (c) => (await undoPenalty(c.env.DB, id(c), Number(c.params[1]), c, named(c, "penalty")), ok()),
   },
   {

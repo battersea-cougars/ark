@@ -1,9 +1,5 @@
-// A Kumite on a past day (ADR 0123), dev only: a testing tool, so a Kumite with a whole evening behind it can be had
-// in a few taps, to try what a past one shows. It's made as an admin would make one (createTournament: its series'
-// rules and awards, its captains), dated the day asked, and signed up for by enough of the club for its teams, each
-// signed up in the fortnight before; sign-up closed the day before. Then the app plays it out on that evening with the
-// simulator (`simulate` with `onItsDay`, on-its-day.ts): the draft, every match on its clock, the awards confirmed and
-// revealed, so it's history at once.
+// A Kumite on a past day (apps/team/worker/settings/README.md), dev only: made and signed up for as an admin would,
+// then played out on that evening by the simulator, so it's history at once.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { seasonLabel, seasonOf } from "@cougars/shared/seasons";
 import { playersNeeded } from "../../src/lib/draft";

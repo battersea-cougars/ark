@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Refuses a secret in `.env` (ADR 0002 point 5, #149): `.env` is for non-secret settings only. Run by `npm run lint`
+// Refuses a secret in `.env` (ADR 0002): `.env` is for non-secret settings only. Run by `npm run lint`
 // and `npm run app`; on its own: node scripts/env-check.mjs [checkout…] (default: this one).
 // It prints line numbers and names, never a value.
 import { join } from "node:path";

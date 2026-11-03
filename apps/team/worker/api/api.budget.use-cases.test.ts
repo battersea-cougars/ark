@@ -1,12 +1,7 @@
-// Every route keeps to the D1 budget (ADR 0003, docs/api-budget.md): a request makes a small, bounded number of D1
-// calls, whatever the club's size. Driven through the real handlers in the fake world (ADR 0031) on a club-sized
-// fixture: 60 members, a season of Fridays behind them with their charges, a Kumite played to its end, another
-// drafted and scored, sign-ups, dues, the calendar and the settings. Each route is driven on its happy path (a refusal
-// costs less, so it would hide what the route costs), and the fake D1 counts every round trip its request makes: the
-// wrapper's own (who's asking, the limits, the record, the version, the parts sent back) and what goes after the reply
-// (the tests have no waitUntil). Then the same at 120 members: a route that costs more there reads a member at a time.
-// A new route fails until it's driven here. BUDGET=1 prints the table, BUDGET=sql each dear route's statements, and
-// BUDGET=plan each statement whose query plan reads a whole table.
+// Every route keeps to the D1 budget (ADR 0003; docs/testing.md, What a request costs): a small, bounded number of D1
+// calls per request, on a club-sized fixture of 60 members and again at 120. A new route fails until it's driven here.
+// BUDGET=1 prints the table, BUDGET=sql each dear route's statements, BUDGET=plan each statement that reads a whole
+// table.
 import { PAGE_PARTS } from "../../src/app/club-parts";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ROUTES } from "./api";
@@ -17,7 +12,7 @@ import { NOW, testWorld, wholeClub, type D1Spent, type Reply } from "../testing"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
-/** Workers Free stops an invocation at 50 D1 queries (a batch is one, ADR 0123): no request may come near it. */
+/** Workers Free stops an invocation at 50 D1 queries (a batch is one, ADR 0010): no request may come near it. */
 const WORKERS_FREE = 50;
 /** D1 round trips a request may make: half the free plan's, so there's room for what a route grows into. */
 export const D1_BUDGET = 25;
@@ -25,11 +20,11 @@ export const D1_BUDGET = 25;
 const OWN_BUDGET: Record<string, { most: number; why: string }> = {
   "POST /api/tournaments/:id/simulate": {
     most: 45,
-    why: "dev only (ADR 0123): up to four moves in 30 queries, the request around them about 11",
+    why: "dev only (ADR 0010): up to four moves in 30 queries, the request around them about 11",
   },
   "POST /api/tournaments/:id/move": {
     most: 40,
-    why: "up to eight of the app's own jobs in one tap, each with its own guards (ADR 0074, 0121)",
+    why: "up to eight of the app's own jobs in one tap, each with its own guards (ADR 0003, apps/team/worker/tournaments/README.md)",
   },
 };
 /** Sign-in's own routes (auth.ts handleAuth), answered before the route table. */
@@ -98,7 +93,7 @@ async function hit(as: Phone, method: string, path: string, payload?: unknown, n
   if (!was || res.d1.roundTrips > was.d1.roundTrips) spent.set(key, { d1: res.d1, path });
   return res;
 }
-/** The club as the app holds it once its pages are read (#178): the bootstrap, then every page's parts. */
+/** The club as the app holds it once its pages are read: the bootstrap, then every page's parts. */
 const boot = async (as: Phone = dana, now: Date = NOW) =>
   wholeClub(
     (await hit(as, "GET", "/api/bootstrap", undefined, now)).body,
@@ -170,7 +165,12 @@ async function walk() {
   const me = b.members.find((m: Json) => m.id === ids["Member 1"]);
   await hit(reg, "PUT", "/api/me", { position: me.position, bio: "Stops pucks.", webName: null, phone: null });
   const asked = await hit(reg, "POST", "/api/me/email", { email: "member.one@example.com" });
-  await hit(reg, "POST", "/api/me/email/confirm", { code: asked.body.devCode });
+  await hit(reg, "POST", "/api/me/email/confirm", {
+    code: asked.body.devCode,
+    currentCode: asked.body.devCurrentCode,
+  });
+  await hit(reg, "PUT", "/api/me/photo", { photo: "data:image/png;base64,iVBORw0KGgo=" });
+  await hit(await member(2), "GET", `/api/members/${ids["Member 1"]}/photo`);
   await hit(await member(2), "PUT", "/api/me/plan", { quarter: "2027-Q1", quarterly: true });
   const memberRole = b.roles.find((r: Json) => r.name === "Member");
   await hit(dana, "PUT", "/api/me/everyday-role", { roleId: memberRole.id });
@@ -185,7 +185,7 @@ async function walk() {
   const m2 = ids["Member 52"];
   await hit(dana, "PUT", `/api/members/${m2}/everyday-role`, { roleId: memberRole.id });
   await hit(dana, "GET", `/api/members/${m2}/attendance`);
-  // Three nights still open: a past one's register closed the morning after (#11), so the coming ones
+  // Three nights still open: a past one's register closed the morning after, so the coming ones
   const coming = b.sessions.filter((s: Json) => s.heldOn >= NOW.toISOString().slice(0, 10)).slice(0, 3);
   await hit(dana, "PUT", `/api/members/${m2}/attendance`, {
     marks: coming.map((s: Json) => ({ sessionId: s.id, here: false })),
@@ -536,7 +536,7 @@ async function kumites() {
   await boot(await member(12), EVENING);
   await hit(dana, "PUT", `/api/tournaments/${mid}/games/${t.games[1].id}`, { homeGoals: 2, awayGoals: 1 }, EVENING);
 
-  // A past one recorded (ADR 0126): the most teams, every match of their round robin and a final, every goal named
+  // A past one recorded (apps/team/worker/tournaments/README.md): the most teams, every match of their round robin and a final, every goal named
   const captains = [1, 2, 3, 4, 5, 6, 7, 8];
   const pastTeams = captains.map((n, i) => ({
     name: `Old ${n}`,
@@ -571,7 +571,7 @@ async function kumites() {
     EVENING,
   );
   const reg = await member(1);
-  // History (#175): a page of the played ones, every series' too, the all-time leaders, and the past one opened, by
+  // History: a page of the played ones, every series' too, the all-time leaders, and the past one opened, by
   // itself, by one of its games and by one of its teams, its crest at its own address
   await hit(reg, "GET", `/api/tournament-types/${KUMITE_TYPE}/editions?limit=5`);
   await hit(dana, "GET", "/api/tournaments/editions");
@@ -579,7 +579,7 @@ async function kumites() {
   const past = (await hit(reg, "GET", `/api/tournaments/${recorded.body.id}`)).body.tournament;
   await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/tournament`);
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/tournament`);
-  // What used to look through every edition the app held, and every charge (#177): each its own small read
+  // What would otherwise look through every edition the app held, and every charge: each its own small read
   await hit(reg, "GET", `/api/tournament-games/${past.games[0].id}/meetings`);
   await hit(dana, "GET", `/api/tournament-types/${KUMITE_TYPE}/brings?heldOn=2026-12-01`);
   await hit(dana, "GET", "/api/venues/used");
@@ -591,7 +591,7 @@ async function kumites() {
   const crest = "data:image/png;base64,iVBORw0KGgo=";
   await hit(dana, "PUT", `/api/tournaments/${past.id}/teams/${past.teams[0].id}/look`, { name: "Crest", logo: crest });
   await hit(reg, "GET", `/api/tournament-teams/${past.teams[0].id}/logo`);
-  // A Kumite on a past day (dev, ADR 0123): made, then played out on that evening to its last award, at Spin kick
+  // A Kumite on a past day (dev, ADR 0010): made, then played out on that evening to its last award, at Spin kick
   const pastDay = await hit(dana, "POST", "/api/tournaments/past-day", { typeId: KUMITE_TYPE, heldOn: "2026-09-25" });
   for (let i = 0; i < 200; i++) {
     const r = await hit(dana, "POST", `/api/tournaments/${pastDay.body.id}/simulate`, { moves: 4, onItsDay: true });

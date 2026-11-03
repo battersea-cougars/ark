@@ -1,6 +1,5 @@
-// How each email went, written down as it's sent (MailConfig.onOutcome, @cougars/shared/mail-health), for Settings →
-// Email and the admins' Home (ADR 0027). The send that finds Google has cancelled the token tells the admins' phones,
-// once: nobody can sign in until one of them reconnects it.
+// How each email went, written down as it's sent, for Settings → Email and the admins' Home (ADR 0027); a cancelled
+// token tells the admins' phones once.
 import { all } from "@cougars/shared/d1";
 import type { MailOutcome } from "@cougars/shared/email";
 import { recordMail } from "@cougars/shared/mail-health";

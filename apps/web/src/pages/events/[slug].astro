@@ -19,7 +19,7 @@ const cover = imageUrl(event.cover, 1600, 900);
 const TYPE = { training: "Training", social: "Social", tournament: "Tournament", kumite: "Special event · Kumite" };
 const body = renderPortableText(event.body);
 const s = await getSettings();
-// Back to the Kumite only while it has a page (ADR 0109)
+// Back to the Kumite only while it has a page (apps/web/src/README.md)
 const toKumite = event.type === "kumite" && s.kumite.onWebsite;
 const url = new URL(Astro.url.pathname, Astro.site).href;
 const shareImage = imageUrl(event.cover, 1200, 630) ?? new URL(`/og/events/${event.slug}.png`, Astro.site).href;

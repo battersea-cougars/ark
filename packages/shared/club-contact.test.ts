@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clubContact, clubContactFake } from "./club-contact";
+import { captureLogs } from "./testing/scribe";
 
 // The network boundary: Sanity's API CDN, answering for the club's contact email
 const sanity = (result: unknown, ok = true) =>
@@ -23,6 +24,14 @@ describe("clubContact", () => {
     expect(await clubContact("dev", { fetch: quiet, now: t + 60_000 })).toBe("a@example.org");
     expect(quiet).not.toHaveBeenCalled();
     expect(await clubContact("dev", { fetch: sanity(null, false), now: t + 6 * 60_000 })).toBe("a@example.org");
+  });
+
+  it("says in the log when Sanity can't be read, as a warning: email still goes, as the sending account", async () => {
+    const reported: string[] = [];
+    const logs = captureLogs({ report: (_e, entry) => void reported.push(entry.msg) });
+    expect(await clubContact("production", { fetch: sanity(null, false), now: 50_000_000 })).toBeNull();
+    expect(logs.entries.map((e) => [e.level, e.msg])).toEqual([["warn", "club_contact.unreadable"]]);
+    expect(reported).toEqual([]);
   });
 
   it("is null when the Studio has no address", async () => {

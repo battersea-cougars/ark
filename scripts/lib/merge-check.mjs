@@ -1,11 +1,6 @@
 // What a branch's diff asks of `npm run merge:check` (scripts/merge-check.mjs, ADR 0115): pure, tested beside it.
-//
-// Every non-docs change runs lint, knip (unused files, exports and dependencies, ADR 0125) and the whole test suite
-// (one fake world, and fast). The checks and builds are the
-// pre-push list (CLAUDE.md, Tests, as pr.yml), narrowed to the apps a diff can reach: the team app imports the
-// website's code (its tests and checks read apps/web/src), so a website change checks both; nothing imports the team
-// app or the Studio, so a change inside one checks that one. Anything outside the apps (packages/, scripts/, db/,
-// root config, CI) reaches every app and runs everything.
+// Every non-docs change runs lint, knip (ADR 0105) and the whole test suite; the checks and builds are the pre-push
+// list (CLAUDE.md, as pr.yml), narrowed to the apps the diff can reach.
 
 export const STEPS = {
   lint: { name: "lint", cmd: ["npm", "run", "lint"] },
@@ -19,12 +14,16 @@ export const STEPS = {
 };
 
 /**
- * Every tier, docs too, scans the branch's own commits for secrets first (#104): once pushed, the public repo has them.
+ * Every tier, docs too, scans the branch's own commits for secrets first: once pushed, the public repo has them.
  * The same scan as pr.yml's, with findings redacted (scripts/secrets-scan.mjs).
  */
 export const SECRETS = { name: "secrets (gitleaks)", cmd: ["npm", "run", "secrets:scan", "--", "--since", "main"] };
 
-/** What a change to each app reaches. */
+/**
+ * What a change to each app reaches. The team app imports the website's code (its tests and checks read
+ * apps/web/src), so a website change checks both; nothing imports the team app or the Studio. Anything outside the
+ * apps (packages/, scripts/, db/, root config, CI) reaches every app.
+ */
 const REACHES = {
   web: ["checkWeb", "buildWeb", "checkTeam", "buildTeam"],
   team: ["checkTeam", "buildTeam"],

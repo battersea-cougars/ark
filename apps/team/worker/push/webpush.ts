@@ -1,7 +1,5 @@
-// Web Push (ADR 0108, #24): notifications to a browser (Android's Chrome or Firefox, a desktop, an iPhone with the app
-// on its Home Screen), free through each browser's own push service. The payload is encrypted for that browser alone
-// (RFC 8291, aes128gcm: ECDH P-256, HKDF, AES-128-GCM) and the request carries our VAPID key's signature (RFC 8292, an
-// ES256 JWT), all WebCrypto: the Node `web-push` package doesn't run on Workers. One request per browser, like fcm.ts.
+// Web Push (ADR 0108): notifications to a browser through its own push service, encrypted for it alone (RFC 8291) and
+// signed with our VAPID key (RFC 8292), all in WebCrypto since the Node `web-push` package doesn't run on Workers.
 import type { Message, Result } from "./fcm";
 
 /** A browser's subscription keys, as PushSubscription.toJSON() gives them (base64url). */

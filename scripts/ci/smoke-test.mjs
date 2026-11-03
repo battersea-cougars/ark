@@ -19,7 +19,7 @@ const checks = [
   ["join page", () => get("/join/")],
   ["videos page", () => get("/videos/")],
   [
-    // From both layers (ADR 0036): the asset layer's _headers for a built page, the middleware for a live one
+    // From both layers (ADR 0024): the asset layer's _headers for a built page, the middleware for a live one
     "security policy on built and live pages",
     async () => {
       for (const path of ["/", "/videos/"]) {

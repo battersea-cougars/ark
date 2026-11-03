@@ -2,21 +2,10 @@
   import { waitingFor } from "../app/editions.svelte";
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { buzz, keepAwake } from "../app/native";
-  // One game, full screen (ADR 0130). For everyone, the live scoreboard: the clock, the score, each goal as it went
-  // in. One person keeps score: whoever presses Start scoring (a team sitting it out is suggested, but anyone can step
-  // in) holds the scoresheet until they let it go, or an admin does. Only the game on now (or up next) is scored: the
-  // next opens when this one's over. For the scorekeeper it's the scoresheet: Goal for a team then who scored and who
-  // assisted, a quieter Penalty (who, 2 or 5 minutes, what for) whose clock runs beside the team, take the last goal or
-  // penalty back, and Full time, which opens the review (lib/SealResult): the score, every goal and penalty, the last
-  // goal to take back, and Seal the result, which makes the score the result; the clock's start and pause is
-  // one big button right under the clock, with clear space before the goals, so it's easy to hit and hard to hit by
-  // mistake.
-  //
-  // Few requests: the clock never ticks on the server. It's stored as time left and when it was last started, so each
-  // phone counts down by itself (and it survives a reload or a locked phone); only start, pause, a goal and full time
-  // are sent. Everyone on the page checks for changes as often as the admins set (ADR 0072), the scorekeeper too (the
-  // same person may have it open twice), while the page is in view.
-  import { goesBy, goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  // One game, full screen (apps/team/worker/tournaments/README.md): the live scoreboard for everyone, and for the one
+  // person keeping score the scoresheet: goals, penalties, the clock, and Full time's review that seals the result.
+  import { goesBy, nameOfMember, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { onDestroy, untrack } from "svelte";
   import { can } from "../access/actions";
@@ -86,9 +75,15 @@
     const t = teams[indexOf(teamId)];
     return nameOfTeam(t, teams, byId);
   };
+  // Who can be picked for a goal or a penalty: the members on it the app holds
   const roster = (teamId: number): Player[] => {
     const t = teams[indexOf(teamId)];
     return t ? [t.captainMemberId, ...t.players.map((p) => p.memberId)].flatMap((id) => byId(id) ?? []) : [];
+  };
+  // The teams as shown: anyone who's left kept in their place (lib/team-roster.ts)
+  const squad = (teamId: number) => {
+    const t = teams[indexOf(teamId)];
+    return t ? rosterOf(t, byId) : [];
   };
   const sides = $derived(game ? ([game.homeTeamId, game.awayTeamId] as (number | null)[]) : []);
 
@@ -99,9 +94,11 @@
   // Scoring's taken on for the game up next (or on now): the first in the day's order that isn't over
   const upNext = $derived(tournament?.games?.find((g) => g.status !== "done")?.id === gameId);
 
-  // The clock, ticking while this page is up
+  // The clock, ticking while this page is up. It never ticks on the server: it's stored as time left and when it was
+  // last started, so each phone counts down by itself (and survives a reload or a locked phone); only start, pause, a
+  // goal and full time are sent. Everyone on the page checks for changes as often as the admins set (ADR 0053).
   $effect(() => ticking());
-  // The clock counts down each period in turn (ADR 0130): full is a period's length
+  // The clock counts down each period in turn (apps/team/worker/tournaments/README.md): full is a period's length
   const full = $derived((tournament?.gameMinutes ?? 12) * 60_000);
   const periods = $derived(tournament?.periods ?? 1);
   const period = $derived(game?.period ?? 1);
@@ -153,8 +150,8 @@
     }
   });
 
-  // Everyone's scoreboard follows along, from the game up next to full time: the hub's stream (ADR 0072), with a
-  // check on the admins' beat as the fallback (ADR 0072), and the page says which. The scorekeeper's too: they may
+  // Everyone's scoreboard follows along, from the game up next to full time: the hub's stream (ADR 0053), with a
+  // check on the admins' beat as the fallback (ADR 0053), and the page says which. The scorekeeper's too: they may
   // have it open on another phone or browser
   const following = $derived(!!game && !over && (game.status === "live" || upNext));
   const sayFollowing = $derived(following && !keeper);
@@ -189,7 +186,7 @@
     if (tournament && game) act(() => holdScoresheet(tournament.id, game.id, "release"));
   };
 
-  // An admin's say over someone else's scoresheet (#116), behind Manage in the bar (ADR 0065): take it over (their
+  // An admin's say over someone else's scoresheet, behind Manage in the bar (ADR 0065): take it over (their
   // phone died, they've gone) or free it (for an admin who isn't at the rink). Each asks first, the yes in red. Sent
   // with who the page saw holding it: if it's changed hands since, the Worker says who has it now
   const manageable = $derived(admin && !!game && !over && !keeper && !!holder);
@@ -230,7 +227,7 @@
   });
 
   // This phone was the scoresheet and isn't any more, not by its own Hand over: an admin took it over or freed it.
-  // The page hears it live (ADR 0072); its tools and pickers close, the phone buzzes, and the line under the clock
+  // The page hears it live (ADR 0053); its tools and pickers close, the phone buzzes, and the line under the clock
   // says so, until the sheet's this phone's again
   let handingOver = false;
   let wasKeeper = false;
@@ -393,7 +390,7 @@
     whenSec = 0;
     whenPeriod = 1;
   };
-  // The length the sheet starts on: the tournament's setting (a series' copied, ADR 0130)
+  // The length the sheet starts on: the tournament's setting (a series' copied, apps/team/worker/tournaments/README.md)
   const usualPenalty = $derived(tournament?.defaultPenaltyMinutes ?? 2);
   // What for comes first: a bench one (too many players, a bench minor) starts on Bench at 2 minutes; back from one,
   // the usual length again
@@ -456,7 +453,7 @@
     return manpower(short.get(game.homeTeamId ?? -1) ?? 0, short.get(game.awayTeamId ?? -1) ?? 0);
   });
   const boxOf = (teamId: number | null) => box.filter((b) => b.penalty.teamId === teamId);
-  const who = (memberId: number | null) => goesByOf(byId(memberId)) || "Bench";
+  const who = (memberId: number | null) => nameOfMember(memberId, byId) || "Bench";
 
   const pimOf = (memberId: number) =>
     (game?.penalties ?? []).filter((p) => p.memberId === memberId).reduce((n, p) => n + p.minutes, 0);
@@ -499,7 +496,7 @@
 {/snippet}
 
 {#if waiting}
-  <!-- Its tournament on its way (#175): the room the page takes -->
+  <!-- Its tournament on its way: the room the page takes -->
   <div class="waiting" aria-busy="true" aria-label="Loading"></div>
 {:else if !tournament || !game}
   <p class="note missing">No such game.</p>
@@ -538,7 +535,7 @@
     </svelte:element>
 
     {#if sayFollowing}
-      <!-- The score follows along: live from the hub's stream, else on the admins' beat (ADR 0072) -->
+      <!-- The score follows along: live from the hub's stream, else on the admins' beat (ADR 0053) -->
       <p class="updates hint">
         <Icon name={liveFeed.on ? "live" : "clock"} size={14} /><LiveNote tail=", to keep the club on the free plan" />
       </p>
@@ -679,15 +676,18 @@
                 <span class="squad-name">{teamName(teamId)}</span>
               </a>
               <ol class="squad-list">
-                {#each roster(teamId) as p (p.id)}
-                  {@const scored = (game.goals ?? []).filter((x) => x.scorerId === p.id).length}
-                  {@const pim = pimOf(p.id)}
+                <!-- Someone who's left stays in their place on a past game's roster, by "Someone who's left" -->
+                {#each squad(teamId) as p (p.key)}
+                  {@const scored = (game.goals ?? []).filter((x) => p.memberId && x.scorerId === p.memberId).length}
+                  {@const pim = p.memberId ? pimOf(p.memberId) : 0}
                   <li>
-                    <span class="c display">{p.id === teams[indexOf(teamId)]?.captainMemberId ? "C" : ""}</span>
-                    <span class="pname">{goesBy(p)}</span>
+                    <span class="c display">{p.captain ? "C" : ""}</span>
+                    <span class="pname">{p.name}</span>
                     {#if scored}<span class="badge">{scored > 1 ? `${scored} goals` : "Goal"}</span>{/if}
                     {#if pim}<span class="badge">PIM {pim}</span>{/if}
-                    <span class="pos"><PositionIcon position={p.position} /></span>
+                    <span class="pos"
+                      >{#if p.position}<PositionIcon position={p.position} />{/if}</span
+                    >
                   </li>
                 {/each}
               </ol>
@@ -737,7 +737,7 @@
           <span class="tool-text"
             ><strong>Take back the last goal</strong><span
               >{lastGoal
-                ? `${goesByOf(byId(lastGoal.scorerId)) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
+                ? `${nameOfMember(lastGoal.scorerId, byId) || teamName(lastGoal.teamId)} · ${mmss(lastGoal.atMs)}`
                 : "No goals yet"}</span
             ></span
           >
@@ -813,7 +813,7 @@
     >
   {/if}
 
-  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0084) -->
+  <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0009) -->
   <Sheet
     bind:open={() => !!asking, (v) => !v && (asking = null)}
     title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
@@ -914,7 +914,7 @@
     bind:open={() => !!picking, (v) => !v && (picking = null)}
     title={picking?.scorer === undefined ? "Who scored?" : picking?.assist === undefined ? "Who assisted?" : "When?"}
     sub={picking
-      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${goesByOf(byId(picking.scorer))}` : ""}`
+      ? `Goal ${teamName(picking.team)}${picking.scorer ? ` · ${nameOfMember(picking.scorer, byId)}` : ""}`
       : undefined}
   >
     {#if picking && picking.scorer !== undefined && picking.assist !== undefined}
@@ -1240,7 +1240,8 @@
   .control:hover:not(:disabled) {
     background: var(--surface-2);
   }
-  /* Start: the one main thing to tap, so sticker yellow; Pause stays the outline, so the two never look alike */
+  /* Start: the one main thing to tap, so sticker yellow; Pause stays the outline, so the two never look alike. One big
+     button right under the clock, with clear space before the goals: easy to hit, and hard to hit by mistake */
   .control.start {
     border-color: var(--action);
     background: var(--action);
@@ -1279,7 +1280,7 @@
     color: var(--fg-muted);
     line-height: 1.5;
   }
-  /* The armed "are you sure": the one red fill (ADR 0084) */
+  /* The armed "are you sure": the one red fill (ADR 0009) */
   .yes {
     background: var(--red);
     color: var(--on-red);
@@ -1447,8 +1448,10 @@
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     gap: var(--s-5);
   }
+  /* One column that never grows past the page: a long name ends in an ellipsis, not off the edge */
   .squad {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: var(--s-2);
   }
@@ -1466,6 +1469,7 @@
   }
   .squad-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
   .squad-list li {
     display: flex;

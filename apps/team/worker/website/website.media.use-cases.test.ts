@@ -1,9 +1,6 @@
-// Refresh photos and videos (#109): the website keeps YouTube's and Instagram's answers ten minutes (ADR 0016, 0053),
-// so a video just added to a playlist, or a post just made, can take that long to show. An admin presses Refresh
-// photos and videos in Settings → Website, and the next visit reads them again: on the website within a minute.
-// Nothing bumped, the website caches as it always has; and a refresh never loses the last good copy if YouTube is
-// down. Driven through the team app's real handlers and the website's own modules (ADR 0031), over the same
-// database, with Sanity, YouTube and Instagram faked.
+// Refresh photos and videos: the website keeps YouTube's and Instagram's answers ten minutes (ADR 0016, 0053); an
+// admin's refresh makes the next visit read them again, never losing the last good copy. Driven through the real
+// handlers over one database, outside services faked (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetBreakers } from "@cougars/shared/breaker";
 import { clearCache } from "../../../web/src/lib/server/cache";

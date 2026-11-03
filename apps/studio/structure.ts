@@ -4,7 +4,7 @@ import type { StructureBuilder, StructureResolver } from "sanity/structure";
 // them by it).
 export const SINGLETONS = new Set(["club", "fridays", "pub", "team", "kumite"]);
 
-// Not edited here, so not shown: events and players are the club's data, kept in the team app (ADR 0042, ADR 0043),
+// Not edited here, so not shown: events and players are the club's data, kept in the team app (ADR 0016),
 // and videos come from the club's YouTube playlists (Club → YouTube playlists, ADR 0016). The types stay in the schema
 // so the website's queries still read (and find none), but they're off the sidebar and the "New document" menu.
 export const NOT_EDITED_HERE = new Set(["event", "player", "video"]);

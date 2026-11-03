@@ -1,6 +1,5 @@
-// The Kumite's evening, for the awards' use cases (ADR 0044, 0074): two teams, their one match played, everyone at
-// The Anchor. The series' awards as the club seed has them: the judges' call, Top scorer, Best keeper (the skaters
-// vote), Champions. For Vitest only.
+// The Kumite's evening for the awards' use cases (apps/team/worker/tournaments/README.md): two teams, their one match
+// played, and the series' awards as the club seed has them. For Vitest only.
 import { expect } from "vitest";
 import type { testWorld } from "../testing";
 

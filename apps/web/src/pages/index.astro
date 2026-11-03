@@ -26,13 +26,13 @@ const day = slot?.day ?? "Friday";
 const players = (await getPlayers()).slice(0, 5);
 // As of this build; VideoReel then swaps in the live ones (ADR 0016)
 const videos = await getVideos();
-// The Kumite's champions as of this build (ADR 0100)
+// The Kumite's champions as of this build (ADR 0016)
 const kumiteResults = (await getResults()).filter((r) => r.series?.slug === "kumite");
 const years = new Date().getFullYear() - s.founded;
 // Only a hero photo from the Studio; otherwise the site-wide carbon mesh shows through.
 const heroBg = s.heroImage ? imageUrl(s.heroImage, 2000, 1200) : null;
 
-// "Kit up": who we are. Page wording, not club facts, so it lives here rather than in Sanity (ADR 0014).
+// "Kit up": who we are. Page wording, not club facts, so it lives here rather than in Sanity (ADR 0004).
 const headline = "Tough crowd. Soft centre.";
 const about = [
   "Take a Van Damme film, put it on skates, hand everyone a stick and set it in South West London. That's " +
@@ -182,7 +182,7 @@ const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).sr
     </div>
   </section>
 
-  <!-- 21:30 Final whistle: the characters, while the team is on the website (ADR 0109) -->
+  <!-- 21:30 Final whistle: the characters, while the team is on the website (apps/web/src/README.md) -->
   {s.team.onWebsite && (
     <section class="section team" id="team" data-time={slot?.end ?? "21:30"} data-title="Final whistle">
       <div class="wrap section-head" data-reveal>
@@ -214,7 +214,7 @@ const searchLogo = (await getImage({ src: logo, width: 512, format: "png" })).sr
     </section>
   )}
 
-  <!-- Off the record: the Kumite, underground, while it's on the website (ADR 0109) -->
+  <!-- Off the record: the Kumite, underground, while it's on the website (apps/web/src/README.md) -->
   {s.kumite.onWebsite && (
     <section class="night kumite" id="kumite" data-time="--:--" data-title="Off the record" data-night>
       <!-- A teaser here; the full poster, the rules and the awards are the Kumite page's -->

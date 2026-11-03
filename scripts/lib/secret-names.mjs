@@ -1,4 +1,4 @@
-// The secrets docs/secrets.md says are kept in Bitwarden Secrets Manager, read from its Overview table (#149): the
+// The secrets docs/secrets.md says are kept in Bitwarden Secrets Manager, read from its Overview table: the
 // names the Secrets page offers, beside whatever Bitwarden holds. A value that's committed (settings.mjs), kept in
 // GitHub or the vault, or never stored isn't offered: it doesn't belong in Secrets Manager.
 

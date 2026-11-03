@@ -2,14 +2,11 @@
   import { Edits } from "./dirty.svelte";
   import SaveBar from "./SaveBar.svelte";
   import { portal, requestClose } from "./overlay";
+  import { closeOnBack } from "./back";
   import { goesBy, shortName } from "./names";
-  // A member, opened for an admin (Teammates: a tap on their card or row, or a link to /club/:id). It
-  // fills the space the page has, beside the dock and under the top bar (on a phone, the whole screen), the way
-  // Gwenda's editors do: a header with who they are and a close button top right, then a body that scrolls on its
-  // own. Tabs along the header's foot: Details, Attendance and Dues, each with the whole card. The card they were
-  // tapped on turns away as it opens, and back as it closes. Their details and attendance are a draft until Save, in
-  // a footer that stays at the bottom (as Gwenda's editors have); closing with changes asks first. Dues (a payment, a
-  // quarter charged, taken back) save as they're made.
+  // A member, opened for an admin (Teammates, or /club/:id): who they are, with tabs for Details, Attendance and Dues,
+  // filling the page's space (the whole screen on a phone). Details and attendance are a draft until Save (closing with
+  // changes asks first); dues save as they're made.
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { pageColumnStyle } from "./page-column";
@@ -49,7 +46,7 @@
   import { feeOn } from "./dues";
   import { formatDayDate, londonISO, londonToday, pounds } from "./dates";
   import { registerClosed } from "./register-closes";
-  import { initials } from "./initials";
+  import Avatar from "./Avatar.svelte";
   import Select from "./Select.svelte";
 
   // Opens in the page's own column (desktop), the same width as the cards under it
@@ -258,7 +255,7 @@
     if (here) return { ...r, signup: "in", attended: true };
     return r.walkIn ? { ...r, signup: null, attended: null, walkIn: false } : { ...r, attended: false };
   }
-  // A night's register closes at 6am the morning after (lib/register-closes.ts, #11): its day is shown, not changed
+  // A night's register closes at 6am the morning after (lib/register-closes.ts): its day is shown, not changed
   const closed = (r: AttendanceRow) => registerClosed(r.heldOn);
   function toggleCame(r: AttendanceRow) {
     const was = attendance?.find((x) => x.sessionId === r.sessionId);
@@ -269,14 +266,14 @@
     else marks[r.sessionId] = here;
   }
 
-  // Their ledger, read when the Dues tab shows it (#177): what they've paid in all, and the quarters charged lately
+  // Their ledger, read when the Dues tab shows it: what they've paid in all, and the quarters charged lately
   const book = $derived(ledgerOf(memberId));
   const owed = $derived(owedBy(memberId));
   // Everything paid towards their charges, part payments too, and money not yet spent on one
   const paidTotal = $derived(book.paid);
   const credit = $derived(creditOf(memberId));
 
-  // Dues (ADR 0007): who sees Unpaid fees sees a member's charges; who records payments marks them
+  // Dues (apps/team/worker/dues/README.md): who sees Unpaid fees sees a member's charges; who records payments marks them
   const perms = $derived(granted());
   const seesDues = $derived(can(perms, "read:Dues") || can(perms, "record:Payment"));
   const recordsPayments = $derived(can(perms, "record:Payment"));
@@ -300,11 +297,23 @@
     chargeAmount = String(feeOn(db.fees, londonToday()) / 100 || "");
     charging = true;
   }
+  // Money moves once a tap: while a charge, an adjustment or a payment is on its way, its button waits, so a double
+  // tap (or Enter twice) on a slow signal records it once, not twice
+  let sending = $state(false);
+  async function once(send: () => Promise<unknown>) {
+    if (sending) return null;
+    sending = true;
+    try {
+      return await send();
+    } finally {
+      sending = false;
+    }
+  }
   async function addQuarter(e: SubmitEvent) {
     e.preventDefault();
     const pence = Math.round(Number(chargeAmount) * 100);
     if (!pence || pence < 0) return;
-    if (await chargeQuarter(memberId, quarterKey(Number(chargeWhich)), pence)) charging = false;
+    if (await once(() => chargeQuarter(memberId, quarterKey(Number(chargeWhich)), pence))) charging = false;
   }
 
   // A payment of any amount (a lump sum): it pays the oldest charges first, and what's left over is credit
@@ -324,9 +333,9 @@
     payOn = londonToday();
     paying = true;
   }
-  // Email them what they owe (ADR 0007), after seeing it
+  // Email them what they owe (apps/team/worker/dues/README.md), after seeing it
   let reminding = $state(false);
-  // An adjustment (ADR 0007): add to or take off what they owe, saying why
+  // An adjustment (apps/team/worker/dues/README.md): add to or take off what they owe, saying why
   let adjusting = $state(false);
   let adjustWay = $state<"more" | "less">("less");
   let adjustAmount = $state("");
@@ -343,14 +352,14 @@
     e.preventDefault();
     const pence = Math.round(Number(adjustAmount) * 100);
     if (!Number.isFinite(pence) || pence <= 0 || !adjustReason.trim()) return;
-    if (await adjustDues(memberId, adjustWay === "more" ? pence : -pence, adjustReason.trim(), adjustOn))
+    if (await once(() => adjustDues(memberId, adjustWay === "more" ? pence : -pence, adjustReason.trim(), adjustOn)))
       adjusting = false;
   }
   async function addPayment(e: SubmitEvent) {
     e.preventDefault();
     const pence = Math.round(Number(payAmount) * 100);
     if (!Number.isFinite(pence) || pence <= 0) return;
-    if (await recordPayment(memberId, pence, payVia, payOn)) paying = false;
+    if (await once(() => recordPayment(memberId, pence, payVia, payOn))) paying = false;
   }
 
   // Opening is one turn: the tapped card lifts, grows towards the middle and turns edge-on; the panel carries the
@@ -434,7 +443,7 @@
     grow.onfinish = () => (ready = true);
   });
 
-  // Deleting their account, when they've asked (#30): done, the sheet closes with nothing left to save
+  // Deleting their account, when they've asked: done, the sheet closes with nothing left to save
   let erasing = $state(false);
   async function erase() {
     busy = true;
@@ -444,7 +453,7 @@
     if (done) shut();
   }
 
-  // The link to the app, sent after all (#164): someone added without it, or whose email went astray. One email a
+  // The link to the app, sent after all: someone added without it, or whose email went astray. One email a
   // tap, to the address saved (not one typed and unsaved)
   let sendingLink = $state(false);
   async function sendLink() {
@@ -454,7 +463,7 @@
     sendingLink = false;
   }
 
-  // Signing them out everywhere (#72): a lost phone, a shared laptop. They sign in again with a code.
+  // Signing them out everywhere: a lost phone, a shared laptop. They sign in again with a code.
   let signingOut = $state(false);
   async function signOutEverywhere() {
     signingOut = true;
@@ -493,9 +502,11 @@
   }
 
   // Closing with changes asks first (the footer, lib/SaveBar); Discard goes on to close
-  function close() {
-    requestClose(shut, edits.guard);
+  function close(): boolean {
+    return requestClose(shut, edits.guard);
   }
+  // Back (a phone's gesture, the browser's) closes it as the × does, asking first with unsaved changes (lib/back.ts)
+  $effect(() => closeOnBack(close));
 
   async function shut() {
     if (closing) return;
@@ -554,7 +565,7 @@
     <!-- The header is the player: who they are, then their details in one row -->
     <header class="panel-head">
       <div class="who">
-        <span class="avatar big">{initials(goesBy(member.player))}</span>
+        <Avatar player={member.player} big />
         <div class="titles">
           <p class="eyebrow">
             Member · {POSITIONS[draft.position]}{draft.position === "G"
@@ -732,16 +743,16 @@
                 </div>
               </div>
               {#if member.player.id !== me().id}
-                <!-- A member who asked the club by email to delete their account (#30): as if they'd done it -->
+                <!-- A member who asked the club by email to delete their account: as if they'd done it -->
                 <div class="group">
                   <h3 class="eyebrow">Their account</h3>
                   {#if saved.email}
-                    <!-- Added quietly, or the first email went astray (#164): the same "You're in" email -->
+                    <!-- Added quietly, or the first email went astray: the same "You're in" email -->
                     <button class="btn ghost sm start" type="button" disabled={sendingLink} onclick={sendLink}
                       >Send them the app link</button
                     >
                   {/if}
-                  <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out (#72) -->
+                  <!-- A lost phone, a shared laptop: every browser and phone they're on is signed out -->
                   <button class="btn ghost sm start" type="button" disabled={signingOut} onclick={signOutEverywhere}
                     >Sign out everywhere</button
                   >
@@ -848,7 +859,7 @@
                             onclick={() => toggleCame(r)}
                           >
                             <span class="d num">{Number(r.heldOn.slice(8))}</span>
-                            <!-- Not colour alone (#14): the In button's tick on Came, Out's cross on a no-show -->
+                            <!-- Not colour alone: the In button's tick on Came, Out's cross on a no-show -->
                             {#if o.kind === "came"}<span class="mark"><Icon name="check" size={10} /></span>
                             {:else if o.kind === "noshow"}<span class="mark"><Icon name="x" size={10} /></span>{/if}
                           </button>
@@ -935,7 +946,7 @@
                       Due from the quarter's first day. Quarterly Members are charged each quarter on their own; this is
                       for anyone else, or a quarter they missed.
                     </p>
-                    <button class="btn primary">Charge</button>
+                    <button class="btn primary" disabled={sending}>Charge</button>
                   </form>
                 </Sheet>
                 <Sheet bind:open={adjusting} title="Adjust {shortName(member.player)}'s dues">
@@ -975,10 +986,10 @@
                       It's a line on their ledger, with why, and it's on the record.
                       {#if adjustWay === "less"}It pays what they owe oldest first, like money in.{/if}
                     </p>
-                    <button class="btn primary">Adjust</button>
+                    <button class="btn primary" disabled={sending}>Adjust</button>
                   </form>
                 </Sheet>
-                <!-- Their reminder (ADR 0007), seen before it goes -->
+                <!-- Their reminder (apps/team/worker/dues/README.md), seen before it goes -->
                 <Sheet bind:open={reminding} title="Email {shortName(member.player)} what they owe">
                   {#if reminding}<RemindReview {memberId} onsent={() => (reminding = false)} />{/if}
                 </Sheet>
@@ -1015,7 +1026,7 @@
                       It pays what they owe oldest first. Anything over is kept as credit and pays their next charge.
                       {#if owed}They owe {pounds(owed)}.{/if}
                     </p>
-                    <button class="btn primary">Record payment</button>
+                    <button class="btn primary" disabled={sending}>Record payment</button>
                   </form>
                 </Sheet>
               {/if}
@@ -1214,7 +1225,7 @@
     .panel-head {
       padding: var(--s-4);
     }
-    .avatar.big {
+    .panel-head :global(.avatar.big) {
       display: none;
     }
   }

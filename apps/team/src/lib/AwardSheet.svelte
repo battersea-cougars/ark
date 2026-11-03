@@ -1,5 +1,5 @@
 <script lang="ts">
-  // One award, opened from its row in a series' or a tournament's editor (ADR 0044, 0065): its name, its line, how
+  // One award, opened from its row in a series' or a tournament's editor (ADR 0065, apps/team/worker/tournaments/README.md): its name, its line, how
   // it's decided (and a vote's tie-break), and what that means on the night. Changes go straight into the editor's
   // form, saved with the editor's Save; Done closes it, Remove takes the award off (asking once).
   import Sheet from "./Sheet.svelte";

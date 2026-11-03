@@ -8,6 +8,9 @@ import { takeOverPort } from "../../scripts/lib/dev-server.mjs";
 import { localCheckout } from "../../packages/shared/ribbon.checkout.ts";
 
 const PORT = 4510;
+// The journeys' own server (tests/journeys/support/journeys.setup.mjs): its database and Vite cache in their folder
+// (.journeys), beside this checkout's dev server and never in its way, and on a port of its own
+const JOURNEYS = process.env.COUGARS_JOURNEYS;
 // The browser's libraries are package.json "dependencies" (scripts/team-app-deps.test.mjs holds every import to that).
 const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8"));
 // Web Push's public key (docs/secrets.md#web-push): one copy, in wrangler.jsonc's vars, built into the app for its subscriptions
@@ -20,7 +23,7 @@ const VAPID_PUBLIC_KEY =
 // (apps/web/.wrangler), so `npm run db:rebuild:local` and the roster seed serve both; a worktree's apps use main's
 // (COUGARS_LOCAL_STATE, set by the switch) unless it asked for its own.
 export default defineConfig(({ command }) => ({
-  // Which build this is (ADR 0104, src/app/build.ts), in the app and its Worker alike: the release's version, and the
+  // Which build this is (ADR 0022, src/app/build.ts), in the app and its Worker alike: the release's version, and the
   // commit as the build id (CI's PUBLIC_BUILD_VERSION ends "+<commit>"; a build on your machine asks git). The dev
   // server is "dev", so it never offers a reload.
   define: {
@@ -35,7 +38,9 @@ export default defineConfig(({ command }) => ({
     waitForDepsCache(),
     svelte(),
     cloudflare({
-      persistState: { path: process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state" },
+      persistState: {
+        path: JOURNEYS ? `${JOURNEYS}/d1` : process.env.COUGARS_LOCAL_STATE || "../../apps/web/.wrangler/state",
+      },
       // `vite` on your machine is "local": nothing is emailed, so sign-in shows the code on screen. With
       // TEAM_AUTO_ADMIN=1 in the shell (screenshots, quick looks) nobody needs to sign in: you're the first admin.
       // A build never carries either.
@@ -45,7 +50,7 @@ export default defineConfig(({ command }) => ({
               vars: {
                 TEAM_ENV: "local",
                 TEAM_AUTO_ADMIN: process.env.TEAM_AUTO_ADMIN === "1" ? "1" : "",
-                // The Usage page (ADR 0059), when started through env-pull: in memory, never in a file
+                // The Usage page (ADR 0003), when started through env-pull: in memory, never in a file
                 CLOUDFLARE_ANALYTICS_TOKEN: process.env.CLOUDFLARE_ANALYTICS_TOKEN ?? "",
                 CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
                 // Settings → Errors (ADR 0110), the same way: Sentry's read-only token, in memory
@@ -77,8 +82,9 @@ export default defineConfig(({ command }) => ({
   resolve: { alias: { "firebase/messaging": fileURLToPath(new URL("src/app/no-web-push.ts", import.meta.url)) } },
   // Source maps for Sentry (ADR 0110): written but never linked from the files; the deploy uploads them, then deletes
   // them before the files go live. The manifest (which files each chunk imports) is for scripts/team-app-budget.mjs,
-  // which weighs what the first paint loads (ADR 0120); public/.assetsignore keeps it off the site.
+  // which weighs what the first paint loads (ADR 0053); public/.assetsignore keeps it off the site.
   build: { sourcemap: "hidden", manifest: true },
+  ...(JOURNEYS && { cacheDir: `${JOURNEYS}/vite` }),
   server: { port: PORT, strictPort: true, host: true },
   preview: { port: PORT, strictPort: true, host: true },
 }));
@@ -93,7 +99,7 @@ function oneDevServer(port: number): Plugin {
     name: "cougars:one-dev-server",
     apply: "serve",
     async config() {
-      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "") || process.env.COUGARS_APP_SUPERVISOR) return;
+      if (!/[\\/]vite(\.js)?$/.test(process.argv[1] ?? "") || process.env.COUGARS_APP_SUPERVISOR || JOURNEYS) return;
       await takeOverPort(port, fileURLToPath(new URL("node_modules/.cache/dev-server.pid", import.meta.url)));
     },
   };

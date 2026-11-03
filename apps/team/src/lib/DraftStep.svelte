@@ -1,12 +1,7 @@
 <script lang="ts">
-  // A step of draft night (ADR 0060) as one card in the middle of the page column, the clear thing to do now: Draw
-  // the order, Open the draft, Seal the teams. Its mark is the series' motif for the step (lib/motif.ts): on the Kumite
-  // a big kanji (籤 lots, 開 open) or the red hanko (決, the teams decided); a series without the motif shows its icon.
-  // Then the step's name, one line, and for whoever runs it the one main button; everyone else sees the card without
-  // it. The same shape every step, the line kept to two lines' room, so moving on a step changes only what it says.
-  // `body` goes under the name (the captains, for the draw, shuffled there); `quiet` lets the card go, leaving only
-  // the body where it was, which is how the draw hands over to the next step: the card's mark, words and button slide
-  // away and its panel fades, the order staying put as the page's order row.
+  // A step of draft night as one card in the page column (apps/team/worker/tournaments/README.md): Draw the order, Open
+  // the draft, Seal the teams, with the series' motif (lib/motif.ts) and the one main button for whoever runs it. The
+  // same shape every step; `quiet` lets the card go, leaving `body` where it was, as the draw hands over.
   import type { Snippet } from "svelte";
   import { slide } from "svelte/transition";
   import { prefersReducedMotion } from "../app/motion";

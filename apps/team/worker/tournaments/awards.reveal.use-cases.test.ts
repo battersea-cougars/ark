@@ -1,8 +1,5 @@
-// The evening a Kumite ends (ADR 0129, 0044): the last match played, everyone's at The Anchor. Once the awards are
-// confirmed, whoever runs it reveals them one at a time, in the order listed, on one card, a drum: a tap turns the
-// sealed card face up, Next award rolls on to the next, sealed. Members see each award's winner only once it's out
-// (the Worker doesn't send it before then), and every phone follows the drum. A double tap moves it once. Stepping
-// back turns them all face down again, the results kept. Driven through the real Worker handlers (ADR 0031).
+// The awards' reveal (apps/team/worker/tournaments/README.md): once confirmed, revealed one at a time on one card, a
+// drum every phone follows. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { testWorld } from "../testing";
@@ -210,6 +207,23 @@ describe("the awards at The Anchor, one card at a time", () => {
     await k.reveal(0);
     const mo = await w.signedIn("mo@example.com");
     expect((await k.sees(mo, MORNING)).winners).toEqual(ALL);
+  });
+
+  it("the reveal sends no push: everyone's watching the page", async () => {
+    const k = await kumiteNight(w);
+    for (const [who, token] of [
+      ["cara@example.com", "cara-phone"],
+      ["mo@example.com", "mo-phone"],
+    ])
+      expect((await (await w.signedIn(who)).call("PUT", "/api/auth/device", { token, platform: "ios" })).status).toBe(
+        200,
+      );
+    expect((await k.confirm()).status).toBe(200);
+    for (const at of [0, 1, 2]) await k.revealThenRoll(at);
+    expect((await k.reveal(3)).status).toBe(200);
+    await w.cron(MORNING.now);
+    expect(w.db.raw.prepare("SELECT COUNT(*) n FROM push_outbox").get()).toEqual({ n: 0 });
+    expect(w.pushes).toEqual([]);
   });
 
   it("each reveal is on the record", async () => {

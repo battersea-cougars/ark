@@ -1,4 +1,4 @@
-// The leaderboards (#47, lib/leaders.ts): goals, assists, points and penalty minutes per player, over one tournament's
+// The leaderboards (lib/leaders.ts): goals, assists, points and penalty minutes per player, over one tournament's
 // games or every edition's, each board in its own order.
 import { describe, expect, it } from "vitest";
 import { leaders } from "./leaders";
@@ -36,6 +36,12 @@ describe("the leaderboards", () => {
     const level = [{ status: "done", goals: [goal(3, 2), goal(2, 3), goal(1), goal(1)] }];
     // 3 and 2 level on everything: in the order they first appear
     expect(leaders(level, "points").map((r) => r.memberId)).toEqual([1, 3, 2]);
+  });
+
+  it("only games under way or played count: one not kicked off adds nothing", () => {
+    const notYet = [{ status: "next", goals: [goal(10, 11)], penalties: [pen(10, 2)] }];
+    expect(leaders(notYet, "points")).toEqual([]);
+    expect(leaders(games, "goals").map((r) => r.memberId)).not.toContain(10);
   });
 
   it("is empty with nothing played", () => {

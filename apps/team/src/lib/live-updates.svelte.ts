@@ -1,11 +1,6 @@
-// Live pages follow along (ADR 0072): a game being scored, the tournament's home while a game's on, the draft room
-// while it's open. The page holds one stream from the club's live hub, which says which parts of the club changed
-// the moment they do (a live match comes with it, #161); the app then reads just those parts (one read at a time, after a short random wait, so a burst
-// is one read: app/catch-up.ts, #112). The stream itself, and the hub's heartbeat that tells a dead one from a quiet
-// one, are lib/live-stream.ts. While the stream's open the page still checks every minute, as a safety net
-// (a 304 when the copy has every change); when it's down (a dropped connection, a server
-// without a hub), it checks on the admins' beat instead (ADR 0072), and says so. Only while the page is in view; the
-// brake (ADR 0055) still has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
+// Live pages follow along (ADR 0053): a game being scored, the tournament's home while a game's on, the draft room
+// while it's open. One stream from the club's live hub (lib/live-stream.ts) says which parts changed; the app reads
+// just those (app/catch-up.ts).
 import { brake } from "../app/api";
 import { reportUnexpected } from "../app/errors.early";
 import { checked, copy, refreshIfChanged } from "../app/backend.svelte";
@@ -34,7 +29,7 @@ const FRESH_MS = 10_000;
 let streams = 0;
 
 /**
- * What an event says changed: the parts, the versions that changed them, and a live match sent along (#161). Not what the hub sends means everything
+ * What an event says changed: the parts, the versions that changed them, and a live match sent along. Not what the hub sends means everything
  * followed, with no versions, which only a check of the whole club can settle (a 304 when nothing has changed).
  */
 function whatChanged(data: string, follow: readonly string[]): Pick<Heard, "changed"> & Partial<Heard> {
@@ -51,6 +46,9 @@ function whatChanged(data: string, follow: readonly string[]): Pick<Heard, "chan
  * Call in an effect (it follows the setting), and return what it returns. `steady`: a page everyone sits on (Home,
  * a training's sign-ups) checks once a minute when there's no stream, not on the admins' live beat, so a dropped
  * stream across the whole club doesn't spend the day's requests.
+ * While the stream's open the page still checks every minute, as a safety net (a 304 when the copy has every change);
+ * when it's down (a dropped connection, a server without a hub), it checks on the admins' beat instead, and says so.
+ * The brake (ADR 0055) has the last word: a connect is one of the tab's calls, and nothing goes out while it rests.
  */
 export function checkForUpdates(follow: readonly string[] = ["tournaments"], { steady = false } = {}) {
   let beat: ReturnType<typeof setInterval> | undefined;
@@ -73,7 +71,7 @@ export function checkForUpdates(follow: readonly string[] = ["tournaments"], { s
   };
 
   const unfollow = copy.follow(follow);
-  // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0120)
+  // Opened just after the app read the club (Home, as the app opens): nothing to check yet (ADR 0053)
   if (Date.now() - checked.at > FRESH_MS) check();
   const stream = keepStream({
     open: () => new EventSource("/api/live"),

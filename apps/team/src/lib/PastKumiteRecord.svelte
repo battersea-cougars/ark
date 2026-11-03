@@ -1,11 +1,7 @@
 <script lang="ts">
-  // A past Kumite recorded (ADR 0126), from History's Manage: one the club played before the app, put in after the
-  // fact, as a wizard (lib/Wizard, ADR 0117) over the page, a side drawer on a desktop, a tall sheet on a phone. When
-  // (a day gone by), Teams (each its name, captain and players, found by name), Matches (each team against every other
-  // in the fair order, a score each, a final between the top two if it had one, and who scored where anyone
-  // remembers), Awards (the champions and the top scorer filled in from the results, the rest chosen), then Check and
-  // Record it. It goes straight into Past Kumites, done, its awards out (worker/tournaments/past.ts). The rules and
-  // awards are the series'; the logic is lib/past-kumite.ts.
+  // A past Kumite recorded after the fact, from History's Manage (apps/team/worker/tournaments/README.md): a wizard
+  // (lib/Wizard, ADR 0065) of When, Teams, Matches, Awards and Check, straight into Past Kumites
+  // (worker/tournaments/past.ts). The rules and awards are the series'; the logic is lib/past-kumite.ts.
   import type { TournamentType } from "../demo/model";
   import { db } from "../demo/store.svelte";
   import { recordPastKumite, saving } from "../app/backend.svelte";

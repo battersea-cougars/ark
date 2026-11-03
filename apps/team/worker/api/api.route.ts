@@ -1,4 +1,4 @@
-// A route of the team app's API, as each feature declares it (ADR 0024, ADR 0095, ADR 0105): its method and path, the
+// A route of the team app's API, as each feature declares it (ADRs 0024, 0105): its method and path, the
 // action it needs, what it changes and what it puts on the record; and the small helpers every feature's routes share.
 // The routes themselves live with their feature ({feature}.routes.ts); api.ts mounts them.
 import { type Action } from "../../src/access/actions";
@@ -8,13 +8,14 @@ import { HttpError, body, json } from "./api.http";
 import { all, first } from "@cougars/shared/d1";
 import { type WebsiteEnv } from "../website/website";
 import type { Notice, PushEnv } from "../push/push";
+import type { ChargeScope } from "../dues/dues.scope";
 
 export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<PushEnv, "DB"> {
   /** "1", and only with TEAM_ENV "local" (tests, `TEAM_AUTO_ADMIN=1 npm run dev`): no session means the first admin. */
   TEAM_AUTO_ADMIN?: string;
   /** This deploy's version (wrangler.jsonc version_metadata): part of the bootstrap's ETag. */
   CF_VERSION_METADATA?: { id: string };
-  /** Read-only (Account Analytics: Read), for the Usage page and the hourly check (ADR 0059). */
+  /** Read-only (Account Analytics: Read), for the Usage page and the hourly check (ADR 0003). */
   CLOUDFLARE_ANALYTICS_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
   /** Read-only (Issue & Event: Read), for Settings → Errors: the apps' open issues in Sentry (ADR 0110). */
@@ -23,7 +24,7 @@ export interface Env extends AuthEnv, Omit<WebsiteEnv, "DB" | "TEAM_ENV">, Omit<
   SENTRY_DSN?: string;
   /** The release Sentry files errors under: the deploy's build version (scripts/ci/target.mjs). */
   BUILD_VERSION?: string;
-  /** The live hub (ADR 0072), wrangler.jsonc durable_objects; a server without one falls back to checking. */
+  /** The live hub (ADR 0053), wrangler.jsonc durable_objects; a server without one falls back to checking. */
   LIVE?: DurableObjectNamespace;
 }
 
@@ -42,8 +43,13 @@ export interface Ctx {
   now: string;
   /** Work that goes on after the reply (an email); without it (tests), it's done before. */
   waitUntil?: (p: Promise<unknown>) => void;
-  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`, #178). */
+  /** What this change touched beyond what its route declares, as it turned out (a tap's newcomer: `people`). */
   alsoChanged: Changed[];
+  /**
+   * Whose charges a change to them can move: its night, tournament or member, so only theirs are worked out
+   * again (dues.scope.ts). Unsaid, the whole club's.
+   */
+  charged?: ChargeScope;
 }
 
 export interface Route {
@@ -52,7 +58,7 @@ export interface Route {
   /** The action this route needs; "authenticated" for any signed-in member. */
   action: Action | "authenticated";
   /**
-   * Only on a Worker whose environment this says yes to (a dev-only tool, ADR 0123): anywhere else the route isn't
+   * Only on a Worker whose environment this says yes to (a dev-only tool, ADR 0010): anywhere else the route isn't
    * there at all, so it answers 404 whoever asks, before anything else is read.
    */
   only?: (env: Env) => boolean;
@@ -73,24 +79,30 @@ export interface Route {
   whileViewing?: true;
   /**
    * false: the change never moves anything on the calendar (an answer, a pick, a goal), though its parts are on it, so
-   * the agenda isn't read again for it, by this member or every live page (ADR 0042, docs/load-testing.md). Anything
+   * the agenda isn't read again for it, by this member or every live page (ADR 0016, docs/load-testing.md). Anything
    * else that changes a calendar part brings the agenda with it.
    */
   calendar?: false;
   /**
    * true: a change to a match as it's played, touching nothing but its tournament's games. On the tournament's day the
-   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0072, #161;
+   * match goes with the live hub's event to every member, so the phones following it read nothing (ADR 0053;
    * live/live.parts.ts).
    */
   liveMatch?: true;
   /**
-   * On the record (ADR 0095): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
+   * true: the after-party's drum, an award turned over or rolled on to the next, touching nothing but its tournament's
+   * reveal. The drum (and the winners out, never one still sealed) goes with the event to every member, so the room's
+   * phones read nothing (ADR 0053, apps/team/worker/tournaments/README.md; live/live.parts.ts).
+   */
+  liveAwards?: true;
+  /**
+   * On the record (ADR 0024): a change says what it does to the club's record, or `{ none: "why" }` for nothing,
    * saying why (a member's own sign-up, a pick that's the draft's own record). Every route that isn't a GET says
    * (security.test.ts). The wrapper reads `subject` before the handler and again after; when the two differ it writes
    * `event` to the audit log, with who did it, both sides, and `about`.
    */
   audit?: Audit | { none: string };
-  /** The most a request may send, in bytes (#73): MAX_BODY (1 MB) unless it says. */
+  /** The most a request may send, in bytes: MAX_BODY (1 MB) unless it says. */
   maxBody?: number;
   /** News for members' phones (ADR 0108): sent once the change is made, after the reply. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,7 +116,7 @@ export interface Notify<T = undefined> {
   after: (c: Ctx, before: T, reply: Record<string, unknown>) => Promise<Notice[]>;
 }
 
-/** What a change puts on the record (ADR 0095). */
+/** What a change puts on the record (ADR 0024). */
 export interface Audit {
   /** The entry's name: "member.updated". The audit page says each in plain words. */
   event: string;
@@ -120,7 +132,7 @@ export const theMember = (c: Ctx, reply?: Record<string, unknown>) => (reply?.id
 export const id = (c: Ctx) => Number(c.params[0]);
 
 /**
- * An audit subject that's one row, read the same way before and after (ADR 0095): `sql` takes one key, the route's id
+ * An audit subject that's one row, read the same way before and after (ADR 0024): `sql` takes one key, the route's id
  * (its first path number) or, for a new one, the id the reply says was made. Nothing to read (before a create): null.
  */
 export const rowOf =

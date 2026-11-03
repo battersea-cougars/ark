@@ -1,5 +1,5 @@
-// Something already on then (ADR 0122): asking the Worker what a new time is over, and calling off what the admin
-// chose after their save went in. Only the editors ask, so it's its own module, not on Home's first paint (ADR 0120).
+// Something already on then (apps/team/worker/calendar/README.md): asking the Worker what a new time is over, and calling off what the admin
+// chose after their save went in. Only the editors ask, so it's its own module, not on Home's first paint (ADR 0053).
 import type { ClashQuestion, Skip } from "../lib/clashes";
 import { api } from "./api";
 import { save, setCancelled, setClubEventCancelled } from "./backend.svelte";
@@ -44,7 +44,7 @@ export async function findClashes(q: ClashQuestion) {
 /**
  * Call off what the admin chose, after their save went in: each by its own cancel (the members told, nobody charged),
  * a training night past the weeks made ahead made first. Saving a tournament (`tournamentId`), a night goes off for
- * it, so it comes back when the tournament's deleted or moved (#186). How many went off.
+ * it, so it comes back when the tournament's deleted or moved. How many went off.
  */
 export async function cancelClashes(chosen: Clash[], tournamentId?: number) {
   let off = 0;

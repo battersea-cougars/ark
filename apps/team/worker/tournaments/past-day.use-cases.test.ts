@@ -1,8 +1,5 @@
-// A Kumite on a past day (ADR 0123), dev only: to try what a past Kumite shows, an admin has one played on a day gone
-// by in a few taps. It's made on that day and signed up for, then the simulator plays it out on that evening (its
-// clocks the evening's, not now): the draft drawn and picked, every match on the clock, the awards confirmed and
-// every one revealed. So it's history at once (Past Kumites), with a whole evening behind it. Not there in production.
-// Driven through the real Worker handlers in the fake world (ADR 0031).
+// A Kumite on a past day (apps/team/worker/settings/README.md), dev only: made, played out on that evening and in
+// history in a few taps. Driven through the real Worker handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { awardsToReveal } from "../../src/lib/awards";
 import { atAfters, editionState, playedOn } from "../../src/lib/edition";

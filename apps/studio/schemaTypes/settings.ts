@@ -1,8 +1,6 @@
-// The club's facts, one small document each, in the order the team manager thinks about them
-// (docs/adr/0014-sanity-public-content.md). Only facts are editable here: page wording lives in the website code.
-// Each is a singleton with a fixed _id (SINGLETONS in structure.ts), so the team app can write them through the
-// Sanity API later. Required fields fall back to the website's defaults if missing; optional ones stay empty when
-// empty (apps/web/src/lib/sanity/merge.ts, OPTIONAL: keep the two in step).
+// The club's facts, one singleton document each (SINGLETONS in structure.ts), in the order the team manager thinks
+// about them (ADR 0004). Only facts are editable here: page wording lives in the website code. Which fields are
+// optional must match OPTIONAL in apps/web/src/lib/sanity/merge.ts.
 import { defineArrayMember, defineField, defineType } from "sanity";
 import { imageField } from "./shared";
 

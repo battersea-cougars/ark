@@ -1,12 +1,12 @@
 <script lang="ts">
-  // Find a member by typing (a combobox): the list narrows as you type, arrows move, Enter picks, Escape closes. Like
-  // Select, its list is fixed-position at the end of the page so a panel or scroller never clips it. With `value`
-  // it shows who's picked and can change them; without (`clearOnPick`), it's an "add someone" box that empties after
-  // each pick.
+  // Find a member by typing (a combobox): arrows move, Enter picks, Escape closes; the list is fixed-position at the
+  // page's end, like Select's, so nothing clips it. With `value` it shows who's picked; with `clearOnPick` it's an "add
+  // someone" box.
   import { portal } from "./overlay";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { findPeople } from "./person-search";
+  import { menuPlace, visibleArea } from "./menu-place";
 
   let {
     members,
@@ -59,16 +59,11 @@
     return findPeople(pool, q);
   });
 
+  // On screen: above a phone's keyboard, which comes up as the field takes focus (lib/menu-place.ts)
   function place() {
     if (!input) return;
-    const r = input.getBoundingClientRect();
-    const gap = 6;
-    const below = innerHeight - r.bottom - gap - 12;
-    const above = r.top - gap - 12;
-    const up = below < 180 && above > below;
-    const height = Math.min(300, up ? above : below);
-    const top = up ? Math.max(12, r.top - gap - height) : r.bottom + gap;
-    menuStyle = `top:${Math.round(top)}px;left:${Math.round(r.left)}px;width:${Math.round(r.width)}px;max-height:${Math.round(height)}px`;
+    const { top, left, width, height } = menuPlace(input.getBoundingClientRect(), visibleArea());
+    menuStyle = `top:${top}px;left:${left}px;width:${width}px;max-height:${height}px`;
   }
   async function show() {
     if (open) return;
@@ -125,10 +120,15 @@
     addEventListener("pointerdown", onPointer, true);
     addEventListener("resize", onMove);
     addEventListener("scroll", onMove, true);
+    // The keyboard coming up (or going) changes what's on screen, not the window
+    visualViewport?.addEventListener("resize", onMove);
+    visualViewport?.addEventListener("scroll", onMove);
     return () => {
       removeEventListener("pointerdown", onPointer, true);
       removeEventListener("resize", onMove);
       removeEventListener("scroll", onMove, true);
+      visualViewport?.removeEventListener("resize", onMove);
+      visualViewport?.removeEventListener("scroll", onMove);
     };
   });
 </script>

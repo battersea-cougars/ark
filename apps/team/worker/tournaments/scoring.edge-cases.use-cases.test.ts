@@ -1,8 +1,5 @@
-// Scoring's edges (ADR 0130): every tap the game's state doesn't allow is refused and changes nothing (a goal before
-// the start or after full time, ending a period twice or the last one, Undo with nothing to undo, starting a game
-// that's over), who may do what (not signed in, a member who isn't holding the sheet, a scorekeeper on another game,
-// an admin), what a tap may say (wrong types, out of range, a game or team from another tournament), and an admin's
-// corrections after the day, playoffs included. Driven through the real Worker handlers (ADR 0031).
+// Scoring's edges (apps/team/worker/tournaments/README.md): taps the game's state doesn't allow, who may do what, what
+// a tap may say, and an admin's corrections after the day. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -649,7 +646,7 @@ describe("playoffs, after the group", () => {
   });
 
   // An admin's correction to a group game refills only the playoffs still to start: one being played keeps its teams,
-  // and the goals already logged stay with them (#122)
+  // and the goals already logged stay with them
   it("an admin putting a group result right while the Final's being played doesn't change who's playing it", async () => {
     const c = await groupPlayed();
     const keeper = await c.keeperOf(c.final);
@@ -672,7 +669,7 @@ describe("playoffs, after the group", () => {
   });
 
   // A typed-in result (scoreGame) or full time (clockGame) can't make a playoff level, and nor can taking a goal off
-  // it (#123: it could, and the Final then crowned nobody)
+  // it (it could, and the Final then crowned nobody)
   it("an admin can't take a goal off a finished playoff if that would leave it level: a playoff needs a winner", async () => {
     const c = await groupPlayed();
     await c.score(c.final.id, 1, 0);
@@ -700,7 +697,7 @@ describe("playoffs, after the group", () => {
     },
   );
 
-  // Adding a goal missed on the day can leave it level as well (#159): a Final won 1–0, an away goal, 1–1
+  // Adding a goal missed on the day can leave it level as well: a Final won 1–0, an away goal, 1–1
   it("an admin can't add a goal to a finished playoff if that would leave it level", async () => {
     const c = await groupPlayed();
     await c.score(c.final.id, 1, 0);
@@ -747,7 +744,7 @@ describe("playoffs, after the group", () => {
   });
 });
 
-describe("taps at once, outside the live game (ADR 0121)", () => {
+describe("taps at once, outside the live game (ADR 0003)", () => {
   it.each(seeds(5))(
     "two members pressing Start scoring at once: one holds the sheet, the other's told (seed %i)",
     async (seed) => {
@@ -764,7 +761,7 @@ describe("taps at once, outside the live game (ADR 0121)", () => {
   );
 
   // A typed-in result, its goals made to match and the count they're matched against are one batch: two saves of the
-  // same result at once (a double tap on Save, or two admins) leave the game with as many goals as its score (#124).
+  // same result at once (a double tap on Save, or two admins) leave the game with as many goals as its score.
   // Seeds 2, 3 and 5 found it
   it.each(seeds(5))(
     "an admin's typed-in result saved twice at once: the game has as many goals as its score (seed %i)",
@@ -779,7 +776,7 @@ describe("taps at once, outside the live game (ADR 0121)", () => {
     },
   );
 
-  // Undo says which goal it takes back, the last one the page shows (#114): a double tap on Undo takes that one off
+  // Undo says which goal it takes back, the last one the page shows: a double tap on Undo takes that one off
   // once, and the second finds it gone. Seeds 1 to 5 took two off when it said only "the last goal"
   it.each([1, 2, 3, 4, 5])("Undo tapped twice at once takes back one goal, not two (seed %i)", async (seed) => {
     const c = await cup();

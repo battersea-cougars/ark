@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Past announcements, Home's page (#85, ADR 0107, 0118): everything the club has said, newest first, a page at a
+  // Past announcements, Home's page (apps/team/worker/announcements/README.md, apps/team/src/pages/README.md): everything the club has said, newest first, a page at a
   // time, with who posted it, when it ran and whether you said "Got it". One still on can be got here too; whoever may post can take
   // one that's still on down from its row (it may be gone from their own Home). Read when the page opens.
   import { can } from "../access/actions";

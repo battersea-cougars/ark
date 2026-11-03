@@ -15,7 +15,7 @@ next to the code runs without editing config.
 | `npx vitest run -t "walk-in"`  | tests whose name matches            |
 | VS Code test explorer (Vitest) | any file or single test             |
 
-Before pushing: `npm run lint && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
+Before pushing: `npm run secrets:scan -- --since main && npm run lint && npm run knip && npm test && npm run check -w @cougars/web && npm run check -w @cougars/team && npm run build && npm run build -w @cougars/team && npm run build -w @cougars/studio`
 (as `pr.yml`, which runs only the part a change can reach: the tiers of `npm run merge:check`, ADR 0115).
 
 ## Signed in, in a real browser
@@ -58,6 +58,10 @@ node scripts/small-screens.mjs --port <port> [--widths 320,360,375] [--only game
 Overflow fails it (exit 1); ellipses, sideways scrollers (fine for the tab strip, a ticker, a big table) and small
 targets are listed to judge by eye.
 
+Where WebKit can't start (the devcontainer lacks its host libraries), it says so and checks in Chromium as a phone
+(the same viewport, touch and pixel ratio); `--browser chromium` asks for that outright. It loads the app's route tree
+through Vite, as the app does, so plain `node` runs it.
+
 ## Use cases first
 
 The most important tests describe **what someone does** and check what they'd see and what reached the outside
@@ -74,8 +78,6 @@ Function-level unit tests are for tricky pure logic where covering every case in
 rules, the team solver, standings, slugs, permissions. Don't add them by default.
 
 Don't mock our own code. If a test needs to stub one of our functions, it's testing at the wrong level.
-
-Which level checks what, feature by feature, and the overlaps found: [testing-map.md](testing-map.md).
 
 ## The fake world
 
@@ -117,7 +119,7 @@ they take and a `sees()` for what's on their screen, so the test reads like the 
 Two requests' statements interleave on D1 between their awaits; the fake D1 does the same when asked
 (`w.db.interleave(seed)`), and each feature's `*.concurrency.use-cases.test.ts` fires requests together under several
 seeds. Load runs against a Worker of your own (`npm run load -- friday-rush`, never dev or production). How, and what
-they found: [load-testing.md](load-testing.md) ([ADR 0121](adr/0121-load-and-concurrency.md)).
+they found: [load-testing.md](load-testing.md) ([ADR 0003](adr/0003-free-tiers-only.md)).
 
 **A club with years behind it, by hand**: `npm run seed:history` gives a local D1 (the checkout shown on 4510, if it
 has its own, `--own-db`) four years of played Kumites (30: two pages of History) and a year of Tuesday Skills nights,
@@ -128,30 +130,76 @@ spent follows the allocations it writes (the schema's triggers); members' played
 either way (#177). Anything else written straight into D1 that adds or takes away nights should do the same
 (`recountPlayed`, or `UPDATE members SET played = 0` and `data_version.played_through` to null).
 
+## What a request costs
+
+ADR 0003's rule: a request makes at most 25 D1 calls (a `batch()` is one), whatever the club's size; the Kumite
+simulator may make 45 and Move to 40. `apps/team/worker/api/api.budget.use-cases.test.ts` drives every route on its
+happy path on a club of 60 and of 120, and fails when a route isn't driven (a new route has to be added there), goes
+over its budget, or costs more for the bigger club (something read a member at a time). A count includes the
+wrapper's own calls and what runs after the reply (`waitUntil`), as the same invocation. To see the numbers:
+
+```sh
+BUDGET=1 npx vitest run apps/team/worker/api/api.budget      # every route's calls and statements, dearest first
+BUDGET=sql npx vitest run apps/team/worker/api/api.budget    # each dear route's statements, in order
+BUDGET=plan npx vitest run apps/team/worker/api/api.budget   # every statement whose query plan reads a whole table
+```
+
+## Accessibility and first load
+
+Run these before a release that changes how pages look or load.
+
+- **axe over the team app's Kumite night**: `npm run journeys -- --a11y` (in a worktree). At the end of each step
+  axe looks at every person's page; `.journeys/a11y.md` lists what it found. It never fails the run.
+- **axe over single pages** (the rest of both apps): sign in with `node scripts/dev-sign-in.mjs [email] --port <team
+port>`, open the page with that storage state, and run `new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa",
+"wcag21a", "wcag21aa", "best-practice"]).analyze()` (`@axe-core/playwright`). Check at a phone's width (390) and a
+  desktop's (1366).
+- **What axe reports that stays, on purpose**: decoration it reads as words (the big 組手 behind "No Kumite yet", the
+  hanko seals, a losing crest's letters: `aria-hidden`, which WCAG exempts); a cancelled session's dimmed venue (the
+  Cancelled badge carries the meaning); label-in-name on cards and avatars (the name starts with what a speech user
+  would say); desktop Friday's h3 without an h2; the dev-only simulator's speed bar; a badge caught mid-animation.
+- **The team app's first paint** has a budget, 100 kB of JavaScript gzipped, checked by every build
+  (`scripts/team-app-budget.mjs`, [ADR 0053](adr/0053-how-the-team-app-gets-its-data.md)).
+- **Lighthouse** on a production build: `npm run build -w @cougars/web`, then
+  `npx wrangler dev -c dist/server/wrangler.json --port <any free port>` in apps/web; for the team app,
+  `npx wrangler dev -c dist/cougars_team/wrangler.json --port <port> --var TEAM_ENV:local --persist-to ../web/.wrangler/state`
+  in apps/team, signed in with `dev-sign-in.mjs --url` and the cookie passed as `--extra-headers`. Then
+  `CHROME_PATH=<Playwright's chromium> npx lighthouse <url> --chrome-flags="--headless=new --no-sandbox --disable-dev-shm-usage"`.
+  The mobile run's times are simulated: compare runs, not absolutes.
+
 ## Journeys
 
 Use cases stop at the API; **journeys** drive the real team app in a browser (Playwright, Chromium) through a whole
 workflow, as each person in it, and check that each can do what needs doing at each step, and can't do what they
-mustn't ([ADR 0031](adr/0031-use-case-tests.md): which check goes at which level). They live in `apps/team/journeys/`,
-one `{workflow}.journey.ts` each, run in this order on one fresh database (which workflow each covers, and what's left
-to lower levels, is the Journeys section of [testing-map.md](testing-map.md)):
+mustn't ([ADR 0031](adr/0031-use-case-tests.md): which check goes at which level). They live in `apps/team/tests/journeys/`,
+one `{workflow}.journey.test.ts` each (what they share in `support/`), run in this order on one fresh database (each file opens with the workflow it
+walks, who's in it and which lower tests hold the rule's every case). A journey is a `test.describe.serial`: each step of
+its story is a `test` of its own, run in order on the same people (signed in in `test.beforeAll`) and the same
+database, so each step is its own test in VS Code's Testing panel and the report. A step that fails ends its journey
+(the steps after it are skipped); within a step, a failed `checks` is noted and the step goes on, failing at its end:
 
-| Journey                          | The story                                                                                                 | Time   |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
-| `calendar.journey.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
-| `fees.journey.ts`                | A Friday's fee as it changes: from a Friday, the day after, a day apart, back in time, £0, the clocks     | ~1.2 m |
-| `fridays.journey.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
-| `kumite.journey.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
-| `kumite.on-the-clock.journey.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
-| `members.journey.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
-| `nights-and-kumites.journey.ts`  | Several Kumites on Fridays, nights off for them and by hand, deleted and moved, each night back on        | ~15 s  |
-| `pages.journey.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
-| `sign-in.journey.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
-| `status-over-date.journey.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
+| Journey                               | The story                                                                                                 | Time   |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------- | ------ |
+| `calendar.journey.test.ts`            | A one-off on the calendar, the clash prompt, called off; the locker room; notification switches; how soon | ~45 s  |
+| `edge-cases.journey.test.ts`          | A double tap is one change, a 60-letter name on a phone, a tap with no signal                             | ~30 s  |
+| `fees.journey.test.ts`                | A Friday's fee as it changes: from a Friday, the day after, a day apart, back in time, £0, the clocks     | ~1.2 m |
+| `fridays.journey.test.ts`             | A training set up, its sign-up window, waiting list, the register, what it charges, dues, the clocks      | ~1.3 m |
+| `kumite.journey.test.ts`              | The Kumite night: sign-up to the morning after                                                            | ~1.4 m |
+| `kumite.on-the-clock.journey.test.ts` | The Kumite's days and times: sign-up at midnight, its day, another evening, after midnight, the clocks    | ~5 m   |
+| `members.journey.test.ts`             | A member added and changed, a role given and taken, the last admin, viewing as a member, an account gone  | ~25 s  |
+| `nights-and-kumites.journey.test.ts`  | Several Kumites on Fridays, nights off for them and by hand, deleted and moved, each night back on        | ~15 s  |
+| `pages.journey.test.ts`               | Every page opens clean: every page in each one's menus, each editor shut unsaved                          | ~45 s  |
+| `sign-in.journey.test.ts`             | Asking to join and let in, a code, a wrong code, a passkey, signing out                                   | ~10 s  |
+| `status-over-date.journey.test.ts`    | Status, not the date: a Kumite played early, a training night not closed yet, a game running late         | ~20 s  |
 
 Any error in a person's browser (uncaught, a console error, a Svelte warning that means a bug, the app's own error
-screen) fails the step it happened in; the allowlist, each with its reason, is in `journey.ts`. A step refused on
-purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error.
+screen) fails the step it happened in (looked for after every step by `support/journey.ts`'s `test`, an automatic
+fixture, so a journey imports `test` and `expect` from there); the allowlist, each with its reason, is in `support/journey.ts`. A step refused on
+purpose says so (`expectRefusal(409)`), so Chrome's line for that reply isn't an error. A person's `page.goto` waits for an overlay
+just closed to take its history entry off first (`lib/back.ts`): opened before that lands, the address is cancelled
+(`net::ERR_ABORTED`). A journey that makes a training pauses it in its `test.afterAll` (`pauseTraining`), so one
+that stops half way doesn't leave its nights on Home for the journeys after it; its `test.afterAll` closes everyone's
+browser too.
 
 **Both clocks move.** `at(person, when)` puts someone at a moment: their browser's clock (Playwright's) and the
 server's for every request they make (the `x-dev-now` header, `worker/api/api.dev-clock.ts`: on your own machine and
@@ -160,24 +208,40 @@ time as an instant, BST or GMT as it was. `cron(when)` runs the Worker's hourly 
 through the dev server's own trigger: that's what charges a night's sign-ups the next day and a quarter on its first
 day. A journey moves forward only: a page opened at an earlier moment than one already used works the charges out
 for that day again. Never run the hourly cron far into the future while anyone's signed in: it forgets sessions older
-than the retention allows (`retention.forget`), and everyone's signed out.
+than the retention allows (`retention.forget`: a month after they ran out, and a browser's sign-in, on the real
+clock, runs out 90 days unused), so from about four months past today everyone's signed out; past that, a page's
+first open of the day charges what's due as well.
 
 ```sh
-npm run journeys                    # in a worktree: a fresh D1, the team app on a private port, the journeys, stopped
+npm run journeys                    # in any checkout: a fresh D1 of their own, the team app on a free port, the journeys, stopped
 npm run journeys -- --core          # the core run: all but the Kumite on the clock (about 6 minutes)
 npm run journeys -- --file-issue    # and a run with failures files one GitHub issue (label regression)
-npm run journeys -- --keep          # leave the app up after, to look around (npm run app stop team)
+npm run journeys -- --keep          # leave the app up after, to look around (the next run stops it)
+npx playwright test apps/team/tests/journeys/sign-in.journey.test.ts   # one journey, Playwright's own way
 ```
 
-It takes the checkout's own local D1 (`--own-db`) and starts it afresh every run, so it refuses the main checkout.
-Failures don't stop the run: each failing step is in `.journeys/summary.md` (stage, role, expected and what
-happened), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
+Playwright's config is `playwright.config.ts` at the root; its global setup (`support/journeys.setup.mjs`) makes the
+journeys' own D1 in `.journeys/d1` every run and starts the team app on it, beside the show switch, on a port the OS
+picks; the teardown stops it. Nothing is a checkout's own, so it's safe anywhere, the main checkout included: no
+checkout's local D1 and no app on 4500/4510/4520 is touched. The app's log is `.journeys/app.log`.
+Failures don't stop the run: each failing check is in `.journeys/summary.md` (journey, step, role, expected and what
+happened, and where a journey stopped), with traces in `.journeys/run/` (`npx playwright show-trace …`). In CI (`.github/workflows/journeys.yml`: the core run
 nightly on `main`, the full one on a push to `release`, either by hand) a failing run opens one issue, and a later run
 failing at the same commit comments on it. A step that fails because of a known bug is
-`knownBug(…)`, as `it.fails` is below.
+marked `test.fail(true, "Known bug: …")` as its first line, as `it.fails` is below: it runs, should fail, and the
+summary says so when it passes.
 
-**How long.** The full run is 10½ to 13½ minutes (23 October 2026, the machine shared; the Fees journey added a
-minute on the 24th), most of it the simulator's
+**In VS Code.** The Playwright Test extension (in the dev container's extensions) lists the journeys in the Testing
+panel beside Vitest's tests. Once: run _Test: Toggle Playwright configs_ from the command palette (or the configs list
+in the Testing sidebar's **Playwright** view) and tick only `playwright.config.ts`, the checkout's own (each worktree's
+copy is listed too); the choice is remembered. Then the journeys are under that config in the Testing panel: type
+`journey` in its filter to see only them, and press ▶ on one to run it. Each step is its own test under its journey,
+but steps run in order, each on what the ones before it made: to run one, run its journey (the file's ▶); a step run
+alone meets a club its story hasn't reached. Every run gets a fresh database and the app
+first (about 10 s; `playwright.runGlobalSetupOnEachRun` in `.vscode/settings.json`), so a journey run on its own
+meets a fresh club; the app stays up after, until the next run.
+
+**How long.** The full run is about 10 to 14 minutes, most of it the simulator's
 pacing (1.25 s a request) in the Kumite's two journeys. So it's split: the **core** run (`calendar`, `fees`,
 `fridays`, `kumite`, `members`, `pages`, `sign-in`, `status-over-date`: about 6 minutes, `--core`) every night on `main`, and the **full** run, with
 `kumite.on-the-clock` (its three played-out Kumites), before a release (a push to `release`).

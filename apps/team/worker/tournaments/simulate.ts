@@ -1,21 +1,5 @@
-// The Kumite simulator (ADR 0123): a dev-only tool that plays a tournament forward from wherever it is to its
-// after-party, so the after-party (ADR 0074) can be tried without scoring every match by hand. Every move is one the
-// app's own use cases make, as an admin would: the draft drawn, opened, each pick for the team on the clock, closed
-// with the fixtures; each match's scoresheet taken, its clock started, goals (with assists) and the odd penalty
-// logged as the clock runs, its periods ended and full time called, the playoffs filled from the table. It stops
-// with every match played and the awards still provisional: an admin confirms them and reveals them by hand.
-//
-// A move is one thing you'd see (a pick, a goal, a period's end), and says what it was and whether there's more
-// (`done`): the app asks again, paced so each lands on the page before the next (lib/simulation.ts), so it can be
-// watched, paused and stopped. A request makes one move, or at Spin kick a few (`simulateMoves`), as many as fit in
-// an invocation's D1 queries (Workers Free stops one at 50) with room to spare. Every move is read from the
-// tournament as it is, so a second run carries on where the first stopped, or says it's done.
-// The dice are the Worker's crypto (draft.ts randomBelow), which the tests seed (testing.ts luck).
-//
-// On its own day (`onItsDay`, a Kumite dated in the past, past-day.ts): every clock is the evening's, not now, a match
-// after the one before (on-its-day.ts), so it's played that evening and goes to history; and it goes on past the
-// matches: the awards confirmed (the stats', a draw's, a vote's and the judges' call chosen at random) and each one
-// revealed, so the Kumite has a whole evening behind it.
+// The Kumite simulator (apps/team/worker/settings/README.md), dev only: plays a tournament forward to its after-party,
+// one move you'd see at a time, through the app's own use cases as an admin would.
 import { all, first } from "@cougars/shared/d1";
 import { isDone } from "@cougars/shared/results";
 import type { Action } from "../../src/access/actions";
@@ -31,7 +15,7 @@ import { devToolsHere } from "../settings/devtools";
 
 /**
  * Whether the simulator exists on this Worker: where Dev tools do, only where the environment says, in so many words,
- * that it isn't production (devToolsHere, ADR 0123). Elsewhere the route isn't there at all (api.ts).
+ * that it isn't production (devToolsHere, apps/team/worker/settings/README.md). Elsewhere the route isn't there at all (api.ts).
  */
 export const simulatorHere = devToolsHere;
 
@@ -144,7 +128,8 @@ const DONE_SAID = "Every match played: on to the after-party. Confirm the awards
 
 /**
  * One move on from where it is, as `who` (an admin), at `now`: one change of the app's own (one guarded write). On its
- * own day (`onItsDay`), at the evening's time instead, and on through the awards.
+ * own day (`onItsDay`), at the evening's time instead, and on through the awards. Read from the tournament as it is,
+ * so a second run carries on where the first stopped. The dice are draft.ts randomBelow, which the tests seed.
  */
 export async function simulate(
   db: D1Database,

@@ -1,4 +1,4 @@
-// Saying you can't make it, from the Kumite's page (ADR 0074): once you've answered, your answer is the header's badge,
+// Saying you can't make it, from the Kumite's page (apps/team/worker/tournaments/README.md): once you've answered, your answer is the header's badge,
 // and its sheet's Can't make it says you're out, through the same answer the sign-up card uses.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";

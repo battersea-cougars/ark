@@ -69,7 +69,7 @@ async function accessToken(account: ServiceAccount, now: number): Promise<string
 }
 
 /**
- * Send each message (one request each: FCM has no batch send any more); what became of each, in the same order. Each
+ * Send each message (one request each: FCM has no batch send); what became of each, in the same order. Each
  * is a subrequest, so callers send a batch of at most SEND_AT_ONCE (push.ts); the Worker runs six at a time.
  */
 export async function sendAll(serviceAccount: string, messages: Message[], now = Date.now()): Promise<Result[]> {

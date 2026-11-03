@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A past one's results (ADR 0074), its after-party's view once that evening's over: the champions, the final, the
+  // A past one's results (apps/team/worker/tournaments/README.md), its after-party's view once that evening's over: the champions, the final, the
   // fight card, the board, the leaders, the awards. Its page (pages/Games) keeps its header and its track over them,
   // so every status it went through can still be opened.
   import type { Tournament, TournamentType } from "../demo/model";

@@ -1,4 +1,4 @@
-// A turn changing as one timeline (ADR 0060): burn the name in, hold, glide to the next team, then move the light;
+// A turn changing as one timeline (apps/team/worker/tournaments/README.md): burn the name in, hold, glide to the next team, then move the light;
 // your turn on a phone, then the players. Picks landing mid-way wait their turn.
 import { describe, expect, it } from "vitest";
 import { sequencer, turnSteps, type Landing } from "./draft-sequence";

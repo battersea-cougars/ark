@@ -1,6 +1,5 @@
-// Friday's teams (ADR 0076): only some people make them. Making and publishing teams is a role, Session lead, that an
-// admin gives a member; everyone else sees the teams once they're out. Driven through the real Worker handlers
-// (ADR 0031).
+// Friday's teams (apps/team/worker/training/README.md): a Session lead makes and publishes them; everyone else sees
+// them once they're out. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
@@ -19,7 +18,7 @@ beforeEach(() => {
 });
 
 // The next Friday session, and two teams from whoever's on the roster
-/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (ADR 0030) */
+/** The Monday before a Friday, at noon: Friday Training's sign-up for it is open (apps/team/worker/training/README.md) */
 const opens = (friday: string) => ({ now: new Date(Date.parse(`${friday}T12:00:00Z`) - 4 * 86_400_000) });
 
 async function teamsFor(b: Awaited<ReturnType<typeof w.signedIn>>) {
@@ -50,7 +49,7 @@ describe("making Friday's teams", () => {
     expect(seen.teams.map((t: { name: string }) => t.name)).toEqual(["Black", "White"]);
   });
 
-  // No drafts (ADR 0076): each move a team maker makes is saved as they make it, and everyone sees it
+  // No drafts (apps/team/worker/training/README.md): each move a team maker makes is saved as they make it, and everyone sees it
   it("a team maker moves a player and everyone sees it straight away", async () => {
     const tess = await w.signedIn("tess@example.com");
     const { session, teams } = await teamsFor(tess);
@@ -99,8 +98,8 @@ describe("starting a session again", () => {
   });
 });
 
-// The team maker's two jobs on Friday's page (ADR 0076): Make teams, and Clear teams when they want to start again.
-// Members on the page see either at once, without a refresh: the change reaches their open stream (ADR 0072)
+// The team maker's two jobs on Friday's page (apps/team/worker/training/README.md): Make teams, and Clear teams when they want to start again.
+// Members on the page see either at once, without a refresh: the change reaches their open stream (ADR 0053)
 describe("the team maker makes the teams, then clears them, with everyone watching", () => {
   const fridayOf = async (b: Awaited<ReturnType<typeof w.signedIn>>, id: number) =>
     (await b.club()).body.sessions.find((s: { id: number }) => s.id === id);
@@ -149,8 +148,8 @@ describe("the team maker makes the teams, then clears them, with everyone watchi
   });
 });
 
-// Spaces are what members see and what sign-up keeps to (ADR 0030), but on the night the team maker can let someone
-// waiting in anyway, over the limit (ADR 0076). The one let in hears it on their phone, as when a place comes up.
+// Spaces are what members see and what sign-up keeps to (apps/team/worker/training/README.md), but on the night the team maker can let someone
+// waiting in anyway, over the limit (apps/team/worker/training/README.md). The one let in hears it on their phone, as when a place comes up.
 describe("the team maker lets someone in from the waiting list", () => {
   /** Next Friday, room for two: Mo and Reg are in, Wes is waiting, and Wes has the app on his phone. */
   async function fullFriday() {

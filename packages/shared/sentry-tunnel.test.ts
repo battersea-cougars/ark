@@ -45,6 +45,17 @@ describe("the app's errors reach Sentry through its own address", () => {
     expect(sentry.sent).toEqual([]);
   });
 
+  it("past the club's daily cap, an envelope for our project is dropped quietly (#201)", async () => {
+    const sentry = fakeSentry();
+    const asked: string[] = [];
+    const allowed = async () => (asked.push("asked"), false);
+    expect((await sentryTunnel(post(envelope(DSN)), DSN, { fetch: sentry.fetch, allowed })).status).toBe(204);
+    expect(sentry.sent).toEqual([]);
+    // Someone else's project isn't counted against ours
+    await sentryTunnel(post(envelope("https://k@o999.ingest.sentry.io/1")), DSN, { fetch: sentry.fetch, allowed });
+    expect(asked).toEqual(["asked"]);
+  });
+
   it("a body that's too big or not an envelope is refused", async () => {
     const sentry = fakeSentry();
     expect((await sentryTunnel(post("x".repeat(300_000)), DSN, { fetch: sentry.fetch })).status).toBe(413);

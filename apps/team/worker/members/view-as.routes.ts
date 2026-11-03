@@ -1,14 +1,13 @@
-// Viewing the app as a member (ADR 0024, #40): starting, for whoever holds View as a member, and going back to
-// yourself, which is the one change the API takes while you're viewing. Either way the app reads the whole club again,
-// as whoever the sign-in is now answered as. What the API does meanwhile is api.ts's: it answers as the member and
-// refuses every other change (view-as.ts).
+// Viewing the app as a member (ADR 0024): starting, and going back to yourself, the one change the API takes while
+// you're viewing.
 import { type Ctx, memberIdIn, type Route } from "../api/api.route";
 import { HttpError, json } from "../api/api.http";
 import { first } from "@cougars/shared/d1";
 import { endViewing, startViewing, viewingAsOf } from "./view-as";
+import { actionsOf, canGrant } from "./members";
 
 const RELOADS = "who the app is shown as: everything it shows changes, so it reads the whole club again";
-/** On the record (ADR 0095): who the sign-in is viewing as, before and after, about the member viewed. */
+/** On the record (ADR 0024): who the sign-in is viewing as, before and after, about the member viewed. */
 const viewing = (event: string) => ({
   event,
   subject: (c: Ctx) => viewingAsOf(c.env.DB, c.sessionId),
@@ -28,6 +27,9 @@ export const VIEW_AS_ROUTES: Route[] = [
       if (memberId === c.memberId) throw new HttpError(400, "That's you.");
       const active = await first(c.env.DB, "SELECT 1 FROM members WHERE id = ? AND status = 'active'", [memberId]);
       if (!active) throw new HttpError(404, "No such member.");
+      // Viewing as someone reads what they may: not someone who can do more than you (the grant rule, ADR 0024)
+      if (!canGrant(c.actions, await actionsOf(c.env.DB, memberId)))
+        throw new HttpError(403, "They can do things you can't, so you can't view the app as them.");
       await startViewing(c.env.DB, c.sessionId, memberId);
       return json({ ok: true, memberId });
     },

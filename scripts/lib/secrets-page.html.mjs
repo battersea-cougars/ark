@@ -1,4 +1,4 @@
-// The Secrets page's HTML (#149; its handler is secrets-page.mjs). No <form>: nothing is submitted, so a value never
+// The Secrets page's HTML (its handler is secrets-page.mjs). No <form>: nothing is submitted, so a value never
 // reaches the address bar, the history or a password manager's "save this?"; each field is cleared once used. The Check
 // box never sends anything: it hashes the pasted value in the browser and compares fingerprints.
 import { FINGERPRINT_HEX, shapeWarnings } from "./secret-shapes.mjs";

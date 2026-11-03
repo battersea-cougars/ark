@@ -1,7 +1,6 @@
-// Rate limits for the team app's API (ADR 0055), best effort through the Workers Cache API (packages/shared/rate-limit.ts).
-// Where there's no Cache API (a plain unit test) everything goes through; the per-member sign-in limits in D1 still
-// hold. Generous: nobody tapping normally should see them. A whole squad on the rink's wifi shares one address, so a
-// signed-in member is counted as themselves, not by where they are (#113); the address keeps a ceiling over them all.
+// Rate limits for the team app's API (ADR 0055), best effort through the Workers Cache API
+// (packages/shared/rate-limit.ts). Generous: nobody tapping normally should see them. Without a Cache API (a plain unit
+// test) everything goes through.
 import { rateLimit } from "@cougars/shared/rate-limit";
 import { HttpError } from "./api.http";
 import { scribe } from "@cougars/shared/scribe";

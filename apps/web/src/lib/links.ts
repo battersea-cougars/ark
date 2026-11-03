@@ -1,4 +1,4 @@
-// Links typed by someone else (the Studio, the team app's venues) are checked before they reach a page (ADR 0036):
+// Links typed by someone else (the Studio, the team app's venues) are checked before they reach a page (ADR 0024):
 // only web, email and phone links, or a link within the site. Anything else, a `javascript:` link above all, is
 // dropped, so a page shows the words without the link.
 

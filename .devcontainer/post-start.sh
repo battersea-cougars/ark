@@ -33,6 +33,27 @@ if [ -d /home/node/.claude ]; then
   sudo chown node:node /home/node/.claude 2>/dev/null || true
 fi
 
+# Claude Code's settings file lives in the mounted ~/.claude (CLAUDE_CONFIG_DIR, docker-compose.yml), so trust and
+# Remote Control survive a rebuild. The first start with it takes home's copy in.
+claude_config="$HOME/.claude/.claude.json"
+if [ ! -e "$claude_config" ] && [ -f "$HOME/.claude.json" ]; then
+  cp -p "$HOME/.claude.json" "$claude_config"
+  chmod 600 "$claude_config"
+fi
+
+# `claude` on the PATH: the VS Code extension brings Claude Code but keeps the binary under a versioned folder. The
+# newest is picked at each run, so an extension update needs no restart. `claude remote-control --name
+# cougars-container` makes the container a machine of its own in claude.ai/code: sessions started from the phone run
+# in here, beside the others. .vscode/tasks.json starts it when VS Code opens the folder.
+mkdir -p "$HOME/.local/bin"
+cat >"$HOME/.local/bin/claude" <<'SH'
+#!/bin/sh
+bin=$(ls -d "$HOME"/.vscode-server/extensions/anthropic.claude-code-*/resources/native-binary/claude 2>/dev/null | sort -V | tail -n 1)
+[ -n "$bin" ] || { echo "claude: the VS Code extension isn't installed in this container yet" >&2; exit 127; }
+exec "$bin" "$@"
+SH
+chmod 755 "$HOME/.local/bin/claude"
+
 # Cline keeps its settings (API keys included) in ~/.cline/data, which a rebuild wipes. Link them
 # to the workspace's gitignored .cline-local/, moving home's copy in on the first start. A
 # workspace copy always wins; a home copy beside it is kept as .bak. Chat history (sessions/, db/)
@@ -71,8 +92,10 @@ if [ ! -d "$ROOT/node_modules" ] || [ "$ROOT/package-lock.json" -nt "$ROOT/node_
   (cd "$ROOT" && npm install)
 fi
 
-# Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data (ADR 0050).
-(cd "$ROOT" && npm run --silent db:rebuild:local >/dev/null) || echo "Local D1 rebuild failed; run: npm run db:rebuild:local"
+# Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data, until launch; after it, migrated (ADR 0050).
+db_step=db:rebuild:local
+if ls "$ROOT"/db/migrations/*.sql >/dev/null 2>&1; then db_step=db:migrate:local; fi
+(cd "$ROOT" && npm run --silent "$db_step" >/dev/null) || echo "Local D1 update failed; run: npm run $db_step"
 # An empty club (a new container, a deleted database): seed it, so the team app has people and an admin to sign in as.
 # Your own db/seed/roster.local.json if there is one, else the made-up example club. A club with members is left alone.
 members=$(cd "$ROOT/apps/web" && npx --no-install wrangler d1 execute DB --local --json \
@@ -88,5 +111,5 @@ if [ -d "/home/node/.config/Bitwarden CLI" ]; then
   sudo chown -R node:node "/home/node/.config/Bitwarden CLI" 2>/dev/null || true
 fi
 if command -v bw >/dev/null 2>&1; then
-  echo "Secrets: bw-unlock (first time: bw config server https://vault.bitwarden.eu && bw login). docs/setup.md"
+  echo "Secrets: bw-unlock (first time: bw config server https://vault.bitwarden.eu && bw login). docs/accounts.md"
 fi

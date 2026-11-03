@@ -1,5 +1,5 @@
 <script lang="ts">
-  // A tournament's table (ADR 0061): its group games with a result, points, then goal difference, then goals for, with
+  // A tournament's table (apps/team/worker/tournaments/README.md): its group games with a result, points, then goal difference, then goals for, with
   // its own points for a win, draw and loss; the champions marked once it's decided. On the board, on a past one's
   // page (History), and at the after-party in its final order.
   import { nameOfTeam, teamNamesOf } from "./names";
@@ -23,7 +23,7 @@
     order?: TableRow[];
   } = $props();
 
-  // This tournament's own points (ADR 0030)
+  // This tournament's own points (apps/team/worker/training/README.md)
   const points = $derived({ win: tournament.pointsWin, draw: tournament.pointsDraw, loss: tournament.pointsLoss });
   const teams = $derived(tournament.teams);
   const group = $derived((tournament.games ?? []).filter((g) => g.stage === "group"));

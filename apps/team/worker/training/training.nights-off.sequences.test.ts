@@ -1,29 +1,6 @@
-// Nights and Kumites, in any order (#186): random sequences of what admins do, through the real Worker handlers as
-// the app sends them, checked after every step against a model of the rule (ADR 0122). The user: "make sure that you
-// have handled all the weird permutations of adding/cancelling, overlapping dates". Seeded (mulberry32), so a failure
-// says its seed and its steps, and comes out the same again; one found is shrunk by hand into a named use case in
-// training.nights-off.use-cases.test.ts.
-//
-// Two windows of a few weeks: October 2026 (the clocks go back on Sunday 25th) and March 2027 (forward on the 28th),
-// Friday Training and a second training on Fridays (Juniors, 17:00), Reg in on every night. The steps:
-//   a Kumite made on a Friday, the Thursday before or the Saturday after, in the evening, the afternoon, or running past
-//   midnight (into a Friday from a Thursday), or only a season; the clash question answered Cancel it or Keep both;
-//   moved: to another day, its hours only, to a season, back to a day (asked again when the day or hours move);
-//   finished early (#182); deleted (a Kumite has no cancel of its own: deleting it is how it's called off);
-//   a night called off by hand, and put back on (It's back on);
-//   a one-off on a day, over the trainings, Cancel it or Keep both (a one-off's Cancel is a hand cancellation);
-//   the clock moved on, past a night's 06:00 the morning after (its register closes) and across the clock change.
-// The invariants, after every step:
-//   1. a night that's open is off exactly when it's called off by hand or a Kumite still keeps it off (one the admin
-//      cancelled it for, still on its London day, or one on its day when it was already off), and says so (offByHand,
-//      offFor); a night whose register has closed never changes;
-//   2. It's back on works on every open night (a step), and is refused on a closed one;
-//   3. Reg is still in every night he said he was in; he's told a night's off at most once for each time it went off,
-//      and at least once if it ever did;
-//   4. the calendar's agenda says what the nights say; it has every Kumite with a day and none that's gone;
-//   5. the Kumite's page is on the one the club's full list says (status, then the date, #182): opening the app sends
-//      it; Home's Kumite (the lead, or Coming up's row) is the same one; Coming up is in date order;
-//   6. a Kumite's clash question lists exactly the trainings' nights on its London day(s) that are on, from today.
+// Nights and Kumites, in any order (apps/team/worker/training/README.md): seeded random sequences of what admins do,
+// through the real Worker handlers, checked after every step against a model of the rule. A failure says its seed and
+// steps; one found is shrunk by hand into a named use case in training.nights-off.use-cases.test.ts.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { londonDay, londonISO } from "@cougars/shared/london";
 import { testWorld } from "../testing";
@@ -135,6 +112,15 @@ beforeEach(() => {
   w = testWorld(ROSTER);
 });
 
+// Two windows of a few weeks: October 2026 (the clocks go back on Sunday 25th) and March 2027 (forward on the 28th),
+// Friday Training and a second training on Fridays (Juniors, 17:00), Reg in on every night. The steps:
+//   a Kumite made on a Friday, the Thursday before or the Saturday after, in the evening, the afternoon, or running past
+//   midnight (into a Friday from a Thursday), or only a season; the clash question answered Cancel it or Keep both;
+//   moved: to another day, its hours only, to a season, back to a day (asked again when the day or hours move);
+//   finished early; deleted (a Kumite has no cancel of its own: deleting it is how it's called off);
+//   a night called off by hand, and put back on (It's back on);
+//   a one-off on a day, over the trainings, Cancel it or Keep both (a one-off's Cancel is a hand cancellation);
+//   the clock moved on, past a night's 06:00 the morning after (its register closes) and across the clock change.
 /** One sequence: its window, its seed's steps, every invariant after each. Throws with what happened, in words. */
 async function sequence(seed: number) {
   const rnd = random(seed);
@@ -426,7 +412,17 @@ async function sequence(seed: number) {
   };
   const bag = Object.entries(steps).flatMap(([name, s]) => Array(s.weight).fill(name) as string[]);
 
-  // ─── The invariants ───
+  // ─── The invariants, after every step ───
+  //   1. a night that's open is off exactly when it's called off by hand or a Kumite still keeps it off (one the admin
+  //      cancelled it for, still on its London day, or one on its day when it was already off), and says so (offByHand,
+  //      offFor); a night whose register has closed never changes;
+  //   2. It's back on works on every open night (a step), and is refused on a closed one;
+  //   3. Reg is still in every night he said he was in; he's told a night's off at most once for each time it went off,
+  //      and at least once if it ever did;
+  //   4. the calendar's agenda says what the nights say; it has every Kumite with a day and none that's gone;
+  //   5. the Kumite's page is on the one the club's full list says (status, then the date): opening the app sends
+  //      it; Home's Kumite (the lead, or Coming up's row) is the same one; Coming up is in date order;
+  //   6. a Kumite's clash question lists exactly the trainings' nights on its London day(s) that are on, from today.
   const slugs = new Map(
     (raw.prepare("SELECT id, slug FROM training_series").all() as { id: number; slug: string }[]).map((x) => [
       x.id,

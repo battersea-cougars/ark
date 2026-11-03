@@ -2,5 +2,5 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-// Album pages are gone: the photos are the club's Instagram now (ADR 0016). An old album's address goes to them.
+// An old album's address (/photos/<album>) goes to the club's photos, its Instagram (ADR 0016).
 export const GET: APIRoute = ({ redirect }) => redirect("/photos/", 301);

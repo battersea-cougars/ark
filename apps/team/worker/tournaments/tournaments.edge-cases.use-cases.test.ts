@@ -1,7 +1,6 @@
-// A tournament's edges as an admin sets it up (ADR 0030, 0074): what the editor can send that the server must refuse
-// (names too long or blank, dates that can't be, sign-up and draft days out of order, too many teams, someone on two
-// teams), what it must keep exactly (names in any script, emoji), a series' slugs, and who may change a team's look.
-// Driven through the real Worker handlers in the fake world (ADR 0031).
+// A tournament's edges as an admin sets it up (apps/team/worker/tournaments/README.md): what the server must refuse,
+// what it must keep exactly, a series' slugs, and who may change a team's look. Driven through the real Worker
+// handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
@@ -170,7 +169,7 @@ describe("an admin sets a tournament's teams", () => {
     expect((await dana.boot()).tournaments.filter((t: Json) => t.name === "Winter Cup")).toEqual([]);
   });
 
-  // Its teams are checked against the members before it goes in (#132: a refusal there left it behind, with no teams)
+  // Its teams are checked against the members before it goes in (a refusal there left it behind, with no teams)
   it("a create refused for a captain who isn't a member leaves nothing behind", async () => {
     const dana = await admin();
     const cara = await dana.idOf("Cara Captain");
@@ -277,6 +276,26 @@ describe("a team's look", () => {
     const other = await dana.create({ name: "Other Cup" });
     expect((await look(cara, teamIds[0], { name: "X" }, other.body.id)).status).toBe(404);
     expect((await look(dana, 9999, { name: "X" })).status).toBe(404);
+  });
+
+  it("an admin changing a team's look is on the record; its captain changing it is their own (#201)", async () => {
+    const { dana, teamIds, look } = await drafted();
+    const entries = () =>
+      w.db.raw.prepare("SELECT detail FROM audit_log WHERE action = 'team.look' ORDER BY id").all() as {
+        detail: string;
+      }[];
+    const cara = await w.signedIn("cara@example.com");
+    expect((await look(cara, teamIds[0], { name: "Cats" })).status).toBe(200);
+    expect(entries()).toEqual([]);
+
+    expect((await look(dana, teamIds[0], { name: "Dogs" })).status).toBe(200);
+    const [renamed] = entries().map((e) => JSON.parse(e.detail));
+    expect(renamed.from).toMatchObject({ name: "Cats", crest: null, tournament: "Winter Cup" });
+    expect(renamed.to).toMatchObject({ name: "Dogs", crest: null, tournament: "Winter Cup" });
+
+    // Saving it as it is changes nothing, so nothing goes on the record
+    expect((await look(dana, teamIds[0], { name: "Dogs" })).status).toBe(200);
+    expect(entries()).toHaveLength(1);
   });
 
   it("not signed in, a team's look can't be changed; a member who isn't its captain neither", async () => {

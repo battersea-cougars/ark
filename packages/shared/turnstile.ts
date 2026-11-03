@@ -1,8 +1,7 @@
-// Cloudflare Turnstile: did a person send the form? (docs/adr/0028-turnstile-and-auto-reply.md). Free, no cookies.
-// The widget adds a token to the form; the server checks it once with Cloudflare. On the website's /join (as
-// `cf-turnstile-response`) a missing or failed check doesn't stop the enquiry (the form must work without
-// JavaScript): it's saved and the club is emailed, but there's no auto-reply. In the team app, asking for a sign-in
-// code and asking to join are refused without one (apps/team/worker/auth/auth.turnstile.ts, #13).
+// Cloudflare Turnstile: did a person send the form? (ADR 0027). Free, no cookies: the widget adds a token to the form
+// and the server checks it once with Cloudflare. On the website's /join a missing or failed check only skips the
+// auto-reply (the form must work without JavaScript); in the team app, asking for a sign-in code or to join is
+// refused without one (apps/team/worker/auth/auth.turnstile.ts).
 import { scribe } from "./scribe";
 
 const log = scribe.logger("turnstile");
@@ -10,7 +9,7 @@ const log = scribe.logger("turnstile");
 export const TURNSTILE_FIELD = "cf-turnstile-response";
 /**
  * The website's /join widget's action. Every form's widget has its own (the team app's are `sign-in` and `join`), so a
- * token from one is never accepted by another: the one Turnstile widget covers both sites (ADR 0028).
+ * token from one is never accepted by another: the one Turnstile widget covers both sites (ADR 0027).
  */
 export const ENQUIRY_ACTION = "enquiry";
 export const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";

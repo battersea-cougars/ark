@@ -1,4 +1,4 @@
-// Training (ADR 0030, ADR 0076): series and their sessions, the register, and the night's teams.
+// Training (apps/team/worker/training/README.md): series and their sessions, the register, and the night's teams.
 import { places, sessionOff, teamsOut } from "../push/push.notices";
 import { can } from "../../src/access/actions";
 import { id, memberIdIn, ok, rowOf, rowsOf, type Route } from "../api/api.route";
@@ -34,7 +34,7 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["series", "sessions", "charges", "dues"],
     handle: async (c) => {
       const b = await body(c.request);
-      // A new training is free until whoever sets fees says otherwise; its fees go in with it, or neither (#131)
+      // A new training is free until whoever sets fees says otherwise; its fees go in with it, or neither
       const fees = can(c.actions, "manage:Fees") ? await seriesFeeChange(c.env.DB, null, b.fees, c.actions) : undefined;
       return json(await createSeries(c.env.DB, b, c.today, fees), 201);
     },
@@ -56,7 +56,7 @@ export const TRAINING_ROUTES: Route[] = [
     changes: ["series", "sessions", "charges", "dues"],
     // A limit raised lets the first waiting in on each night, and they hear it
     notify: places,
-    // Its fees too, for whoever sets fees (ADR 0007)
+    // Its fees too, for whoever sets fees (apps/team/worker/dues/README.md)
     handle: async (c) => {
       const b = await body(c.request);
       const fees = await seriesFeeChange(c.env.DB, id(c), b.fees, c.actions);
@@ -85,7 +85,7 @@ export const TRAINING_ROUTES: Route[] = [
     action: "manage:Training",
     changes: ["sessions"],
     // { heldOn }: the one night the rule gives that day, made now (past the weeks ahead) so it can be cancelled
-    // before the rest are made (a clash, ADR 0122); { id }, the same night if it's made already
+    // before the rest are made (a clash, apps/team/worker/training/README.md); { id }, the same night if it's made already
     handle: async (c) => json({ id: await nightOf(c.env.DB, id(c), await body(c.request), c.today) }),
   },
   {
@@ -96,11 +96,14 @@ export const TRAINING_ROUTES: Route[] = [
       subject: rowOf("SELECT id, held_on heldOn, cancelled_at cancelledAt FROM training_sessions WHERE id = ?"),
     },
     action: "manage:Training",
-    changes: ["sessions", "members", "charges", "dues"],
+    // A night off (or on again) counts in what everyone's played, not in who they are
+    changes: ["sessions", "played", "charges", "dues"],
     notify: sessionOff,
     handle: async (c) => {
       const b = await body(c.request);
       if (typeof b.cancelled !== "boolean") throw new HttpError(400, "cancelled should be true or false.");
+      // That night's charges only
+      c.charged = { sessions: [id(c)] };
       if (!b.cancelled) return (await backOn(c.env.DB, id(c), c.now), ok());
       await callOff(c.env.DB, id(c), offFor(b), c.now);
       return ok();
@@ -143,13 +146,14 @@ export const TRAINING_ROUTES: Route[] = [
       event: "signups.changed",
       subject: rowsOf("SELECT member_id memberId, signup FROM attendance WHERE session_id = ? ORDER BY member_id"),
     },
-    // Who's playing is the team maker's to decide on the night, as the teams are (ADR 0076)
+    // Who's playing is the team maker's to decide on the night, as the teams are (apps/team/worker/training/README.md)
     action: "publish:Teams",
     changes: ["sessions", "charges", "dues"],
     notify: places,
     // Someone waiting, in over the limit
     handle: async (c) => {
       const { memberId } = await memberIdIn(c);
+      c.charged = { sessions: [id(c)] };
       await letIn(c.env.DB, id(c), memberId, c.now);
       return ok();
     },
@@ -161,13 +165,16 @@ export const TRAINING_ROUTES: Route[] = [
     action: "update:Event",
     changes: ["sessions", "charges", "dues"],
     // Start the session again: no sign-ups, no teams
-    handle: async (c) => (await resetSession(c.env.DB, id(c), c.now), ok()),
+    handle: async (c) => {
+      c.charged = { sessions: [id(c)] };
+      return (await resetSession(c.env.DB, id(c), c.now), ok());
+    },
   },
   {
     method: "POST",
     path: /^\/api\/sessions\/(\d+)\/register$/,
     audit: {
-      // The register makes the night's charges (ADR 0007): who was there, who didn't come, who walked in
+      // The register makes the night's charges (apps/team/worker/dues/README.md): who was there, who didn't come, who walked in
       event: "register.marked",
       subject: rowsOf(
         `SELECT member_id memberId, attended, walk_in walkIn FROM attendance
@@ -175,16 +182,25 @@ export const TRAINING_ROUTES: Route[] = [
       ),
     },
     action: "record:Attendance",
-    // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "dues"],
+    // Who came is who's charged (apps/team/worker/dues/README.md). Not who anyone is or what they may do: everyone's phones read the night,
+    // not the whole club; what they've played as it turned out (below). The weeks just held too: the night goes
+    // into them, as it was marked, once its register closes
+    changes: ["sessions", "charges", "dues"],
+    // Who came moves nothing on the calendar
+    calendar: false,
     // A walk-in taken off frees a place
     notify: places,
     // The register on the night (or before it): here or not. Someone added to a full night waits for the team
-    // maker's Let in (ADR 0131); the reply says where they went: { signup: "in" | "waitlist" | null }
+    // maker's Let in (apps/team/worker/training/README.md); the reply says where they went: { signup: "in" | "waitlist" | null }
     handle: async (c) => {
       const { b, memberId } = await memberIdIn(c);
       if (typeof b.here !== "boolean") throw new HttpError(400, "here should be true or false.");
-      return json({ signup: await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now) });
+      // That night's charges only, not every one there's been
+      c.charged = { sessions: [id(c)] };
+      const marked = await mark(c.env.DB, id(c), memberId, b.here, c.memberId, c.now);
+      // A night already held (its register taken the morning after) counts in what they've played
+      if (marked.heldOn < c.today) c.alsoChanged.push("played");
+      return json({ signup: marked.signup });
     },
   },
 ];

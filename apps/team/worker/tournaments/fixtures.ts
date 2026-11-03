@@ -1,8 +1,5 @@
-// A tournament's fixtures, results and playoffs (ADR 0061). Once it has two teams (a captains' draft's captains, or the
-// teams that entered), an admin has the app make the fixtures: a round robin, every team playing every other once,
-// in the order that gives everyone the longest break (lib/fixtures.ts fairFixtures), then the playoff games its
-// settings ask for, by table position. They can be made again until a game has a result. When the last group game has
-// its result, the playoffs get their teams from the table.
+// A tournament's fixtures, results and playoffs (apps/team/worker/tournaments/README.md): a round robin in the fairest
+// order (lib/fixtures.ts), then the playoffs its settings ask for, filled from the table.
 import { all, batch, first, statement } from "@cougars/shared/d1";
 import { fairFixtures, scorekeepers, table } from "../../src/lib/fixtures";
 import { grouped } from "../../src/lib/grouped";
@@ -23,7 +20,7 @@ export interface Game {
   homeGoals: number | null;
   awayGoals: number | null;
   status: "next" | "live" | "done";
-  /** The team suggested to keep score: one sitting it out (ADR 0061); null until its teams are known. */
+  /** The team suggested to keep score: one sitting it out (apps/team/worker/tournaments/README.md); null until its teams are known. */
   scoringTeamId: number | null;
   /** Who holds the scoresheet: whoever pressed Start scoring (null: nobody yet). Only they score it. */
   keeperId: number | null;
@@ -130,7 +127,7 @@ export function gamesFrom(
       games,
     ))
       keepers.set(game, team);
-  // Each goal and penalty put with its game once, not every game looking through every one there's been (#175)
+  // Each goal and penalty put with its game once, not every game looking through every one there's been
   const goalsOf = grouped(goals, (x) => x.gameId);
   const penaltiesOf = grouped(penalties, (x) => x.gameId);
   return rows.map((g) => ({
@@ -150,7 +147,7 @@ export interface TournamentRow {
   loss: number;
   gameMinutes: number;
   periods: number;
-  /** The length a penalty's called at unless said (ADR 0061). */
+  /** The length a penalty's called at unless said (apps/team/worker/tournaments/README.md). */
   defaultPenaltyMinutes: number;
 }
 
@@ -178,7 +175,7 @@ const teamIdsOf = async (db: D1Database, id: number) =>
 /**
  * The statements that take a tournament's fixtures away: its matches and their goals and penalties, whatever
  * makeFixtures makes (a match's scoresheet, clock and result are on its row). `when`, if given, is SQL that must
- * hold for each to run, with its params: a batch that clears only if it's still the moment to (ADR 0121).
+ * hold for each to run, with its params: a batch that clears only if it's still the moment to (ADR 0003).
  */
 export function clearingFixtures(db: D1Database, id: number, when = "1", whenArgs: number[] = []) {
   const games = "SELECT id FROM tournament_games WHERE tournament_id = ?";
@@ -260,7 +257,7 @@ export async function makeFixtures(db: D1Database, id: number, seed?: number) {
     rows.push([id, "playoff", group.length + 1, rows.length + 1, p.name, null, null, p.home, p.away]);
   await batch(db, [
     ...clearingFixtures(db, id),
-    // Every game in one statement: a JSON list of rows (ADR 0059)
+    // Every game in one statement: a JSON list of rows (ADR 0003)
     statement(
       db,
       `INSERT INTO tournament_games (tournament_id, stage, round, position, name, home_team_id, away_team_id,
@@ -293,7 +290,7 @@ export async function scoreGame(db: D1Database, tournamentId: number, gameId: nu
     throw new HttpError(409, `Game ${upNext?.position ?? ""} is up next: score that one.`);
   if (game.stage === "playoff" && homeGoals === awayGoals)
     throw new HttpError(400, "A playoff can't end level: the next goal won it.");
-  // The score and its goals in one batch, each side's goals matched against the count inside its statement (ADR 0121):
+  // The score and its goals in one batch, each side's goals matched against the count inside its statement (ADR 0003):
   // the same result saved twice at once finds the goals the first put on and adds none
   await batch(db, [
     statement(db, "UPDATE tournament_games SET home_goals = ?, away_goals = ?, status = 'done' WHERE id = ?", [
@@ -340,7 +337,7 @@ export async function fillPlayoffs(db: D1Database, tournamentId: number, t: Tour
     games
       .filter((g) => g.stage === "playoff" && g.status === "next")
       .map((g) =>
-        // Only while it's still to start, decided in the statement (#122): one being played keeps its teams and goals
+        // Only while it's still to start, decided in the statement: one being played keeps its teams and goals
         statement(
           db,
           `UPDATE tournament_games SET home_team_id = ?, away_team_id = ? WHERE id = ? AND status = 'next'

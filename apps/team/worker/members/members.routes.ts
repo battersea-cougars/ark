@@ -1,4 +1,4 @@
-// Members (ADR 0024, ADR 0069): adding, importing, editing and erasing them, their contact, roles and attendance.
+// Members (ADR 0024, apps/team/worker/members/README.md): adding, importing, editing and erasing them, their contact, roles and attendance.
 import { places } from "../push/push.notices";
 import { id, ok, theMember, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
@@ -11,6 +11,7 @@ import { forgetPasskeys } from "../auth/auth.passkeys";
 import { endLive } from "../live/live";
 import { markAll, type Mark } from "../entries/entries";
 import { memberExists } from "../dues/dues";
+import { photoOf } from "./members.photo";
 import {
   addMember,
   attendanceOf,
@@ -53,6 +54,17 @@ export const MEMBERS_ROUTES: Route[] = [
   },
   {
     method: "GET",
+    path: /^\/api\/members\/(\d+)\/photo$/,
+    action: "authenticated",
+    // Their profile photo (apps/team/worker/members/README.md), for anyone who may see them; ?v= is when it was set, so it's kept until it changes
+    handle: async (c) =>
+      photoOf(c.env.DB, id(c), {
+        memberId: c.memberId,
+        seesAll: c.actions.has("manage:all") || c.actions.has("manage:Member"),
+      }),
+  },
+  {
+    method: "GET",
     path: /^\/api\/members\/(\d+)\/attendance$/,
     action: "manage:Member",
     // ?year=2026; this year by default
@@ -77,14 +89,16 @@ export const MEMBERS_ROUTES: Route[] = [
       about: (c) => ({ memberId: id(c) }),
     },
     action: "record:Attendance",
-    // Who came is who's charged (ADR 0007)
-    changes: ["sessions", "members", "charges", "dues"],
+    // Who came is who's charged (apps/team/worker/dues/README.md), and counts in what they've played: not who they are
+    changes: ["sessions", "played", "charges", "dues"],
     // A walk-in taken off frees a place: whoever moves up hears it
     notify: places,
     // { marks: [{ sessionId, here }] }: each Friday ticked or unticked, in one go
     handle: async (c) => {
       const marks = await marksIn(c.request);
       await memberExists(c.env.DB, id(c));
+      // Their charges only
+      c.charged = { members: [id(c)] };
       await markAll(c.env.DB, id(c), marks, c.memberId, c.now);
       return json({ sessionIds: marks.map((m) => m.sessionId) });
     },
@@ -102,7 +116,7 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     handle: async (c) => {
       const { emailChanged } = await setContact(c.env.DB, id(c), await body(c.request), c);
-      // A new sign-in email: whoever was signed in as them with the old one is signed out (#72), and their passkeys go,
+      // A new sign-in email: whoever was signed in as them with the old one is signed out, and their passkeys go,
       // so whoever had the account before keeps no way in (ADR 0023)
       if (emailChanged) {
         await endSessions(c.env, c.now, { memberId: id(c) });
@@ -134,7 +148,7 @@ export const MEMBERS_ROUTES: Route[] = [
   {
     method: "POST",
     path: /^\/api\/members$/,
-    // Who they are, and whether the add emailed them the app link (#164)
+    // Who they are, and whether the add emailed them the app link
     audit: {
       event: "member.added",
       subject: async (c, reply) =>
@@ -144,7 +158,7 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     // { name, email, position, emailThem? }: in the club now, and emailed a link to the app unless emailThem is false
-    // (ADR 0069, #164)
+    // (apps/team/worker/members/README.md)
     handle: async (c) => json(await addMember(c.env, await body(c.request), new URL(c.request.url).origin, c), 201),
   },
   {
@@ -159,7 +173,7 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     // Nothing of theirs changes; the sheet's members come back as after any action on a member
     changes: ["members"],
-    // Someone added quietly (#164), or whose first email went astray: the same link to the app, once per tap
+    // Someone added quietly, or whose first email went astray: the same link to the app, once per tap
     handle: async (c) => json(await sendAppLink(c.env, id(c), new URL(c.request.url).origin)),
   },
   {
@@ -196,13 +210,18 @@ export const MEMBERS_ROUTES: Route[] = [
     action: "manage:Member",
     changes: ["members"],
     handle: async (c) => {
-      const { letIn, shutOut } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      const { letIn, shutOut, keeperChanged } = await updateMember(c.env.DB, id(c), await body(c.request), c);
+      // Made a keeper or no longer one: their own charges are worked out again (apps/team/worker/dues/README.md)
+      if (keeperChanged) {
+        c.charged = { members: [id(c)] };
+        c.alsoChanged.push("charges", "dues");
+      }
       // Made inactive: every way in goes, sessions and passkeys alike; let back in, they start with a code (ADR 0023)
       if (shutOut) {
         await endSessions(c.env, c.now, { memberId: id(c) });
         await forgetPasskeys(c.env.DB, id(c));
       }
-      // Let in after asking to join: they hear so, with the way in (ADR 0069)
+      // Let in after asking to join: they hear so, with the way in (apps/team/worker/members/README.md)
       if (letIn) {
         const m = await first<{ name: string; email: string | null }>(
           c.env.DB,
@@ -227,9 +246,9 @@ export const MEMBERS_ROUTES: Route[] = [
     changes: ["members"],
     // The places they gave up go to whoever's waiting, who hear it
     notify: places,
-    // A member who asked the club, by email, to delete their account (#30): as if they'd done it themselves
+    // A member who asked the club, by email, to delete their account: as if they'd done it themselves
     handle: async (c) => {
-      // Never someone who can do more than the one erasing them (ADR 0036), as for any other change to a member
+      // Never someone who can do more than the one erasing them (ADR 0024), as for any other change to a member
       await mayChange(c.env.DB, c.actions, id(c));
       await eraseMember(c.env.DB, id(c), c.today, c.now);
       await endLive(c.env, { memberId: id(c) });

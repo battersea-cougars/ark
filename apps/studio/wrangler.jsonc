@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // The Studio, self-hosted (ADR 0112): `sanity build` (dist/) served as static assets, no code of ours running. Every
+  // The Studio, self-hosted (ADR 0004): `sanity build` (dist/) served as static assets, no code of ours running. Every
   // path is the Studio's own (it routes in the browser), so an unknown one gets index.html. Static assets are free and
   // unlimited (ADR 0003). Dev: studio.<dev subdomain>.workers.dev, from `main`.
   "name": "studio",

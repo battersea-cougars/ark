@@ -1,17 +1,16 @@
 <script lang="ts">
-  // A player's card, picked up: it lifts from where it lies, turns over sideways and comes up to the middle of the
-  // screen, showing its dark back: who they are, their number tonight, and a line or two about them. (An admin on
-  // Teammates gets MemberSheet instead.) Closing is the same turn back, in one move. Its actions sit as icons in the card's top band. Someone who runs events can take
-  // the player off the session from here (two taps, so a stray one can't). Without motion it just appears. Once it lands it drops its 3D turn, so fields and
-  // menus on the back behave like any others.
+  // A player's card, picked up: it lifts, turns over and comes to the middle showing who they are and their number
+  // tonight, its actions in its top band (taking them off the session takes two taps). Without motion it just appears;
+  // once it lands it drops its 3D turn, so fields and menus on the back behave like any others.
   import { goesBy, shortName } from "./names";
   import { onMount, tick } from "svelte";
+  import { closeOnBack } from "./back";
   import { POSITIONS, POSITION_ICONS, type Player } from "../demo/data";
   import mark from "../assets/cougars-mark.webp";
   import { EASE_OUT, prefersReducedMotion } from "../app/motion";
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCard from "./PlayerCard.svelte";
-  import { initials } from "./initials";
+  import Avatar from "./Avatar.svelte";
   import { portal } from "./overlay";
 
   let {
@@ -120,6 +119,8 @@
   function onkeydown(e: KeyboardEvent) {
     if (e.key === "Escape") close();
   }
+  // Back (a phone's gesture, the browser's) puts the card down too, while it's up (lib/back.ts)
+  $effect(() => closeOnBack(() => void close()));
 </script>
 
 <svelte:window {onkeydown} />
@@ -150,7 +151,7 @@
             </div>
           </header>
           <div class="who">
-            <span class="avatar">{initials(goesBy(player))}</span>
+            <Avatar {player} />
             <div>
               <h2>{goesBy(player)}</h2>
               <p class="pos">
@@ -306,7 +307,7 @@
     gap: 4cqw;
     padding: 5cqw 5cqw 3cqw;
   }
-  .avatar {
+  .who :global(.avatar) {
     display: grid;
     place-items: center;
     flex-shrink: 0;

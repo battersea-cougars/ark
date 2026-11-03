@@ -1,11 +1,5 @@
-// Following the draft on a phone (ADR 0060). The teams are the page: no tabs. The room opens with the team on the clock
-// in front, and a captain's view goes where the draft is: each pick that lands burns into its team in front, held a
-// moment with the name cooled, and only then on to the next team. Your turn come round (once the last pick's burnt in):
-// the Your pick button comes up at the foot of the screen, and opens the players in a drawer; you pick and confirm in
-// it, it shuts, and your pick burns into your team in front. The turn passing while it's open to pick (an admin picked
-// for you, or your other phone) shuts it and says so. Anyone can open the players to look. Move the teams yourself and
-// it leaves you be until your next pick or your next turn (or Follow the draft). The page does the burns' timing and
-// the motion; this says where the view goes, and when.
+// Following the draft on a phone (apps/team/worker/tournaments/README.md): where a captain's view goes, and when, as
+// picks land and the turn comes round. The page does the burns' timing and the motion.
 
 export type Drawer = "shut" | "look" | "pick";
 
@@ -65,6 +59,14 @@ function moveTo(s: Follow, clock: number, mine: number): Follow {
   return s.follow ? { ...s, focus: clock, yours: false } : { ...s, yours: false };
 }
 
+/**
+ * The teams are the page: no tabs. The room opens with the team on the clock in front; each pick that lands burns into
+ * its team in front, held a moment with the name cooled, and only then on to the next team. Your turn come round (once
+ * the last pick's burnt in), the Your pick button comes up at the foot of the screen and opens the players in a drawer;
+ * you pick and confirm there, and it shuts. The turn passing while it's open to pick (an admin picked for you, or your
+ * other phone) shuts it and says so. Anyone can open the players to look. Move the teams yourself and it leaves you be
+ * until your next pick or your next turn (or Follow the draft).
+ */
 export function followDraft(s: Follow, e: FollowEvent): Follow {
   switch (e.kind) {
     case "picked":

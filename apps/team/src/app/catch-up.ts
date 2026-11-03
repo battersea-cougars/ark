@@ -1,34 +1,39 @@
-// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0072, #112), at the least cost
-// in D1's rows read: the free day's limit a busy evening passes when every phone reads the whole club for every change.
-//
-// The club's data version goes up by one with every change, and each of the hub's events names the parts that changed
-// and the versions they came with. The copy knows the version it holds all of (`held`), and so which parts it lacks:
-// on an event naming a part a page follows, it reads just the parts it lacks (`/api/slices`), not the whole club. A
-// version it never heard of (a change that told nobody, a stream that dropped) leaves it short, and the next whole
-// check reads the club; a whole check at the version held is a 304.
-//
-// A live match comes with its event (#161): it's the same for every member, so the Worker builds it once and the hub
-// sends it along. A copy that holds the version just before puts it in place as it is, and reads nothing; any other
-// copy reads as the names say, so a missed event costs a read, never a wrong screen.
-//
-// One read at a time, after a short random wait, so a burst of events is one read, and 120 phones don't all ask in
-// the same instant. Nothing while the page is out of view: coming back checks the whole club anyway.
-//
-// The hub names families (`members`, `sessions`: club-parts.ts); the copy counts in the parts it holds: the core's,
-// and those of the pages' it's read (#178). A page's part it doesn't hold is read fresh when a page wants it.
+// Keeping a phone's copy of the club up to date as the live hub says what changed (ADR 0053), at the least cost in D1
+// rows read: the copy knows the data version it holds all of (`held`) and reads only the parts a page follows that it
+// lacks; a live match or the after-party's drum the hub sent goes in place without a read.
 //
 // No imports, and only what Node can run as it is: the load runs' phones use this too (scripts/load/load.client.mjs).
 
-/** A live match as the hub sends it (#161): a tournament's games, as every member sees them. */
+/** A live match as the hub sends it: a tournament's games, as every member sees them. */
 export interface PushedMatch {
   tournamentId: number;
   games: unknown[];
 }
 
-/** What the hub sends with a change, besides its names: the data version the change made, and the match. */
+/**
+ * The after-party's drum as the hub sends it: how many awards are out, whether it's rolled on to the next
+ * (sealed), and the winners out so far, as every member sees them on the evening (none still sealed).
+ */
+export interface PushedAwards {
+  tournamentId: number;
+  awardsRevealed: number;
+  awardsNext: boolean;
+  winners: Winner[];
+}
+
+/** Who won an award, as the club read sends it. */
+interface Winner {
+  award: string;
+  teamId: number | null;
+  memberId: number | null;
+  title?: string | null;
+}
+
+/** What the hub sends with a change, besides its names: the data version the change made, and the match or drum. */
 export interface Pushed {
   version: number;
-  match: PushedMatch;
+  match?: PushedMatch;
+  awards?: PushedAwards;
 }
 
 /** What changed, as the hub says it: the parts, the data versions that changed them, and any match sent along. */
@@ -38,13 +43,31 @@ export interface Heard {
   parts?: readonly Pushed[];
 }
 
-/** The part of the club a match goes into: the change that made it changed nothing else (api/api.ts). */
+/** The part of the club a match or the drum goes into: the change that made it changed nothing else (api/api.ts). */
 const MATCH_IN = "tournaments";
 
 /** The tournaments with this match's games in place, or null when its tournament isn't among them (read instead). */
 export function withMatch<T extends { id: number }>(tournaments: T[] | undefined, match: PushedMatch): T[] | null {
   if (!tournaments?.some((t) => t.id === match.tournamentId)) return null;
   return tournaments.map((t) => (t.id === match.tournamentId ? { ...t, games: match.games } : t));
+}
+
+const winnerOf = (w: Winner) => `${w.award} ${w.teamId} ${w.memberId}`;
+
+/**
+ * The tournaments with the drum where the hub says, or null when its tournament isn't among them (read instead). The
+ * winners are those out, unless the copy holds them all and more: whoever runs it, sent every one, keeps theirs.
+ */
+export function withAwards<T extends { id: number; winners?: Winner[] }>(
+  tournaments: T[] | undefined,
+  awards: PushedAwards,
+): T[] | null {
+  const t = tournaments?.find((x) => x.id === awards.tournamentId);
+  if (!tournaments || !t) return null;
+  const held = new Set((t.winners ?? []).map(winnerOf));
+  const winners = awards.winners.every((w) => held.has(winnerOf(w))) ? t.winners : awards.winners;
+  const { awardsRevealed, awardsNext } = awards;
+  return tournaments.map((x) => (x.id === awards.tournamentId ? { ...x, awardsRevealed, awardsNext, winners } : x));
 }
 
 /** How the copy reads and stores; the app's are in backend.svelte.ts, the load runs' phones have their own. */
@@ -57,21 +80,26 @@ export interface CopyIO {
   apply(slices: Record<string, unknown>): void;
   /** Put a match the hub sent in place (`withMatch`); false: the copy has no such tournament. None: always read. */
   applyMatch?(match: PushedMatch): boolean;
-  /** Whether the page is in view. */
+  /** Put the drum the hub sent in place (`withAwards`); false: no such tournament. None: always read. */
+  applyAwards?(awards: PushedAwards): boolean;
+  /** Whether the page is in view: nothing is read while it isn't, as coming back checks the whole club anyway. */
   visible(): boolean;
   /**
-   * The parts the copy holds of these families (club-parts.ts partsChanged, #178): the core's, and the pages' it's
+   * The parts the copy holds of these families (club-parts.ts partsChanged): the core's, and the pages' it's
    * read. None said, a family is a part of its own.
    */
   partsOf?(families: readonly string[]): string[];
   /**
    * Of these changed parts, the ones the app lets go rather than read now: a page's, held but shown by no page in
-   * view (#178). The app reads them again when a page that shows them opens; the copy stops counting them.
+   * view. The app reads them again when a page that shows them opens; the copy stops counting them.
    */
   letGo?(parts: readonly string[]): readonly string[];
   /** A read or its parts that failed: the page's beat catches up, so this only hears of it. */
   failed?(error: unknown): void;
-  /** The longest random wait before a read, in ms. */
+  /**
+   * The longest random wait before a read, in ms: one read at a time, after a short random wait, so a burst of events is
+   * one read and 120 phones don't all ask in the same instant.
+   */
   waitMs?: number;
   random?: () => number;
 }
@@ -147,14 +175,15 @@ export class ClubCopy {
   }
 
   /**
-   * A match sent with its change. That change changed only the match's tournament (api/api.ts), so it's all of it:
-   * holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
+   * A match or the drum sent with its change. That change changed only its tournament (api/api.ts), so it's all of
+   * it: holding the version just before, and nothing newer of the tournaments, the copy puts it in place and moves on.
    */
-  private take({ version, match }: Pushed) {
+  private take({ version, match, awards }: Pushed) {
     if (version <= this.held) return;
     this.heard.set(version, [MATCH_IN]);
     if (version !== this.held + 1 || (this.fresh.get(MATCH_IN) ?? 0) >= version) return this.advance();
-    if (!this.io.applyMatch?.(match)) return;
+    const placed = match ? this.io.applyMatch?.(match) : awards ? this.io.applyAwards?.(awards) : false;
+    if (!placed) return;
     this.fresh.set(MATCH_IN, version);
     this.advance();
   }

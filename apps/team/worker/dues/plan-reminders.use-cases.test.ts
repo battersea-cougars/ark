@@ -1,9 +1,6 @@
-// Next quarter's plan, a few days before it starts (ADR 0007, #187): everyone who'll be Quarterly next quarter is told
-// its fee is due, what it is and when it's charged, and that they can still switch to pay as you go on their Dues page
-// until the day before. Five days before by default, a club setting on Settings → Membership; from 10:00 London, by
-// the hourly Cron Trigger. A notification for anyone with the app, an email for anyone without; once per member per
-// quarter, claimed before it's sent, and on the record. Driven through the real handlers in the fake world (ADR 0031):
-// mail in its outbox, phones in the push outbox, the crons run as Cloudflare runs them.
+// Next quarter's plan reminder (apps/team/worker/dues/README.md): who's told, when, how, and only once. Driven through
+// the real handlers in the fake world (ADR 0031): mail in its outbox, phones in the push outbox, the crons as
+// Cloudflare runs them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { outbox } from "@cougars/shared/email";
 import { londonISO } from "@cougars/shared/london";
@@ -94,7 +91,7 @@ describe("who's told, five days before the quarter", () => {
   });
 
   it("a keeper isn't told: the Keeper plan is never charged, whatever subscription is on record", async () => {
-    // A subscription from before they were a keeper stays, and charges nothing (ADR 0007)
+    // A subscription from before they were a keeper stays, and charges nothing (apps/team/worker/dues/README.md)
     w.db.raw.exec(`INSERT INTO subscriptions (member_id, starts_on, created_at)
       SELECT id, '2026-07-01', '2026-07-01' FROM members WHERE email = 'kit@example.com'`);
     await hourly("2026-12-27T10:07");
@@ -231,6 +228,10 @@ describe("once per member per quarter", () => {
   });
 
   it("next quarter is told again, once", async () => {
+    // Quin opens the app in between, so her phone's still signed in (a sign-in left 90 days ends, ADR 0023)
+    const quin = await hasTheApp("quin@example.com");
+    for (const day of ["2026-12-01", "2027-02-15"])
+      expect((await quin.club({ now: new Date(`${day}T10:00:00Z`) })).status).toBe(200);
     await hourly("2026-12-27T10:07");
     await hourly("2027-03-27T10:07");
     await hourly("2027-03-27T11:07");

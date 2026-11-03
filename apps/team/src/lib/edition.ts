@@ -20,18 +20,19 @@ export const championOf = (t: Tournament) =>
 
 /**
  * Where it stands, by its games more than its settings: under way once a game's being scored or has a result, done
- * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up.
+ * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up, as of `today`
+ * (London's, unless a caller asks about another day).
  */
-export function editionState(t: Tournament): EditionState {
+export function editionState(t: Tournament, today = londonToday()): EditionState {
   const games = t.games ?? [];
   if (isDone(t.status, games)) return "done";
   if (t.status === "live" || games.some((g) => g.status !== "next")) return "live";
-  return signupOpen(t, londonToday()) ? "open" : "planned";
+  return signupOpen(t, today) ? "open" : "planned";
 }
 
 /**
  * Started: under way or done (editionState). From then who's in is an admin's to change, not a member's own In or Out
- * (ADR 0074; the server keeps to it, worker/tournaments/started.ts): it's what the fees follow.
+ * (apps/team/worker/tournaments/README.md; the server keeps to it, worker/tournaments/started.ts): it's what the fees follow.
  */
 export function hasStarted(t: Tournament) {
   const state = editionState(t);
@@ -39,7 +40,7 @@ export function hasStarted(t: Tournament) {
 }
 
 /**
- * Where the next one has got to (ADR 0074), for which of its pages are tabs: its fixtures out once it has games; a
+ * Where the next one has got to (apps/team/worker/tournaments/README.md), for which of its pages are tabs: its fixtures out once it has games; a
  * draft's on while it's open; the teams set once a draft closes, or once teams have entered; else it's sign-up.
  */
 export function stageOf(t: Tournament): Stage {
@@ -67,8 +68,8 @@ export function editionWhen(t: Pick<Tournament, "season" | "heldOn" | "startTime
 }
 
 /**
- * Soonest first: by its day, then its hours (two on one Friday: the afternoon's before the evening's, as Home has them,
- * #186), then the one made first. For latest first, swap them.
+ * Soonest first: by its day, then its hours (two on one Friday: the afternoon's before the evening's, as Home has them),
+ * then the one made first. For latest first, swap them.
  */
 export const byWhen = (a: Tournament, b: Tournament) =>
   a.heldOn.localeCompare(b.heldOn) || a.startTime.localeCompare(b.startTime) || a.id - b.id;
@@ -76,7 +77,7 @@ export const byWhen = (a: Tournament, b: Tournament) =>
 /**
  * Which edition of a series to open on, by what's happened rather than the dates: the one under way, else the first
  * that isn't done (just a season is enough; one whose fixed day passed unplayed still is, until an admin plays it,
- * moves it or deletes it, #169), else the last one played.
+ * moves it or deletes it), else the last one played.
  */
 export function latestOf(editions: Tournament[]): Tournament | undefined {
   const mine = [...editions].sort(byWhen);
@@ -90,7 +91,7 @@ export function latestOf(editions: Tournament[]): Tournament | undefined {
 
 /**
  * The evening it was played: its last match's kick-off's (till 06:00 the next morning, lib/dates.ts londonEvening),
- * whatever its date says, as a match starts on any day (ADR 0074). None kicked off (results typed in): its own day, if
+ * whatever its date says, as a match starts on any day (apps/team/worker/tournaments/README.md). None kicked off (results typed in): its own day, if
  * it has one; just a season, none.
  */
 export function playedOn(t: Tournament): string | null {
@@ -103,7 +104,7 @@ export function playedOn(t: Tournament): string | null {
 }
 
 /**
- * At its after-party (ADR 0074): its last match played (or an admin marked it finished), on the evening it was played
+ * At its after-party (apps/team/worker/tournaments/README.md): its last match played (or an admin marked it finished), on the evening it was played
  * (`evening`, lib/dates.ts londonEvening), the awards revealed or not: once they are, its page is its results, Done.
  * Results typed in on another day, or one with only a season, go straight to history.
  */
@@ -129,7 +130,7 @@ export const previousOf = (editions: Tournament[], t: Tournament) =>
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 /**
- * How far off its day is, for the header (ADR 0074): within a week it leads the line, big ("Today", "Tomorrow", "This
+ * How far off its day is, for the header (apps/team/worker/tournaments/README.md): within a week it leads the line, big ("Today", "Tomorrow", "This
  * Friday", "In 7 days"), so nobody misses that it's tomorrow; further off it's a quiet "in 24 days" after the date.
  * Both London dates (YYYY-MM-DD); a day gone by says nothing.
  */

@@ -1,7 +1,6 @@
-// Notifications on members' phones (ADR 0108) at their edges: a send of exactly a batch and one more, two phones of
-// one member, a member made inactive or signed in on a phone that was signed out, a send that died half way, a night
-// cancelled twice, a long or unusual announcement, and what's sent kept only a week. Driven through the real handlers
-// and the cron in the fake world (ADR 0031); Firebase faked by testWorld's firebase().
+// Notifications on members' phones (ADR 0108) at their edges: batch boundaries, several phones, members made inactive,
+// sends that died half way, unusual announcements. Driven through the real handlers and the cron in the fake world (ADR
+// 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { minutes, NOW, testWorld } from "../testing";
 import { DRAIN_AT_ONCE, SEND_AT_ONCE } from "./push";
@@ -243,7 +242,7 @@ describe("an announcement's words on a phone", () => {
 });
 
 describe("a long announcement with an emoji where it's cut", () => {
-  // #134: body.slice(0, 180) halved the emoji, and SQLite stored the half as invalid UTF-8
+  // body.slice(0, 180) would halve the emoji, and SQLite store the half as invalid UTF-8
   it("an emoji where a long announcement is cut arrives whole or not at all, never as ��� (#134)", async () => {
     await phone("reg@example.com");
     const dana = await w.signedIn("dana@example.com");

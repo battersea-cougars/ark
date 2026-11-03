@@ -1,7 +1,7 @@
 # 0023. Everyone signs in with a passkey or an emailed code that works only in the browser that asked for it
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-10-24
+- **Date:** 2026-10-05 · updated 2026-11-02
 - **Merges:** 0008, 0035, 0093, 0094
 
 ## Context
@@ -44,10 +44,11 @@ need a way back in that no stranger on the internet could use.
   code under a nonce is one member's, and every guess is against that member's code, whoever is typing. Two
   people signing in one after the other on a shared browser each get their own code.
 - **Guesses are counted before they're checked**, in one statement, and a code is spent the same way, so requests
-  sent all at once can't get extra tries or two sessions. The limits:
+  sent all at once can't get extra tries or two sessions. A guess is checked against every live code in the browser
+  and counts as a try against each of them, so asking again doesn't buy more guesses. The limits:
   - 5 wrong codes per code;
   - 5 codes an hour and 10 a day per member **per browser** (its nonce);
-  - 20 wrong codes a day per browser, after which that browser is sent and accepts no codes until the day has passed;
+  - 20 wrong tries a day per browser (a wrong guess with two live codes is two), after which that browser is sent and accepts no codes until the day has passed;
   - 30 codes a day per member across every browser, their inbox's limit (logged as `sign_in.capped`).
     The limits count against the browser asking, not the member: someone who knows a member's email can't use them up
     and lock the member out of their own browser (#69).
@@ -55,7 +56,7 @@ need a way back in that no stranger on the internet could use.
   - asking to join stops while 50 people are waiting (the same reply for everyone), and an unanswered request goes
     after 30 days;
   - **Turnstile** in front of asking for a code and asking to join, refusing a failed check
-    ([0028](0028-turnstile-and-auto-reply.md), #13).
+    ([0027](0027-email-through-gmail-api.md), #13).
 - New people **request access**; an admin approves them ([0024](0024-action-based-authorization.md)).
 - The email goes through the Gmail API (`packages/shared/email.ts`, [0027](0027-email-through-gmail-api.md)).
 - **Sign in with Google** (OAuth with PKCE, for a member whose verified Google email matches) is planned as a
@@ -78,7 +79,7 @@ need a way back in that no stranger on the internet could use.
   passkey: bound to the session that asked. Signing in: bound to the browser that asked by a nonce cookie of its own
   (`cougars_passkey`, `__Host-` on https, five minutes), as a code is to its nonce. The challenge is **spent in the
   statement that claims it**, before the signature is checked, so two requests carrying one answer make at most one
-  session ([0121](0121-load-and-concurrency.md)), and a replayed answer, another browser's, a late one or one signed
+  session ([0003](0003-free-tiers-only.md)), and a replayed answer, another browser's, a late one or one signed
   for another challenge or another site is refused.
 - **The signature counter** moves on only from the value read (`UPDATE … WHERE sign_count = ?`): a counter that's
   gone backwards, or two sign-ins with the same count, is a copied key, refused and on the record
@@ -128,8 +129,10 @@ need a way back in that no stranger on the internet could use.
 
 - The session cookie holds a **random 256-bit token**. D1 keeps only its SHA-256 hash in `auth_sessions`, as it does
   for the nonce and the code. There is no signing key and no `TEAM_SESSION_SECRET`.
-- The session lasts 180 days. Its expiry moves on at most once a day while it's used, so most requests read and don't
-  write, and never past **a year from signing in**: then it's the code again. Each renewal gives the session a **new
+- The session lasts **90 days unused**. Its expiry moves on at most once a day while it's used, so most requests read and don't
+  write, and never past **the last quarter's start within a year of signing in** (1 January, April, July or October,
+  midnight in London; `lastMomentOf`), so it's 9 to 12 months and a forced sign-in falls as a quarter starts: then
+  it's the passkey or the code again. Each renewal gives the session a **new
   token** (`previous_hash`, `rotated_at` in `auth_sessions`); the one before still works for 10 minutes, for requests
   already on their way and a reply whose new cookie never arrived. Only one request renews it (the update names the
   token it replaces), so two arriving together don't race. A copied cookie stops working once its member's next
@@ -140,11 +143,11 @@ need a way back in that no stranger on the internet could use.
   record as `member.signed_out` with how many sign-ins it ended). A **new sign-in email** and being **made inactive**
   end every session on their own, so letting someone back in opens none of their old ones. An ended session is
   revoked, its phones go (its `push_devices` rows, store app and web push alike, so nothing more is sent to them) and
-  its live streams close at the hub ([0072](0072-live-updates.md)). Deleting an account deletes its sessions (the
+  its live streams close at the hub ([0053](0053-how-the-team-app-gets-its-data.md)). Deleting an account deletes its sessions (the
   phones go with them, `ON DELETE CASCADE`) and closes its streams.
 - Cookies: `cougars_session` and `cougars_nonce` (15 minutes), both `HttpOnly`, `SameSite=Lax` and `Path=/`. On https
   they're `Secure` and named with the `__Host-` prefix, so no sibling subdomain can set or shadow them.
-- Sign-ins, sign-outs, capped sign-ins and requests to join go in `audit_log` ([0095](0095-audit-log.md)).
+- Sign-ins, sign-outs, capped sign-ins and requests to join go in `audit_log` ([0024](0024-action-based-authorization.md)).
 
 **Local dev**
 
@@ -184,7 +187,10 @@ need a way back in that no stranger on the internet could use.
   in again.
 - Each API request makes one indexed D1 read for the session, well inside the free tier for a club.
 - The limits mean what they say: 5 wrong per code, 20 a day per browser, 30 codes a day per member. The odds of
-  guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes).
+  guessing are negligible (at most 150 tries a day against a one-in-a-million code that lasts 15 minutes), because
+  each guess is a try against every code it's checked against.
+- A member who asked twice and types a wrong code spends a try from both, so they reach the browser's 20 a day
+  sooner than before; with a few typos that's still far off.
 - Someone rotating browsers and addresses could use up a member's 30 codes for a day; Turnstile (#13) makes each
   request need a person's browser, so it would take a person.
 - For a deploy to open up the local switches, three independent things now have to go wrong: the config, the config
@@ -193,41 +199,3 @@ need a way back in that no stranger on the internet could use.
   in from the laptop's own address instead.
 - If Google sign-in is built, it adds a Google OAuth client to the secrets and a dependency on Google for that
   shortcut.
-
-## History
-
-- 2026-10-05: Admins log in with a one-time magic link to an allow-listed email, with a signed session cookie (was
-  0008).
-- 2026-10-06: Every member signs in, with a device-bound code or link, or Google; the session an HMAC-signed cookie
-  backed by `auth_sessions` (was 0023).
-- 2026-10-06: The session becomes a hashed random token with no signing key; the link is dropped because it can't
-  reach the installed iPhone app; guess limits counted before checking; local dev switches added (was 0035).
-- 2026-10-09: A security review found nothing stopped the local switches working on a deployed worker; they now need
-  a private address, a config test and a smoke test (was 0093).
-- 2026-10-09: The same review found one browser holding codes for two members let guesses count against the wrong
-  member; asking for another member's code now starts a fresh nonce (was 0094).
-- 2026-10-09: The code email is branded HTML with the code big and split in two (123 456), beside the plain text.
-- 2026-10-10: Signing in without a code on your own machine (`/api/auth/dev`, `scripts/dev-sign-in.mjs`), after
-  headless sessions kept running into the code caps (five an hour, ten a day) and screenshots needed a member's code.
-- 2026-10-10: The code limits count per browser (its nonce), with a ceiling of 30 a day per member, after a review
-  showed 20 wrong guesses from anywhere locked a member out for a day (#69).
-- 2026-10-11: App Review's account signs in with a fixed code set by secrets in production only, and the store app's phone registers for notifications at `/api/auth/device`, belonging to its sign-in ([0108](0108-store-apps.md)).
-- 2026-10-21: Sessions end: an admin signs a member out everywhere from their sheet, a member everywhere from the You
-  page, and a new email or being made inactive does it on its own; an ended session's phones and live streams go with
-  it. Renewal rotates the token (10 minutes' grace) and a session ends a year after signing in (#72).
-- 2026-10-21: Turnstile in front of asking for a code and asking to join (#13, [0028](0028-turnstile-and-auto-reply.md)).
-- 2026-10-22: Passkeys: added on the You page and offered once after a code sign-in, signed in with on the sign-in
-  page (and its email field's suggestions), verified in the Worker with @simplewebauthn/server; challenges single-use,
-  five minutes, bound to the session or browser that asked and spent before checking; counter checked in its
-  statement; the RP ID is the request's own host. Being made inactive, a new email, an admin or the member remove
-  passkeys; sign out everywhere doesn't. The iPhone app gets `webcredentials:` for both team domains.
-- 2026-10-22: Break glass: a terminal script writes one 15-minute code for an active admin, which the first browser to
-  ask for their code claims; every use on the record, every admin told (phone, email, Home) and able to sign it out.
-- 2026-10-23: A member changes their own sign-in email from the You page: a code to the new address (stored hashed,
-  15 minutes, 5 tries, 5 an hour and 10 a day), typed while signed in. Their other sessions end, this one stays, and the
-  old address is told. An address that's someone else's gets a note instead of a code, with the same reply, so the app
-  never says whose it is. Everything a member did stays theirs, as it hangs on their id, not their address.
-- 2026-10-23: Changing your own sign-in email keeps your passkeys: you're signed in and confirm the new address with a
-  code, so the account is still yours. An admin changing someone's email still removes theirs.
-- 2026-10-24: A member's code is made and emailed after the reply, so asking for a member's address takes no longer
-  than a stranger's (#81).

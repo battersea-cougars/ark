@@ -1,10 +1,6 @@
-// Friday's sign-ups: Quarterly Members first. The whole list is in one order, Quarterly Members (ADR 0007) above
-// everyone paying as they go, first come first served within each; the first places in that order are in, the rest
-// wait. So a Quarterly Member signing up for a full Friday takes the place of the last one paying as they go, who
-// waits at the top of their queue. Keepers aren't in it: they keep their sign-up place and a skater never takes a
-// keeper's. The places are the skaters': keepers have their own, if the series sets any, else no limit.
-// Tournaments and club events keep plain sign-up order. Driven through the real
-// Worker handlers, each person signed in as themselves (ADR 0031).
+// Friday's sign-ups (apps/team/worker/training/README.md): one list, Quarterly Members first, keepers with their own
+// places; tournaments and club events keep plain sign-up order. Driven through the real Worker handlers, each
+// person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 
@@ -180,7 +176,7 @@ describe("Friday's sign-ups: Quarterly Members first", () => {
     expect((await dana.sees()).clubEvents[0]).toMatchObject({ going: [id.Reg], waitlist: [id.Paul, id.Quinn] });
   });
 
-  it("an admin makes room for one more at a club event: the first waiting is in, the next still waits (ADR 0131)", async () => {
+  it("an admin makes room for one more at a club event: the first waiting is in, the next still waits", async () => {
     const { dana, id } = await fullFriday();
     const curry = {
       title: "Curry night",

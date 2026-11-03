@@ -1,10 +1,5 @@
-// Scoring a game as it's played (ADR 0130). Each game suggests a team sitting it out to keep score (scorekeepers in
-// lib/fixtures.ts), but one person keeps it: whoever presses Start scoring holds the scoresheet, and nobody else can
-// score that game until they let it go, or an admin does (someone had to leave: anyone can take it on from there).
-// The holder starts and pauses the clock, logs each goal as it goes in (who scored, who assisted, when in game
-// time), and each penalty (who, 2 or 5 minutes, what for, when), takes back the last of either, and calls full time,
-// which makes the score the result. One game at a time. The score is on the game as it changes, so everyone sees it
-// as it happens.
+// Scoring a game as it's played (apps/team/worker/tournaments/README.md): one person holds the scoresheet, runs the
+// clock, logs goals and penalties, and calls full time, which makes the score the result.
 import { batch, first, run, statement } from "@cougars/shared/d1";
 import { can, type Action } from "../../src/access/actions";
 import { fillPlayoffs, listGames, tournamentOf, type Game, type TournamentRow } from "./fixtures";
@@ -17,7 +12,7 @@ interface Who {
   actions: ReadonlySet<Action>;
 }
 
-/** The game, and the day's games around it: one read for the whole tap (ADR 0059). */
+/** The game, and the day's games around it: one read for the whole tap (ADR 0003). */
 async function gameOf(db: D1Database, tournamentId: number, gameId: number) {
   const games = await listGames(db, tournamentId);
   const game = games.find((g) => g.id === gameId);
@@ -79,9 +74,9 @@ export async function holdScoresheet(
 }
 
 /**
- * An admin's say over the scoresheet (#116), from whoever their page saw holding it (`from`, or null for nobody):
+ * An admin's say over the scoresheet, from whoever their page saw holding it (`from`, or null for nobody):
  * take it over (theirs from now, from where the game is: their phone dies, they've had to go) or free it (nobody's,
- * for anyone to take on: an admin who isn't at the rink). Decided in its statement (ADR 0121): only while it's still
+ * for anyone to take on: an admin who isn't at the rink). Decided in its statement (ADR 0003): only while it's still
  * `from`'s and the game isn't over, so two admins at once leave one scorekeeper and the other's told who has it. The
  * read before is only for the words.
  */
@@ -124,7 +119,7 @@ export async function overrideScoresheet(
 
 /**
  * A scorekeeper's write that changed nothing: refused for why. The sheet's gone to someone else (an admin took it
- * over, ADR 0130) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
+ * over, apps/team/worker/tournaments/README.md) is a 403 like any tap from someone not holding it; else the game moved on (`moved`).
  */
 async function refusal(db: D1Database, gameId: number, who: Who, moved: HttpError | null) {
   const g = await first<{ keeper: number | null }>(
@@ -157,7 +152,7 @@ export async function clockGame(
   const { game, games } = await scorable(db, tournamentId, gameId, who);
   const t = await tournamentOf(db, tournamentId);
   // Each write goes only while this member still holds the sheet: an admin taking it over between the read and the
-  // write leaves their phone's tap refused, never landed (ADR 0121)
+  // write leaves their phone's tap refused, never landed (ADR 0003)
   const held = `AND keeper_member_id = ${Number(who.memberId)}`;
   const landed = async (res: D1Result, moved: HttpError | null = null) => {
     if (res.meta.changes) return;
@@ -178,7 +173,7 @@ export async function clockGame(
       await landed(
         await run(
           db,
-          // Kick-off: when it actually started, kept from the first Start on (ADR 0121: set once, in its statement)
+          // Kick-off: when it actually started, kept from the first Start on (ADR 0003: set once, in its statement)
           `UPDATE tournament_games SET status = 'live', home_goals = 0, away_goals = 0, clock_left_ms = ?,
              clock_started_at = ?, started_at = COALESCE(started_at, ?) WHERE id = ? AND status = 'next' ${held}`,
           [t.gameMinutes * 60_000, now.toISOString(), now.toISOString(), gameId],
@@ -325,14 +320,14 @@ export async function addGoal(
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
   const tapId = tapOf(o);
-  // A goal missed on a finished playoff never leaves it level (#159, as taking one off can't, #123), decided in the
-  // statement that adds it (ADR 0121): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
+  // A goal missed on a finished playoff never leaves it level (as taking one off can't), decided in the
+  // statement that adds it (ADR 0003): two admins adding one each to a 3–1 Final at once can't make it 3–3. Params:
   // the game and this team, then the game and the other
   const playoff = done && game.stage === "playoff";
   const goals = "(SELECT count(*) FROM tournament_goals WHERE game_id = ? AND team_id = ?)";
   const other = teamId === game.homeTeamId ? game.awayTeamId : game.homeTeamId;
   // The goal and the score it makes in one batch: full time landing between them would make the result without it.
-  // The same tap twice is one goal (#114): the second's insert does nothing
+  // The same tap twice is one goal: the second's insert does nothing
   const [res] = await batch(db, [
     statement(
       db,
@@ -371,8 +366,8 @@ const leavesItLevel = () =>
 
 /**
  * Any goal off a finished game: it wasn't one, or it was the other side's. Never one that leaves a playoff level (a
- * playoff needs a winner, as full time and a typed-in result say, #123), decided in the statement that takes it off
- * (ADR 0121): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
+ * playoff needs a winner, as full time and a typed-in result say), decided in the statement that takes it off
+ * (ADR 0003): two admins taking a goal each off a 2–1 Final at once leave it 1–1 for neither.
  */
 export async function removeGoal(db: D1Database, tournamentId: number, gameId: number, goalId: number, who: Who) {
   const game = await correctable(db, tournamentId, gameId, who);
@@ -398,7 +393,7 @@ export async function removeGoal(db: D1Database, tournamentId: number, gameId: n
 }
 
 /**
- * The last goal comes off: logged by mistake. The page says which (`goalId`, the last it shows, #114), so Undo
+ * The last goal comes off: logged by mistake. The page says which (`goalId`, the last it shows), so Undo
  * tapped twice takes that one off once; unsaid, the last logged.
  */
 export async function undoGoal(db: D1Database, tournamentId: number, gameId: number, who: Who, goalId: number | null) {
@@ -460,7 +455,7 @@ export async function addPenalty(
       : int(o, "atMs", { max: t.gameMinutes * 60_000 })
     : t.gameMinutes * 60_000 - leftNow(game, now);
   const tapId = tapOf(o);
-  // The same tap twice is one penalty (#114)
+  // The same tap twice is one penalty
   const res = await run(
     db,
     `INSERT INTO tournament_penalties (game_id, team_id, member_id, minutes, infraction, at_ms, period, recorded_by,
@@ -494,7 +489,7 @@ export async function removePenalty(db: D1Database, tournamentId: number, gameId
   if (!res.meta.changes) throw new HttpError(404, "No such penalty.");
 }
 
-/** The last penalty comes off: logged by mistake. Which, as for goals (`penaltyId`, #114). */
+/** The last penalty comes off: logged by mistake. Which, as for goals (`penaltyId`). */
 export async function undoPenalty(
   db: D1Database,
   tournamentId: number,
@@ -512,7 +507,7 @@ export async function undoPenalty(
   if (!res.meta.changes) await nothingTakenBack(db, gameId, who, penaltyId, "No penalties to take back.");
 }
 
-/** Which tap a goal or penalty is (#114): the phone's id for it, made when the button's pressed; none from an admin. */
+/** Which tap a goal or penalty is: the phone's id for it, made when the button's pressed; none from an admin. */
 const tapOf = (o: Record<string, unknown>) => (o.tapId == null ? null : text(o, "tapId", { max: 64 }));
 
 /** This tap's already in: sent twice (two phones, a retry), it counted the first time. The read is only for that. */

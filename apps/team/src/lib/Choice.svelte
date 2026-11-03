@@ -1,9 +1,7 @@
 <script lang="ts" generics="T extends string">
   import type { SelectOption } from "./Select.svelte";
-  // A choice for members (Profile and the like), not a back office: no drop-downs; admin forms use Select, a
-  // drop-down. A handful of short options are right
-  // there as a segmented row, one tap each. A longer list is a row that opens its options as big rows: a sheet from
-  // the bottom on a phone, a side drawer on a desktop.
+  // A choice for members (no drop-downs; admin forms use Select): a few short options as a segmented row, one tap
+  // each; a longer list a row that opens them as big rows, a sheet on a phone, a side drawer on a desktop.
   import Icon from "../app/shell/Icon.svelte";
   import Drawer from "./Drawer.svelte";
   import Sheet from "./Sheet.svelte";

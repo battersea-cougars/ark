@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Settings → Training: every training as a card, as Gwenda ops shows its series. A card opens that training's
-  // editor in a modal panel; "New training" opens a blank one. New trainings appear in the menu and calendar at once.
+  // Settings → Training: every training as a card. A card opens that training's editor in a modal panel; "New
+  // training" opens a blank one. New trainings appear in the menu and calendar at once.
   import PageHeader from "../lib/PageHeader.svelte";
   import ScheduleCards, { type ScheduleCard } from "../lib/ScheduleCards.svelte";
   import TrainingEditorPanel from "../lib/TrainingEditorPanel.svelte";

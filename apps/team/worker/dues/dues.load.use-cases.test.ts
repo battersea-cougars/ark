@@ -1,4 +1,4 @@
-// Keeping under the free plan's 10 ms of CPU a request (ADR 0059): every round trip to D1 costs the Worker CPU time,
+// Keeping under the free plan's 10 ms of CPU a request (ADR 0003): every round trip to D1 costs the Worker CPU time,
 // so a tap costs a few, however many members, quarters and Fridays the club's dues cover. Driven through the real
 // handlers in the fake world (ADR 0031), which counts the round trips.
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,7 +8,7 @@ import { chargesOf } from "./dues.testing";
 
 // NOW is Tuesday 6 October 2026: the next Friday is the 9th
 const NEXT_FRIDAY = "2026-10-09";
-// Five coming Fridays: a past one's register closes the morning after (#11), so a save of many is of nights ahead
+// Five coming Fridays: a past one's register closes the morning after, so a save of many is of nights ahead
 const FRIDAYS = ["2026-10-09", "2026-10-16", "2026-10-23", "2026-10-30", "2026-11-06"];
 const LAST_FRIDAY = "2026-10-02";
 

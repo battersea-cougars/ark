@@ -1,7 +1,7 @@
-// When a save is worth asking about (ADR 0122, lib/ClashSheet): a new time, as London instants, or a training's rule.
+// When a save is worth asking about (apps/team/worker/calendar/README.md, lib/ClashSheet): a new time, as London instants, or a training's rule.
 // Only a day and hours that are new or moved are asked about, so saving a name change over a night already kept
 // doesn't ask again.
-import { londonISO } from "./dates";
+import { londonISO, londonNextDay } from "./dates";
 import type { Weekday } from "./recurrence";
 
 export interface ClashWindow {
@@ -25,10 +25,10 @@ export interface TrainingQuestion {
 
 export type ClashQuestion = ClashWindow | TrainingQuestion;
 
-/** An end before its start runs past midnight: the next day. */
+/** An end before its start runs past midnight: that time the next day, on London's clock (the clocks may change). */
 const span = (startsAt: string, endsAt: string): [string, string] => [
   startsAt,
-  Date.parse(endsAt) < Date.parse(startsAt) ? new Date(Date.parse(endsAt) + 86_400_000).toISOString() : endsAt,
+  Date.parse(endsAt) < Date.parse(startsAt) ? londonNextDay(endsAt) : endsAt,
 ];
 
 type When = { heldOn: string; season: unknown; startTime: string; endTime: string };
@@ -95,14 +95,14 @@ export function answerOfAll(rows: Row[], picks: Record<string, Answer>): "" | "c
 
 /**
  * One answer for all: every row that can be called off set to it. Keep both keeps every row, the one that stays on
- * (a tournament over a training being saved) too, or Save would wait on it (#171); Cancel them leaves a skip as it is.
+ * (a tournament over a training being saved) too, or Save would wait on it; Cancel them leaves a skip as it is.
  */
 export function answerAll(rows: Row[], picks: Record<string, Answer>, to: "cancel" | "keep") {
   const set = rows.filter((c) => c.canCancel || (to === "keep" && c.nights?.length));
   return { ...picks, ...Object.fromEntries(set.map((c) => [c.key, to])) };
 }
 
-/** A night of the training's own to call off, and the tournament it's off for (#186), if that's what it's over. */
+/** A night of the training's own to call off, and the tournament it's off for, if that's what it's over. */
 export interface Skip {
   day: string;
   tournamentId: number | null;
@@ -111,7 +111,7 @@ export interface Skip {
 /**
  * The training's own nights to call off: those over something kept on that the admin chose to skip, each once for
  * each thing it's over, by day. Over a tournament, it's off for that tournament, so it comes back when the tournament
- * goes or moves (ADR 0122).
+ * goes or moves (apps/team/worker/calendar/README.md).
  */
 export function nightsToSkip(rows: Row[], picks: Record<string, Answer>): Skip[] {
   const skips = rows

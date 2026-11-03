@@ -1,4 +1,4 @@
-// A job in steps (lib/Wizard.svelte, ADR 0117): how far on it can go.
+// A job in steps (lib/Wizard.svelte, ADR 0065): how far on it can go.
 
 /**
  * The furthest step open: the first whose needs aren't met (you can be on it, not past it), or the last when every

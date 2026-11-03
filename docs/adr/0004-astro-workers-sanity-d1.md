@@ -1,61 +1,79 @@
-# 0004. Astro on Cloudflare Workers, content in Sanity rebuilt daily, data in D1
+# 0004. The website: Astro on a Cloudflare Worker, club facts in Sanity rebuilt daily, the club's data from D1
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 (decided at project start) · updated 2026-10-24
-- **Merges:** 0018
+- **Date:** 2026-10-05 (decided at project start) · updated 2026-11-02
+- **Merges:** 0014, 0018, 0020, 0109, 0112, 0132
 
 ## Context
 
-We copy the architecture of gwenda-hackney/ark, simplified. The club needs a fast promo site that a non-developer
-can edit, plus a small amount of server logic (the join form now; attendance, payments and Kumite scoring later).
+We copy the architecture of gwenda-hackney/ark, simplified. The club needs a fast promo site that a non-developer can
+edit, plus a little server logic (the join form, live photos and videos), and a team app that records the schedule,
+the roster and the Kumite. Two copies of any fact, one in Sanity and one in D1, would drift.
 
-Most pages are built ahead of time from Sanity, so a Studio change only reaches the live site when production
-rebuilds. Rebuilding on every publish would need a Sanity webhook calling GitHub, with a GitHub token
-(`SANITY_WEBHOOK_GITHUB_TOKEN__PRODUCTION`) stored in Sanity and renewed yearly. Gwenda solves the same problem
-differently: editors work in its ops app, which asks a small Worker to start the GitHub build, batched after ten
-quiet minutes, with the GitHub token held by that Worker. The Cougars team app is where the team manager will
-eventually edit events, players and Kumite results, so it's the natural owner of this trigger too.
+Most pages are built ahead of time, so a Studio change only reaches the live site when production rebuilds. Rebuilding
+on every publish would need a Sanity webhook calling GitHub, with a GitHub token stored in Sanity and renewed yearly.
 
 ## Decision
 
-- **Astro** with `@astrojs/cloudflare`, deployed as a **Cloudflare Worker with static assets**, not Pages:
-  Cloudflare now steers new projects to Workers, and one Worker serves prerendered pages and the few server routes
-  (`prerender = false`) together.
-- **Sanity** (free plan) holds editable content. The site reads it at build time. The site still builds without
-  Sanity, from `src/lib/sanity/fallback.ts`.
-- **Production rebuilds daily** (the `schedule` in `deploy.yml`, some time after 04:37 UTC) and on every release
-  ([ADR 0010](0010-environments-and-deploys.md)). A Studio change is live the next morning. Anything urgent, the
-  editor puts live themselves: the Studio's **Put changes live** tab links to the team app's **Settings → Website**,
-  whose **Rebuild now** sends the same rebuild a result does, at once (#107). Who may press it is the team app's
-  `edit:Content` (admins have it). A developer can still run **Actions → Deploy → Run workflow → `release`**.
-- **No Sanity publish webhook.** The team app starts rebuilds when a tournament result changes, batched, and when an
-  editor presses Rebuild now, as the club's GitHub App (running `deploy.yml` for the website,
-  [ADR 0100](0100-website-reads-tournament-results.md)). A webhook would put changes live with nothing to press, but
-  needs a signing secret and a check of Sanity's free plan; it can come later, through the same `wantRebuild`.
-- Photos and videos don't wait for a rebuild: they're read live ([ADR 0016](0016-photos-and-videos-read-live.md)).
-- **D1** holds operational data. Plain SQL through `packages/shared/d1.ts`, no ORM. Until launch the database is
-  `db/schema.sql` plus seed, with no migrations ([ADR 0050](0050-schema-and-seed-until-launch.md)).
+**The stack**
+
+- **Astro** with `@astrojs/cloudflare`, deployed as a **Cloudflare Worker with static assets**, not Pages: one Worker
+  serves the prerendered pages and the few server routes (`prerender = false`) together. Server routes run in workerd,
+  so Node-only libraries don't work there.
+- **D1** holds operational data, in plain SQL through `packages/shared/d1.ts`, no ORM
+  ([ADR 0050](0050-schema-and-seed-until-launch.md)).
+- **Share pictures are drawn at build time**: every page's `og:image` is a 1200×630 card from facts the site already
+  shows (`lib/og.ts`, `satori` and `sharp`, only in the build, never in the Worker); a page with its own photo shares
+  that instead.
+- **Page views are counted by Cloudflare Web Analytics**, free and cookieless, from a beacon in the website's own
+  layout on production's pages only (its public token in `deploy.yml`); automatic setup is off, so the team app,
+  whose CSP refuses the script, carries none.
+
+**Who owns which content**
+
+- **Sanity (free plan) holds what the team manager edits: club facts**, one small singleton each with a fixed `_id`
+  (Club, Fridays, Pub, Team, Kumite), and videos and past events. All other wording (headlines, jokes, page intros)
+  lives in the website's code, where it changes with the design.
+- **What the team app runs comes from D1**: the schedule and What's on, the roster, the Kumite's awards and tournament
+  results ([ADR 0016](0016-how-the-website-gets-its-data.md)). Ops-only data (enquiries, attendance, payments, ratings)
+  lives in D1 and is never shown publicly as it is.
+- **The site builds without Sanity**: each singleton merges with its defaults in `src/lib/sanity/fallback.ts`, field
+  by field ([ADR 0134](0134-a-fresh-clone-runs-after-npm-install.md)).
+- **Until launch, the repo owns the words**: every website deploy sends `fallback.ts`'s words to its environment's
+  Sanity before the build (`scripts/sanity-copy.mjs`), so a copy change is a commit. At launch the step leaves
+  `deploy.yml` and the Studio owns them.
+- **Parts of the site are switches in the Studio** (the team, the Kumite): `getSections()` in `lib/sanity/content.ts`
+  is the one place pages ask, and an off section's page isn't built (rest routes, `[...page].astro`, so
+  `getStaticPaths` can leave it out). What each switch does is in [the website notes](../../apps/web/src/README.md).
+- **The team app may write public content to Sanity through its API**, with a write token per project; schemas avoid
+  anything that would block an API write.
+
+**The Studio**
+
+- **A Worker of its own, `studio`**, static assets only (`apps/studio/wrangler.jsonc`), at studio.batterseacougars.com
+  from `release` and `studio.cougars-dev.workers.dev` from `main`. Sanity's own sign-in guards it, not Cloudflare
+  Access; each project allows its Studio's origin by CORS, set by hand once. The schema still goes to Sanity from
+  `release` (`sanity schemas deploy`).
+
+**When changes go live**
+
+- **Production rebuilds daily** (the `schedule` in `deploy.yml`) and on every release
+  ([ADR 0010](0010-environments-and-deploys.md)), so a Studio change is live the next morning.
+- **Anything urgent, the editor puts live themselves**: the Studio's Put changes live tab links to the team app's
+  Settings → Website, whose Rebuild now (`edit:Content`) starts the same rebuild a tournament result does, as the
+  club's GitHub App running `deploy.yml` ([ADR 0016](0016-how-the-website-gets-its-data.md)).
+- **No Sanity publish webhook**: it would need a signing secret and a check of Sanity's free plan; it can come later
+  through the same `wantRebuild`.
+- Photos and videos don't wait for a rebuild: they're read live ([ADR 0016](0016-how-the-website-gets-its-data.md)).
 
 ## Consequences
 
-- Content changes need a rebuild (about 5 minutes with the deploy), and the team manager sees Studio changes the next
-  morning, or about five minutes after Rebuild now (the editor guide says so). Pressing it while one is still building
-  starts no second one.
-- No GitHub token in Sanity, and nothing to renew yearly.
-- The daily rebuild matters for content as well as YouTube uploads; if it fails, Studio changes don't go live.
-- Server routes run in workerd, so Node-only libraries don't work there. Editors only ever touch the Studio.
-- The Studio holds no token: it only links to the team app, which rebuilds as the club's GitHub App.
-
-## History
-
-- 2026-10-05: Astro on a Worker with static assets, Sanity read at build time with a publish triggering a rebuild,
-  D1 with additive migrations (0004).
-- 2026-10-05: No Sanity publish webhook; production rebuilds daily and on release until the team app triggers builds
-  (0018).
-- 2026-10-07: Migrations replaced by schema plus seed until launch (ADR 0050).
-- 2026-10-09: The team app's rebuild trigger exists: `website-rebuild`, from its GitHub App, for dev and production
-  (0100); the unused `sanity-publish` trigger is gone.
-- 2026-10-24: Editors put Studio changes live themselves (#107): the Studio's Put changes live tab links to the team
-  app's Settings → Website, whose Rebuild now sends the rebuild at once (not after five quiet minutes, and not again
-  within five minutes of the last). Chosen over a publish webhook for now: no secret to keep, nothing new to check on
-  Sanity's plan; a webhook can be added later through `wantRebuild`.
+- The team manager edits facts, not prose: fewer ways to break the design. The Studio's required fields and the
+  website's list of optional fields (`merge.ts`) must be kept in step.
+- No GitHub token in Sanity and none in the Studio, nothing to renew yearly. The daily rebuild matters: if it fails,
+  Studio changes don't go live.
+- A content change takes a rebuild (about five minutes); pressing Rebuild now while one is building starts no second.
+- Share cards cost about a second of build per ten cards; the TTF copies of the fonts satori needs must stay in step
+  with the WOFF2 files.
+- One more Worker to deploy for the Studio, files only.
+- Dev, PR previews and a laptop count no page views.

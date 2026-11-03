@@ -1,12 +1,8 @@
-// WebCrypto that answers at once, for tests (testing/setup.ts). Node's crypto.subtle does its work on a thread pool
-// and resolves when the pool is done, so how many turns of the event loop a hash or a signature takes depends on how
-// busy the machine is. Beside the fake D1's interleaving (`interleave(seed)`, which counts turns), that made one seed
-// a different order of events from run to run: a race found once couldn't be replayed, and a busy machine explored
-// orders a quiet one never did (ADR 0121). Here the hashes (session tokens, codes), the RS256 signatures (Google's
-// and GitHub's tokens), Web Push's work (ECDH P-256, HKDF, AES-GCM, ES256: worker/push/webpush.ts) and a passkey's
-// signature checked (ES256, RS256: worker/auth/auth.passkeys.ts) are worked out
-// on the spot, the same bytes as WebCrypto's, and the promise is already settled, so a seed is one order of events.
-// Anything else goes to the real thing.
+// WebCrypto that answers at once, for tests (testing/setup.ts): the same bytes as the real thing, with the promise
+// already settled. Node's crypto.subtle resolves when its thread pool is done, so a fake-D1 seed (`interleave(seed)`)
+// could be a different order of events from run to run; here a seed is one order. Covers session hashes, RS256
+// (Google's and GitHub's tokens), Web Push (worker/push/webpush.ts) and passkeys (ES256, RS256); anything else goes
+// to the real thing.
 import {
   createCipheriv,
   createHash,

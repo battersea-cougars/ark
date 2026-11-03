@@ -1,7 +1,5 @@
-// Passkeys (ADR 0023): a member adds one on the You page ("Use Face ID next time"), and from then on signs in with
-// their face, finger or PIN, no email needed: for when Gmail is down, a new code would be one too many, or the inbox is
-// on another phone. The emailed code stays for a first sign-in, a new phone, or a lost passkey. Driven through the
-// real handlers in the fake world, with a fake authenticator that signs real WebAuthn responses
+// Passkeys (ADR 0023): a member adds one on the You page and signs in with it from then on, no email needed. Driven
+// through the real handlers in the fake world, with a fake authenticator that signs real responses
 // (testing.authenticator.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, minutes, testWorld } from "../testing";

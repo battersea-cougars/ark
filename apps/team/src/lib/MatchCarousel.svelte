@@ -1,12 +1,7 @@
 <script lang="ts">
-  // The matches as a vertical carousel (ADR 0074), for a tournament's KUMITE! view: the match that matters now
-  // (lib/tournament-front.ts currentMatchOf: on now, else up next, else the last) near the top, brought forward, full
-  // size and bright, with its stamp; a sliver of the one before over it and the ones after below, smaller and dim,
-  // as the draft's ticker lifts the pick on the clock. A thumb scrolls it, a match a snap; on a desktop the arrows
-  // beside it, ↑/↓ once it's focused, or the wheel. It opens on the current match and glides to the new one when that
-  // changes, unless someone's just been looking along it. A tap on the one in front opens it; on one peeking, brings
-  // it forward. Back to now, when the one in front isn't the current one, and on its own once they've left it alone a
-  // while. Less motion: no scaling, a plain snap.
+  // The matches as a vertical carousel for a tournament's KUMITE! view (apps/team/worker/tournaments/README.md): the
+  // match that matters now (lib/tournament-front.ts currentMatchOf) in front, its neighbours peeking smaller and dim. It
+  // glides to a new current match unless someone's just been looking along it. Less motion: no scaling, a plain snap.
   import type { Tournament } from "../demo/model";
   import GameCard from "./GameCard.svelte";
   import Icon from "../app/shell/Icon.svelte";

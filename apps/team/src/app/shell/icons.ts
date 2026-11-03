@@ -14,7 +14,7 @@ export const ICONS = {
   draft: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM15.5 14v5M13 16.5h5",
   clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
   info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5.5M12 7.5v.01",
-  // Live: a dot with rings, like a broadcast (ADR 0072)
+  // Live: a dot with rings, like a broadcast (ADR 0053)
   live: "M14 12a2 2 0 1 1-4 0 2 2 0 0 1 4 0M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14",
   upload: "M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
   download: "M12 4v12M7 11l5 5 5-5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
@@ -44,7 +44,7 @@ export const ICONS = {
   expand: "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5",
   // Back from the whole screen: four corners in
   shrink: "M9 4v5H4M20 9h-5V4M15 20v-5h5M4 15h5v5",
-  // An announcement (#85): a loudhailer, its sound in two arcs
+  // An announcement: a loudhailer, its sound in two arcs
   megaphone: "M4 10v4h3l6 4V6l-6 4H4zM16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10",
   // Notifications on your phone (ADR 0108): a bell
   bell: "M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16zM10 20a2 2 0 0 0 4 0",

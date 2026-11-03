@@ -1,6 +1,5 @@
-// What Settings → Website shows (#107): when the site was last rebuilt from the app, whether one is on its way, when
-// its photos and videos were last refreshed (#109), and
-// where the site and its Studio are for this environment (ADR 0010, ADR 0112).
+// What Settings → Website shows: when the site was last rebuilt and refreshed, whether a rebuild is on its way, and
+// where the site and its Studio are (ADRs 0010, 0004).
 import { first } from "@cougars/shared/d1";
 import { websiteTime } from "@cougars/shared/website-times";
 import { canRebuild, type WebsiteEnv } from "./website";
@@ -17,7 +16,7 @@ export interface WebsiteStatus {
   lastRebuildAt: string | null;
   /** One is waiting to be sent: a result changed in the last five minutes, or GitHub couldn't be reached. */
   rebuildWanted: boolean;
-  /** When an admin last pressed Refresh photos and videos (#109). */
+  /** When an admin last pressed Refresh photos and videos. */
   mediaRefreshedAt: string | null;
   /** This Worker asks GitHub (a laptop's never does). */
   canRebuild: boolean;

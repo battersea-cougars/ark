@@ -1,6 +1,5 @@
-// A night's register closes at 06:00 London the morning after (lib/register-closes.ts; ADR 0030, ADR 0007; #11):
-// from then who was there, and what it charged, is the record. The register, an admin putting someone in or taking
-// them off, Let in, a reset and calling the night off (or back on) are all refused, in the app's words.
+// A night's register closes at 06:00 London the morning after (lib/register-closes.ts;
+// apps/team/worker/training/README.md): from then every change to who was there is refused, in the app's words.
 import { first } from "@cougars/shared/d1";
 import { REGISTER_CLOSED, registerClosed } from "../../src/lib/register-closes";
 import { HttpError } from "../api/api.http";

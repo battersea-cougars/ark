@@ -1,9 +1,5 @@
-// An admin calls off a training night from its own page (ADR 0065, ADR 0030): Friday Training's Manage has Cancel this
-// night, which first says who'll hear it's off, then goes through the night's own cancel (`POST
-// /api/sessions/:id/cancelled`, `manage:Training`), the same one the training editor and the clash sheet use. The
-// page then shows that night struck through above the next one, and Manage puts it back on. The case: the Kumite on a
-// Friday, and that Friday's training still open. Driven through the real Worker handlers; what the page shows is
-// worked out from the bootstrap by the page's own rule (lib/night-off.ts).
+// An admin calls off a training night from its own page (ADR 0065, apps/team/worker/training/README.md), through the
+// night's own cancel, and puts it back on. Driven through the real Worker handlers.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 import { offWords, signedUp, trainingNights } from "../../src/lib/night-off";

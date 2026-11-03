@@ -1,6 +1,6 @@
-// A tournament date that's only a season so far, "Summer 2027" (ADR 0030). It still has a day, the season's last, so
-// it sorts with the others and counts as coming up until the season is over; that day is never shown. Seasons are
-// the UK's by month: winter runs December to February, so winter 2027 ends in February 2028.
+// A tournament date that's only a season so far, "Summer 2027" (apps/team/worker/tournaments/README.md). Its day is
+// the season's last, so it sorts with the others and counts as coming up until the season is over; that day is never
+// shown. Seasons are the UK's by month: winter 2027 runs December 2027 to February 2028.
 
 export const SEASONS = ["spring", "summer", "autumn", "winter"] as const;
 export type Season = (typeof SEASONS)[number];

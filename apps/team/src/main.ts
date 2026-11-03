@@ -16,7 +16,7 @@ import { isStaleCode, recoverOnce } from "./app/stale-code";
 
 // The app is imported up front, so Vite fetches all of it (Home too, app/pages.svelte.ts) with this file, beside the
 // club's data, which index.html started reading at once (getBootstrap takes that reply); nothing reads the data as it
-// loads (ADR 0120). The data is in place before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
+// loads (ADR 0053). The data is in place before the app mounts. Nobody signed in: the sign-in screen, which reloads the page once they are.
 const club = getBootstrap();
 const target = document.getElementById("app")!;
 // Errors to Sentry (ADR 0110), started beside the club's data rather than before it: a built copy only. What goes wrong
@@ -32,7 +32,7 @@ try {
   mount(App, { target });
   running.app = true;
   unsplash();
-  // In the store app (ADR 0108): links and notifications open their page; in a browser, Web Push's (#24)
+  // In the store app (ADR 0108): links and notifications open their page; in a browser, Web Push's
   // Failing, the app carries on without them, so Sentry hears of it (not the network's or the club's refusal)
   const pushFailed = (e: unknown) => reportUnexpected(e, "Couldn't start notifications on this device");
   if (inApp) void startInApp((path) => navigate(path)).catch(pushFailed);
@@ -63,7 +63,7 @@ function newCode() {
 }
 
 // The page you're opening, so the app's first paint has it (Home is already in; another page is its own chunk), and
-// its parts of the club beyond the core (#178): side by side. An address that isn't a page until they're in (a
+// its parts of the club beyond the core: side by side. An address that isn't a page until they're in (a
 // member's, before the roster) reads everything first, then its page. Offline, the page shows with what there is.
 async function firstPage() {
   const route = routeFor(routes(), location.pathname);

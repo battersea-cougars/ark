@@ -1,11 +1,5 @@
-// Why a training night is off (#186, ADR 0122): called off by hand from its own page, or off for a Kumite on its day
-// (the clash sheet's Cancel, or a training skipping its night). The two reasons are kept apart, so lifting one never
-// loses the other: a night off for a Kumite comes back when that Kumite is deleted or moved off its day, unless
-// another Kumite that day or a hand cancellation still keeps it off; It's back on, on the night's own page, puts it
-// on whatever kept it off (the admin's Keep both). The user, on dev: several Kumites, nights cancelled, more Kumites,
-// and Fridays left Cancelled that wouldn't come back. Each combination is a story below, driven through the real
-// Worker handlers as the app sends them: the Kumite saved first, then each night chosen cancelled by its own cancel,
-// naming the Kumite it's off for.
+// Why a training night is off (apps/team/worker/training/README.md): by hand, or for a Kumite on its day, kept apart so
+// lifting one never loses the other. Driven through the real Worker handlers as the app sends them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { londonISO } from "@cougars/shared/london";
 import { testWorld } from "../testing";
@@ -319,6 +313,22 @@ describe("several Kumites, made in any order, are in order (#182: status, then t
     const now = await ours();
     expect(tournamentPhase(now.find((x) => x.id === late)!)).toBe("past");
     expect(currentOf(now)?.id).toBe(middle);
+  });
+});
+
+describe("a Kumite played early", () => {
+  // Members may have planned around the night being off, so finishing the Kumite
+  // before its day doesn't bring training back; an admin can put the night back on by hand
+  it("a Kumite played early keeps its training night off, until an admin puts it back on", async () => {
+    const c = await club();
+    const k = await c.kumite("Kumite", F3);
+    // Finished today, the 6th, its day the 23rd
+    await c.move(k, "Kumite", F3, { status: "finished" });
+    expect(await c.off()).toEqual([F3]);
+    expect(await c.nightOn(F3)).toMatchObject({ offFor: [k] });
+
+    await c.backOn(F3);
+    expect(await c.off()).toEqual([]);
   });
 });
 

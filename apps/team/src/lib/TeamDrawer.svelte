@@ -7,7 +7,7 @@
   import Person from "./Person.svelte";
   import { putOnTeam, takeOffTeam } from "../app/backend.svelte";
 
-  // One team, edited directly, outside the draft (ADR 0060): someone drops out and an admin puts a replacement on.
+  // One team, edited directly, outside the draft (apps/team/worker/tournaments/README.md): someone drops out and an admin puts a replacement on.
   // Its players first (tap to take off: they stay signed up), then who could join: signed up and on no team, on
   // another team (they move), or anyone else (they're put in the tournament too). The captain stays.
   let {

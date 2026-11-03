@@ -1,9 +1,5 @@
-// A tournament, from an admin setting it up to its captains drafting their teams (ADR 0031): driven through the real
-// Worker handlers in the fake world (testing.ts), with the website's What's on reading the same database.
-//
-// The story: an admin makes a series with its colour and schedules a tournament in it, with a date and captains. It
-// goes on the website, members see it in the app, they can say they're in once sign-up opens, and then an admin
-// opens the draft, the captains pick them onto their teams, and the admin closes it.
+// A tournament, from an admin setting it up to its captains drafting their teams (ADR 0031), with the website's
+// What's on reading the same database. Driven through the real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { whatsOn } from "../../../web/src/lib/server/whats-on";
 import { NOW, logoAt, testWorld } from "../testing";
@@ -164,6 +160,24 @@ describe("a tournament, from setting it up to the draft", () => {
     expect(t.awards).toEqual([
       { name: "Champions", about: "Top of the table.", decidedBy: { kind: "stat", stat: "table" } },
     ]);
+  });
+
+  it("a change to the series' defaults reaches the next one scheduled, not one already scheduled", async () => {
+    const { dana, typeId, id } = await scheduled();
+    const series = (await dana.sees()).tournamentTypes.find((t: Json) => t.id === typeId);
+    const changed = { ...series, defaultFeePence: 1500, gameMinutes: 15 };
+    expect((await dana.call("PUT", `/api/tournament-types/${typeId}`, changed)).status).toBe(200);
+    const next = await dana.call("POST", "/api/tournaments", {
+      typeId,
+      name: "Spring Cup",
+      heldOn: "2027-05-31",
+      season: "spring",
+      teams: [],
+    });
+    expect(next.status).toBe(201);
+    const seen = (await dana.sees()).tournaments;
+    expect(seen.find((t: Json) => t.id === id)).toMatchObject({ feePence: 1000, gameMinutes: 12 });
+    expect(seen.find((t: Json) => t.id === next.body.id)).toMatchObject({ feePence: 1500, gameMinutes: 15 });
   });
 
   it("an admin deletes one: it's gone from the app and What's on, with its teams and sign-ups; a member can't", async () => {

@@ -10,13 +10,12 @@
   import { formatDayDate } from "./dates";
   import { letIn, markHere } from "../app/backend.svelte";
   import { roomFor } from "./places";
+  import { inTurn } from "./in-turn";
   import type { TrainingSession } from "../demo/model";
 
-  // The register for the night, in a drawer over the training page: every active member, sign-ups first and
-  // already ticked, everyone else below to tick as they walk in. Search narrows the list. Ticks are written to the
-  // session: a walk-in joins its sign-ups (so the page counts them in), a no-show stays signed up but marked. Adding
-  // someone keeps to the places (ADR 0131): on a full night they wait, and the team maker lets them in, right here.
-  // `night`: the night the page shows (its own page, a past one too); else the series' next
+  // The night's register, in a drawer over the training page: every active member, sign-ups first and ticked, the rest to
+  // tick as they walk in (a walk-in joins the sign-ups, a no-show stays marked). Adding keeps to the places
+  // (apps/team/worker/training/README.md). `night`: the night the page shows, else the series' next.
   let {
     seriesId,
     night,
@@ -34,11 +33,13 @@
   const noShows = $derived(session?.noShows ?? []);
   // Full for skaters; a keeper may still have a place
   const full = $derived(!roomFor(0, going, limits, () => false));
-  // Who's playing over the limit is the team maker's call (ADR 0076)
+  // Who's playing over the limit is the team maker's call (apps/team/worker/training/README.md)
   const letting = $derived(can(granted(), "publish:Teams"));
   const here = (id: number) => going.includes(id) && !noShows.includes(id);
   const waiting = (id: number) => waitlist.includes(id);
   let search = $state("");
+  // Each player's taps reach the server in the order they were made: Let in for a walk-in waits for adding them
+  const turn = inTurn<number>();
 
   const active = $derived(
     MEMBERS.filter((m) => m.status === "active")
@@ -60,21 +61,22 @@
     if (!s) return;
     if (signedUpIds.includes(id)) {
       // Signed up: a tap marks a no-show, or takes it back
-      void markHere(s.id, id, !here(id));
+      const marked = !here(id); // as it is now: the lists change below before a queued tap is sent
+      void turn(id, () => markHere(s.id, id, marked));
       s.noShows = noShows.includes(id) ? noShows.filter((x) => x !== id) : [...noShows, id];
     } else if (walkIns.includes(id)) {
       // Added here by mistake (in or waiting): off the session again
-      void markHere(s.id, id, false);
+      void turn(id, () => markHere(s.id, id, false));
       s.going = s.going.filter((x) => x !== id);
       s.waitlist = s.waitlist.filter((x) => x !== id);
       s.walkIns = walkIns.filter((x) => x !== id);
     } else if (waiting(id)) {
       // Signed up and waiting: they keep their place in the queue until a place comes up or they're let in
-      void markHere(s.id, id, true, shortName(p));
+      void turn(id, () => markHere(s.id, id, true, shortName(p)));
     } else {
       // Turned up without signing up: in if there's room, else on the waiting list for the team maker to let in.
       // (A Quarterly Member may take someone's place: the server's reply puts the lists right.)
-      void markHere(s.id, id, true, shortName(p));
+      void turn(id, () => markHere(s.id, id, true, shortName(p)));
       if (!roomFor(id, going, limits)) s.waitlist = [...s.waitlist, id];
       else s.going = [...s.going, id];
       s.out = s.out?.filter((x) => x !== id);
@@ -82,13 +84,13 @@
     }
   }
 
-  // The team maker lets someone waiting in, over the limit (ADR 0076)
+  // The team maker lets someone waiting in, over the limit (apps/team/worker/training/README.md)
   function admit(p: Player) {
     const s = session;
     if (!s || !waiting(p.id)) return;
     s.waitlist = s.waitlist.filter((x) => x !== p.id);
     s.going = [...s.going, p.id];
-    void letIn(s.id, p.id, shortName(p));
+    void turn(p.id, () => letIn(s.id, p.id, shortName(p)));
   }
 </script>
 

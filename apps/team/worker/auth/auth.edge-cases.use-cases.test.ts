@@ -124,7 +124,7 @@ describe("a code's 15 minutes", () => {
   });
 });
 
-describe("a session's six months", () => {
+describe("a session's 90 days unused", () => {
   /** Signed in at NOW, and not used since. */
   const signedIn = async () => {
     const phone = w.browser();
@@ -134,12 +134,12 @@ describe("a session's six months", () => {
 
   it("left alone, it still works the day before it runs out", async () => {
     const phone = await signedIn();
-    expect((await boot(phone, minutes(180 * DAY - 1))).status).toBe(200);
+    expect((await boot(phone, minutes(90 * DAY - 1))).status).toBe(200);
   });
 
-  it("left alone, it has run out on the 180th day, to the minute", async () => {
+  it("left alone, it has run out on the 90th day, to the minute", async () => {
     const phone = await signedIn();
-    expect((await boot(phone, minutes(180 * DAY))).status).toBe(401);
+    expect((await boot(phone, minutes(90 * DAY))).status).toBe(401);
   });
 
   it("used within a day it isn't written again; used a day later it moves on, with a fresh cookie", async () => {
@@ -148,10 +148,10 @@ describe("a session's six months", () => {
     expect(soon.headers.getSetCookie().some((c) => c.includes("cougars_session"))).toBe(false);
     const later = await boot(phone, minutes(DAY));
     expect(
-      later.headers.getSetCookie().some((c) => c.includes("cougars_session=") && c.includes("Max-Age=15552000")),
+      later.headers.getSetCookie().some((c) => c.includes("cougars_session=") && c.includes("Max-Age=7776000")),
     ).toBe(true);
-    // Moved on from that day: past the first 180 days, it still opens
-    expect((await boot(phone, minutes(DAY + 180 * DAY - 1))).status).toBe(200);
+    // Moved on from that day: past the first 90 days, it still opens
+    expect((await boot(phone, minutes(DAY + 90 * DAY - 1))).status).toBe(200);
   });
 
   it("a change (not only a read) also moves it on, and still carries the fresh cookie with its reply", async () => {
@@ -207,8 +207,8 @@ describe("who can ask for a code", () => {
     expect((await w.ask(w.browser(), "reg@example.com")).devCode).toMatch(/^\d{6}$/);
   });
 
-  // A member's reply used to wait for their code to be made and emailed, so it took measurably longer than a
-  // stranger's (#81). Here the database never finishes writing a code: a member's reply still comes, as a stranger's
+  // A reply that waited for a member's code to be made and emailed would take measurably longer than a stranger's.
+  // Here the database never finishes writing a code: a member's reply still comes, as a stranger's
   // does, and the code is made after it.
   it("the reply doesn't wait for a member's code, so its timing says nothing about whose address it was", async () => {
     Object.assign(w.env, { TEAM_ENV: undefined, SITE_ENV: "dev", MAIL_SAFE_TO: "dev@example.com" });
@@ -289,9 +289,7 @@ describe("asking to join, at the edges", () => {
     expect(asked("nina@example.com")).toBeUndefined();
   });
 
-  // https://github.com/battersea-cougars/ark/issues/133
-  // #133: a name of only spaces passed the "name is needed" check (it was trimmed after), so a member with no name
-  // was made
+  // A name of only spaces must fail the "name is needed" check (it's trimmed first), or a member with no name is made
   it("a name of only spaces is refused, like no name (#133)", async () => {
     const r = await ask({ name: "   ", email: "blank@example.com", position: "F" });
     expect(r.status).toBe(400);

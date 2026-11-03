@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A series' past ones (ADR 0074), newest first, while the next one's on or coming up; with nothing on, they're on the
-  // series' front page instead. Each opens its own page (its track, every status it went through, its results).
-  // Under them, the all-time leaderboards over every edition played (#47). Both read when opened, the list a page at a
-  // time (#175): the app has only the last one played, enough to know there's a History.
+  // A series' past ones (apps/team/worker/tournaments/README.md), newest first, while the next one's on or coming up,
+  // each opening its own page; under them, the all-time leaderboards. Both read when opened, the list a page at a time:
+  // the app has only the last one played.
   import EmptyState from "../lib/EmptyState.svelte";
   import { pastTournaments, typeById } from "../demo/schedule.svelte";
   import TournamentHead from "../lib/TournamentHead.svelte";

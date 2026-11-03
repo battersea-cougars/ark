@@ -1,4 +1,4 @@
-// A tournament's result on the website (ADR 0100), as the team app shows a past one (lib/EditionResults): how the
+// A tournament's result on the website (ADR 0016), as the team app shows a past one (lib/EditionResults): how the
 // champions won it, the final, the fight card in order, the board, the leaders and the awards; and the penalties the
 // team app recorded, per game (penalty minutes a side) and per player (beside their goals and assists), from the
 // snapshot's rows.

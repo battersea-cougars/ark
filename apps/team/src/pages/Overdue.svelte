@@ -1,12 +1,11 @@
 <script lang="ts">
-  // Unpaid fees, the aged-receivables report (ADR 0007): every unpaid charge, added up per member and by how
-  // long it's been owed. Marking a charge paid on a member's profile takes it off here. A tap on someone opens their
-  // card over the page, as on Teammates: admins get the member sheet on its Dues tab. Send reminders is the page's one
-  // main button, for whoever records payments: it opens the preview (who gets one, who's held), then sends. Nothing
-  // sends them on its own (ADR 0007; a configurable schedule is #143). Manage (ADR 0065) keeps the bank details.
+  // Unpaid fees, the aged-receivables report (apps/team/worker/dues/README.md): every unpaid charge, per member and by
+  // how long it's been owed. Send reminders previews who gets one, then sends; nothing sends them on its own. Manage
+  // (ADR 0065) keeps the bank details.
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { csvCell } from "../lib/csv";
+  import { SOMEONE_WHO_LEFT } from "../lib/names";
   import MemberSheet from "../lib/MemberSheet.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { can } from "../access/actions";
@@ -28,7 +27,7 @@
   const rows = $derived(
     agedOf(db.dues).map((r) => ({
       ...r,
-      player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: "Someone who's left" },
+      player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: SOMEONE_WHO_LEFT },
       reference: referenceFor(r.memberId),
     })),
   );

@@ -1,4 +1,4 @@
-// The day's order of the round robin (lib/fixtures.ts fairOrder, ADR 0061): everyone gets the longest break the
+// The day's order of the round robin (lib/fixtures.ts fairOrder, apps/team/worker/tournaments/README.md): everyone gets the longest break the
 // teams allow, nobody plays twice running unless it can't be helped, and the short breaks are shared out. Checked
 // against every order there is, where that's quick enough.
 import { describe, expect, it } from "vitest";

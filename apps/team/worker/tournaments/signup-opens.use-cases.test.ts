@@ -1,7 +1,5 @@
-// When a tournament's sign-up opens (ADR 0128, 0108), members hear it once: on the day it's set to open, from the cron,
-// or straight away when an admin opens it by hand. The Kumite is invitation-only, as in Bloodsport, so its notification
-// is an invitation ("An invitation has arrived"); any other tournament says its sign-up's open. Opened again (Back to
-// Sign-up open), it isn't news. Driven through the real handlers and the cron in the fake world (ADR 0031).
+// When a tournament's sign-up opens (ADR 0108, apps/team/worker/tournaments/README.md), members hear it once. Driven
+// through the real handlers and the cron in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 
@@ -152,7 +150,7 @@ describe("a tournament's sign-up opens and members hear it", () => {
 });
 
 describe("before a tournament's sign-up opens", () => {
-  // Refused in the app's words, the day in Europe/London (lib/signup.ts opensWords), not a date code (#170)
+  // Refused in the app's words, the day in Europe/London (lib/signup.ts opensWords), not a date code
   it("a member saying in is told when it opens, in words: within the week its weekday, further off with its date", async () => {
     const { id } = await schedule({ typeId: KUMITE });
     const reg = await w.signedIn("reg@example.com");

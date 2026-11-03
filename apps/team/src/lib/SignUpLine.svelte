@@ -1,7 +1,7 @@
 <script lang="ts">
   // Saying you're in for a tournament, on its own page: one line, not a card (the date's in the header). How many are
   // in, whether you are, and In / Out. The card itself is for the app's Home feed. Once the draft's on, just a line:
-  // where you stand and the count, no buttons (ADR 0074).
+  // where you stand and the count, no buttons (apps/team/worker/tournaments/README.md).
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { answerFor } from "../app/backend.svelte";
@@ -36,7 +36,7 @@
     if (busy || impersonating() || (going && (inIt || waiting))) return;
     busy = true;
     try {
-      // Out again, when you're out, takes it back: not answered (ADR 0131)
+      // Out again, when you're out, takes it back: not answered (apps/team/worker/training/README.md)
       await answerFor(`tournament:${t.id}`, going ? "in" : out ? "clear" : "out");
     } finally {
       busy = false;

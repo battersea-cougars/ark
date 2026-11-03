@@ -1,4 +1,4 @@
-// The Kumite's Manage menu at each stage, for each of who looks (ADR 0127): only what makes sense where it stands.
+// The Kumite's Manage menu at each stage, for each of who looks (apps/team/worker/tournaments/README.md): only what makes sense where it stands.
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
 import { historyItemsOf, manageItemsOf, manageStageOf, type Manager } from "./manage";
@@ -68,7 +68,7 @@ type StageName = keyof typeof STAGES;
 
 const labels = (t: Tournament, who: Manager) => manageItemsOf(t, kumite, who, TODAY).map((x) => x.label);
 
-/** The series' history's own, an admin's at every stage (ADR 0126). */
+/** The series' history's own, an admin's at every stage (apps/team/worker/tournaments/README.md). */
 const PAST = "Record a past Kumite";
 const DRAFTING = ["Undo the last pick", "Add a player", "Close it now", "Reset the draft"];
 const MENUS: Record<StageName, Record<"admin" | "runner" | "captain" | "member", string[]>> = {

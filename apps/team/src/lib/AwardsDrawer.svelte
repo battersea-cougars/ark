@@ -7,12 +7,9 @@
 </script>
 
 <script lang="ts">
-  // Confirming a tournament's awards (ADR 0044), the after-party's first step, before the reveal: usually on a phone
-  // straight after the final. Each is decided as it says (lib/awards.ts): a stat's from the results (the champions,
-  // the top scorer), a draw at random (Draw again for another), for the admin to check (or choose someone else); a
-  // vote's counted by the Worker as they confirm (how many have voted shows here, never who for), and where it's
-  // level after its tie-break, the reply says who's level and the admin chooses; the judges' call they make here,
-  // naming it tonight and choosing who. Confirming closes voting and sets every winner; then it's the reveal.
+  // Confirming a tournament's awards (apps/team/worker/tournaments/README.md), the after-party's step before the reveal:
+  // each decided as it says (lib/awards.ts), a vote counted by the Worker (how many voted shows, never who for), a tie
+  // or the judges' call chosen here. Confirming closes voting and sets every winner.
   import { PLAYERS } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { setWinners } from "../app/backend.svelte";

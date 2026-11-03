@@ -1,8 +1,5 @@
-// A captain brings their team to the next edition of a series (ADR 0060): in a draft, the team they're named captain
-// of starts with the name and logo of the team they last captained in an earlier edition of the same series, unless
-// it's given its own. Nothing about it lives on the member (another club may have no Kumite): it's worked out from
-// the editions, each keeping its own team's name and logo, so a rename changes only that edition's team, which is
-// then the last one for next time. An erased member brings nothing; one who's never captained in it starts blank.
+// A captain brings their team to the next edition of a series (apps/team/worker/tournaments/README.md): the name and
+// logo of the team they last captained in it, worked out from the editions, nothing kept on the member.
 import { text } from "../api/api.http";
 import { LOGO_SENT } from "../api/api.club";
 import { logoAddress } from "./tournaments";
@@ -14,6 +11,7 @@ export const teamNameOf = (o: Record<string, unknown>, key = "name") =>
 /**
  * SQL for the team (its id) member `m` last captained in an earlier edition of tournament `edition`'s series (SQL: a
  * `?`): by day, and of editions on the same day the one made first. Null: none, so the automatic name and initials.
+ * Each edition keeps its own team's name and logo, so a rename changes only that one; an erased member brings nothing.
  */
 export const broughtTeam = (edition = "?") => `CASE WHEN m.status != 'erased' THEN
     (SELECT tt.id FROM tournaments this JOIN tournaments t ON t.type_id = this.type_id
@@ -52,7 +50,7 @@ export function carriedNames(teams: readonly Naming[]): string[] {
 
 /**
  * What each captain brings to an edition of series `typeId` on `heldOn` (null: no day yet, so after every other),
- * `id` if it's saved (#177): for every member who's captained an earlier edition, the team they last captained, its
+ * `id` if it's saved: for every member who's captained an earlier edition, the team they last captained, its
  * name and its logo's address. The editor shows it before the team's made ("Brings: Reacher Rounds"), read from the
  * server, not the editions the app holds.
  */

@@ -1,15 +1,13 @@
 <script lang="ts">
-  // The choices (ADR 0060): every pick of a draft in order, by round, the player over their team, and who chose for
-  // a captain when it wasn't them. For its captains and whoever runs the draft, from the page header's Manage once the
-  // draft's open; a bottom sheet on a phone, a side drawer on a desktop. As a `column` (the draft room on a wide
-  // screen): a line each, "3 · Team Alex chose Hayden Harlow D", the newest at the top, burning in as it lands, the
-  // rounds' turns of the snake as quiet breaks.
+  // The choices (apps/team/worker/tournaments/README.md): every pick of a draft by round, and who chose for a captain
+  // when it wasn't them; from Manage once the draft's open, a sheet on a phone, a drawer on a desktop. As a `column` (the
+  // draft room on a wide screen), a line each, newest first, burning in as it lands.
   import BurnReveal from "./BurnReveal.svelte";
   import { prefersReducedMotion } from "../app/motion";
   import type { Tournament } from "../demo/model";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
-  import { goesByOf, nameOfTeam, shortNameOf } from "./names";
+  import { nameOfPlayer, nameOfTeam, shortNameOf } from "./names";
   import Sheet from "./Sheet.svelte";
   import Drawer from "./Drawer.svelte";
   import { phone } from "./viewport.svelte";
@@ -47,7 +45,7 @@
         id: p.memberId,
         pos: p.memberId ? (byId(p.memberId)?.position ?? "") : "",
         team: p.team,
-        name: p.memberId ? goesByOf(byId(p.memberId)) || p.name : p.name,
+        name: nameOfPlayer(p, byId),
         you: p.memberId === me().id,
         by: pickerOf(p, p.team),
       })),

@@ -1,4 +1,4 @@
-// The Kumite's fighters (ADR 0074): your number is your place in the sign-up order, as Who's in has always counted
+// The Kumite's fighters (apps/team/worker/tournaments/README.md): your number is your place in the sign-up order, as Who's in has always counted
 // it; the waitlist are the reserves, numbered in theirs; said out, you declined.
 import { describe, expect, it } from "vitest";
 import { fighterLabel, fighterNo, fighterOf } from "./fighters";

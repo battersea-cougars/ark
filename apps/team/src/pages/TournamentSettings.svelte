@@ -19,7 +19,7 @@
   import { loadMore } from "../lib/load-more";
   import { cardMoveMs, easeOut, sift } from "../app/motion";
 
-  // The older played ones, read a page at a time as the list's end comes into view (#175): the app has only each
+  // The older played ones, read a page at a time as the list's end comes into view: the app has only each
   // series' last one played. Opening one reads it whole for its editor
   const older = pastList(null);
   $effect(() => {
@@ -34,7 +34,7 @@
     if (await loadEdition(id)) editTournament(id);
   };
   // Dates still to come first, soonest first; then the finished ones, latest first
-  // Played is done, whatever its date; one whose day went by unplayed is still to come (#182)
+  // Played is done, whatever its date; one whose day went by unplayed is still to come
   const done = (t: Tournament) => editionState(t) === "done";
   const dates = $derived(
     [...all].sort((a, b) => {

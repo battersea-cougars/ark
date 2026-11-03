@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A series' past ones (ADR 0074), newest first, each with how it ended: the day, the champions, the final's score.
-  // Each opens its own page (lib/edition-address.ts), its track and every status it went through. On History, and on
-  // the series' front page when nothing's on. Read a page at a time as the list's end comes into view (#175,
-  // app/history.svelte.ts); tonight's, at its after-party, is still on, so it isn't here.
+  // A series' past ones (apps/team/worker/tournaments/README.md), newest first, each with how it ended, opening its own
+  // page (lib/edition-address.ts). On History and the series' front page, read a page at a time (app/history.svelte.ts);
+  // tonight's is still on at its after-party, so it isn't here.
   import { nameOfTeam } from "./names";
   import { PLAYERS } from "../demo/data";
   import type { TournamentType } from "../demo/model";

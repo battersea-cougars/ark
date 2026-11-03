@@ -1,7 +1,6 @@
-// Default club facts (from the old Wix site, rewritten), one object per Sanity singleton. Used field by field
+// Default club facts, one object per Sanity singleton. Used field by field
 // wherever Sanity has no value yet, and by apps/studio/seed.ts to seed the singletons. Until launch the words here are
-// the website's words: every deploy sends them to Sanity (scripts/sanity-copy.mjs, ADR 0014), so change them here. Every claim here is
-// listed in docs/club-facts.md for the team manager to confirm.
+// the website's words: every deploy sends them to Sanity (scripts/sanity-copy.mjs, ADR 0004), so change them here.
 import type { Club, Fridays, Kumite, Pub, Team } from "./types";
 
 export const FALLBACK_CLUB: Club = {
@@ -36,7 +35,7 @@ export const FALLBACK_FRIDAYS: Fridays = {
     mapUrl: "https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6",
   },
   kitNotes: "Helmet, gloves and shin pads are non-negotiable. Knee and elbow pads strongly recommended.",
-  // The club doesn't promise to lend kit (2026-10-17): nothing about lending kit unless the Studio says so
+  // The club doesn't promise to lend kit: nothing about lending kit unless the Studio says so
   firstSessionKit: null,
   feesText: null,
 };

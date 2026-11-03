@@ -1,9 +1,6 @@
-// Dues reminders (ADR 0007): whoever records payments emails members what they owe, from Unpaid fees, after seeing
-// who gets one and what it says, never more than one a week each. Nothing reminds anyone on its own: the hourly Cron
-// Trigger sends none (a configurable schedule is #143); the five-minute one only sends what an admin's send left
-// queued. Each goes through the one "tell a member" seam: an email, and a notification on their phone if they have the
-// store app (ADR 0108). Driven through the real handlers in the fake world (ADR 0031): mail is caught in its outbox,
-// phones in its push outbox, and the crons are run as Cloudflare runs them.
+// Dues reminders (apps/team/worker/dues/README.md): whoever records payments sends members what they owe, after a
+// preview, at most once a week each, by email and phone (ADR 0108). Driven through the real handlers in the fake world
+// (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { REMINDERS } from "./reminders";

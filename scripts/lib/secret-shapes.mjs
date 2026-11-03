@@ -1,4 +1,4 @@
-// What a secret should look like, and how to tell two values apart without showing either (#149, docs/secrets.md
+// What a secret should look like, and how to tell two values apart without showing either (docs/secrets.md
 // "Handing a secret over"). The Secrets page (scripts/lib/secrets-page.mjs) checks a value's shape before it saves it,
 // here and, from the same function, in the browser; it shows each stored value only as its fingerprint.
 import { createHash } from "node:crypto";

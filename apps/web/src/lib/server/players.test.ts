@@ -3,6 +3,7 @@ import { createTestD1 } from "@cougars/shared/testing/d1-sqlite";
 import { publicName } from "@cougars/shared/names";
 import { memberId, toPlayer } from "../roster";
 import { livePlayer } from "./players";
+import { ROSTER_SQL } from "../../../../../scripts/lib/roster-sql.mjs";
 
 describe("the roster on the website", () => {
   it("shows a first name and initial, never a full name", () => {
@@ -35,5 +36,21 @@ describe("the roster on the website", () => {
     expect(await livePlayer(db, friday)).toBeNull();
     expect(await livePlayer(db, gone)).toBeNull();
     expect(await livePlayer(db, 9999)).toBeNull();
+  });
+
+  it("never shows a member's photo: the build's roster and a picked-up card leave it in the database", async () => {
+    const db = createTestD1();
+    const sam = Number(
+      db.raw
+        .prepare(
+          `INSERT INTO members (name, position, bio, status, cougar, photo, photo_at, joined_on, created_at)
+           VALUES ('Sam Jones', 'D', '', 'active', 1, 'data:image/webp;base64,UklGRg==', '2026-10-01T00:00:00Z',
+             '2026-01-01', '2026-01-01')`,
+        )
+        .run().lastInsertRowid,
+    );
+    const said = JSON.stringify([await livePlayer(db, sam), db.raw.prepare(ROSTER_SQL).all()]);
+    expect(said).toContain("Sam");
+    expect(said).not.toMatch(/photo|data:image/);
   });
 });

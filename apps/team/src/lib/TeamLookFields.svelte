@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A team's name and logo, the fields (ADR 0030): the name (none: "Team Dan", after its captain) and the crest, its
-  // logo or its initials, with a way to change it. In the team's own sheet (lib/TeamLookSheet, its captain or an
-  // admin, saving at once), and for a team that enters, new in a tournament's editor (lib/TeamSheet: it can't be
-  // registered without a name; saved with the editor).
+  // A team's name and crest fields (apps/team/worker/training/README.md): no name is "Team Dan", after its captain; no
+  // logo, its initials. In the team's own sheet (lib/TeamLookSheet) and, for a team that enters, the tournament editor's
+  // lib/TeamSheet.
   import TeamCrest from "./TeamCrest.svelte";
   import { shrinkLogo } from "./logo";
 
@@ -18,10 +17,10 @@
     logo: string | null;
     /** What it's called with no name of its own: "Team Dan", or the team its captain brings. */
     fallback: string;
-    /** A draft in a series: its captain's next team in it starts with this name and logo (ADR 0060). */
+    /** A draft in a series: its captain's next team in it starts with this name and logo (apps/team/worker/tournaments/README.md). */
     brings?: boolean;
     autofocus?: boolean;
-    /** A team that entered: it must have a name of its own (ADR 0030), so there's no fallback to fall back on. */
+    /** A team that entered: it must have a name of its own (apps/team/worker/training/README.md), so there's no fallback to fall back on. */
     required?: boolean;
   } = $props();
 

@@ -1,7 +1,7 @@
 # 0110. The apps log through scribe, one JSON line per event; errors and down alerts go to Sentry; nothing private in either
 
 - **Status:** Accepted
-- **Date:** 2026-10-17 · updated 2026-10-28
+- **Date:** 2026-10-17 · updated 2026-11-02
 - **Merges:** 0111
 
 ## Context
@@ -44,7 +44,10 @@ smaller (5k errors a month, one user) but plain about it.
 - **An error** is kept whole under `err`: name, message, stack, and its cause the same way.
 - **Nothing private in a line:** a field named password, secret, token, otp, pw, code, authorization, cookie or
   phone is `[redacted]`, at any depth; an email address anywhere in the text is masked to its first letter and
-  domain (`a…@club.org`). The mail module still redacts a mail's own secrets (a sign-in code) before it logs a mail.
+  domain (`a…@club.org`), and a token in running text is `[redacted]` too: a secret in an address's query
+  (`access_token=`, `key=`, `code=`), a bearer token, a JWT. The mail module still redacts a mail's own secrets (a
+  sign-in code) before it logs a mail, and in production, where a mail that's only logged is a mail that didn't go, it
+  logs (and reports, `mail.unconfigured`) who it was for and its subject, never its words.
 - **Every error or fatal line is also reported** to the reporter (Sentry, below), with the Error it carries, if
   any, and its fields. Warnings aren't: they're the expected, degraded paths (a stale cache, a paused source,
   ADR 0055). A warning that's a failure says why it isn't reported, where that isn't plain; a read behind a circuit
@@ -77,9 +80,13 @@ smaller (5k errors a month, one user) but plain about it.
   before then. Its margin is 50 minutes, so it waits for the catch-up, and it opens an issue only after **two hours in
   a row** fail or are missed (`failure_issue_threshold: 2`); one good hour resolves it (`recovery_threshold: 1`).
   `scripts/sentry-setup.mjs` sets these (Sentry's monitor config fields, as its `ConfigValidator` names them).
-- **Servers:** each Worker is wrapped in `@sentry/cloudflare`'s `withSentry` (`apps/web/src/worker.ts`,
-  `apps/team/worker/index.ts`), so an error nothing caught is reported, and every `error` or `fatal` log line is
-  reported through scribe's reporter (`packages/shared/scribe.sentry.ts`). Environment from `SITE_ENV`,
+- **Servers:** an error nothing caught is reported, and every `error` or `fatal` log line is reported through
+  scribe's reporter (`packages/shared/scribe.sentry.ts`). The website's Worker is wrapped in `@sentry/cloudflare`'s
+  `withSentry` (`apps/web/src/worker.ts`). The team Worker loads Sentry only when there's something to send
+  (`apps/team/worker/sentry/sentry.ts`): each invocation, the live hub's included, runs `within` a small record of its
+  own, and a report, a cron check-in or an uncaught error loads Sentry and sends inside `withSentry`'s own wrapper.
+  Wrapping every invocation set up a client, scopes and a proxy over every binding, and a new isolate compiled all of
+  it first: most of a quiet Worker's CPU (ADR 0003). Environment from `SITE_ENV`,
   release from the deploy's build version (`BUILD_VERSION`, set by `scripts/ci/target.mjs`). No DSN (your machine,
   tests): Sentry is off.
 - **The team app in the browser** (and the store app, which loads it): `@sentry/svelte`, loaded beside the club's data
@@ -90,7 +97,7 @@ smaller (5k errors a month, one user) but plain about it.
   and a few lines with no imports, listens for errors and rejections until Sentry is up and hands them over then (20 at
   most). A start-up that fails (the "Can't reach the club's data" screen) is reported the same way, except sign-in
   (401), resting (429, ADR 0055) and old code that reloads. The same `beforeSend` sees each. A failure the app catches
-  and carries on past, where carrying on would hide it (the clash question it couldn't ask, ADR 0122), goes the same
+  and carries on past, where carrying on would hide it (the clash question it couldn't ask, [the training notes](../../apps/team/worker/training/README.md)), goes the same
   way through `reportCaught` (handled, phase `caught`), and to the console on your machine, which the dev strip shows.
   A job the app carries on past in the background (catching up with the club's changes, the check when it comes back
   into view, a phone's notification token, Home's and a member sheet's side reads) reports through `reportUnexpected`,
@@ -103,18 +110,23 @@ smaller (5k errors a month, one user) but plain about it.
   its method, path, route and the member's number (never their name or email).
 - **The website in the browser** loads no SDK (it would add about 25 KB to every page for three small scripts). A
   catcher of a few lines, the first script in `<head>` (`src/scripts/head.js`, a file so the content security policy
-  needs no inline exception, [0036](0036-api-security.md)), posts each distinct uncaught error once, by
+  needs no inline exception, [0024](0024-action-based-authorization.md)), posts each distinct uncaught error once, by
   `sendBeacon`, to `/api/client-error`. The Worker keeps only reports with a frame from our own `/_astro/` scripts
   (not an extension, another site's script, or a cross-origin "Script error."), ten per visitor per ten minutes, and
   sends each as a Sentry event under the deploy's release (`lib/server/client-errors.ts`). What the content security
   policy refuses arrives at `/api/csp-report` and goes to Sentry as a warning, one issue per kind of refusal
   (`lib/server/csp-reports.ts`).
+- **A daily cap across the club on what browsers report:** the team app's `/api/errors`, the website's
+  `/api/client-error` and `/api/csp-report` together pass on at most 100 reports a London day
+  (`packages/shared/error-report-cap.ts`, one D1 row a day, `error_report_days`), counted in one statement once a report
+  is known to be ours; past it they're dropped with the same quiet 204. A script setting `Origin` from many addresses
+  can't spend the month's 5k on made-up reports; the servers' own errors aren't capped.
 - **Nothing about a person:** Sentry 11's `dataCollection` is all off (`DATA_COLLECTION`): no request bodies (the join
   form), cookies, headers, query strings (the team app's `?email=`), SQL values or stack variables, no user. Every event
   is cleaned by `beforeSend` the same way as a log line: secrets and phones by key, email addresses masked anywhere.
   No tracing, no session replay.
 - **Seen in the app, too: Settings → Errors** (`read:Errors`; admins through `manage:all`), in System beside Usage,
-  not in Dev tools, which production doesn't have (ADR 0123). For each project, team app and website, the open issues
+  not in Dev tools, which production doesn't have (ADR 0010). For each project, team app and website, the open issues
   in this environment from the last 14 days, newest first, ten at most: the title, how often and to how many, when
   last, where (Sentry's culprit: the route or function), each a link to it in Sentry. The team Worker reads them
   (`settings/errors.ts`, `GET /api/sentry/issues`) with a read-only token, `SENTRY_ISSUES_TOKEN` (Issue & Event: Read),
@@ -143,32 +155,8 @@ smaller (5k errors a month, one user) but plain about it.
   meant for.
 - An error in production is an email within minutes, with a stack that points at our code.
 - 5k errors a month is plenty once quiet; a loop that throws could use it up, after which Sentry drops events until the
-  month turns (the log still has them).
+  month turns (the log still has them). Browsers' reports stop at 100 a day, so a broken page on a busy day reports
+  its first hundred and the website's log keeps the rest as warnings (`browser.error` is logged before the cap).
 - One user: anyone else who needs to look signs in as the developer account, or reads the forwarded email.
 - The website's catcher sees uncaught errors only; code that catches its own error and wants it known calls
   `reportError(e)`.
-
-## History
-
-- 2026-10-17: Scribe, in decohere's shape, made for Workers; every `console.*` in the apps moved to it. The same day,
-  the JSON console logger moved out of the facade into `scribe.console.ts`.
-- 2026-10-18: Sentry for errors and down alerts, EU region, one alert for production; Better Stack tried and dropped
-  (was 0111).
-- 2026-10-18: Uptime checks every 10 minutes, not every minute: about 290 requests a day instead of 2,900 (#16).
-- 2026-10-20: The browser catcher moved into `src/scripts/head.js`; policy refusals are reported too (#78).
-- 2026-10-21: Start-up failures reported, and errors before Sentry is up held for it (`errors.early.ts`); alerts for a
-  new issue in dev and a spike in production; a cron monitor on the hourly run (#32). The live hub's failure and an
-  unreadable allowance are errors; a 500 names its route and member (#75).
-- 2026-10-23: Settings → Errors shows each project's open issues, read at most every five minutes with a read-only
-  token and kept in D1. Every warn and error line checked (#148): warnings say why they aren't reported, a breaker's
-  read reports through `logFailure`, YouTube's failure is an error.
-- 2026-10-24: `reportCaught` for a failure the app catches and carries on past (the clash question it couldn't ask):
-  to Sentry as handled, phase `caught`, and the console (the dev strip) on your machine (was in 0111).
-- 2026-10-24: ADR 0111 (errors and uptime) merged in.
-- 2026-10-24: Every caught failure in the team app's browser code checked (#148): a background job that carries on
-  reports through `reportUnexpected` (not the server's answer, not the network), the rest say why not. The brake's
-  "resting" is a 429 `ApiError`, so it isn't reported. The Worker's lines were checked on 2026-10-23.
-- 2026-10-28: The hourly run is caught up when it's missed or a job fails: the run every minute tries again from 12 to
-  47 past, claimed in D1 (`hourly_run`), and checks in once (ok, or an error after the last try). The monitor waits 50
-  minutes and alerts only after two hours in a row fail (was: 10 minutes, the first miss). A Sentry alert for a
-  briefly-down app at :07 was the reason; `task()` swallowed each job's error, so the monitor only ever saw misses.

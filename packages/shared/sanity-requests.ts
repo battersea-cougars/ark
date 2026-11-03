@@ -1,21 +1,15 @@
-// Our own count of the requests we make to Sanity (ADR 0059). Sanity has no usage API, and its free plan stops a
-// project for the rest of the month once a quota is spent: 250,000 requests to its API (`<project>.api.sanity.io`) and
-// 1,000,000 to its API CDN (`<project>.apicdn.sanity.io`) a month, reset at 00:00 UTC on the 1st. Sanity counts only
-// answers that aren't a 4xx or 5xx, and nothing the Studio does, so we count the same.
-//
-//   - Every read goes through `sanityFetch` (or calls `countSanity` with its answer): counted in memory, per UTC day,
-//     project and quota.
-//   - `flushSanityRequests` adds them to D1's sanity_requests in one round trip, after the request (the website's
-//     middleware, the team Worker), and learns the month so far for `nearSanityLimit`.
-//   - A build counts in memory too; astro.config's integration sends its count to the environment's D1 when it's done.
-//
-// The tally lives on globalThis so the build's integration sees what its prerendered pages counted (another copy of
-// this module).
+// Our own count of the requests we make to Sanity (ADR 0003): Sanity has no usage API, and its free plan stops a
+// project for the rest of the month once a quota is spent. Reads are counted in memory (sanityFetch, countSanity),
+// added to D1's sanity_requests after the request (flushSanityRequests), and checked with nearSanityLimit.
 import { batch, statement } from "./d1";
 
 export type SanityKind = "api" | "cdn";
 
-/** Sanity's free plan, a month (sanity.io/pricing, checked 2026-10-20). */
+/**
+ * Sanity's free plan, a month (sanity.io/pricing), reset at 00:00 UTC on the 1st: its API (`<project>.api.sanity.io`)
+ * and its API CDN (`<project>.apicdn.sanity.io`). Sanity counts only answers that aren't a 4xx or 5xx, and nothing the
+ * Studio does, so we count the same.
+ */
 export const SANITY_FREE: Record<SanityKind, number> = { api: 250_000, cdn: 1_000_000 };
 export const SANITY_LABELS: Record<SanityKind, string> = { api: "API requests", cdn: "API CDN requests" };
 
@@ -32,6 +26,8 @@ interface Tally {
   /** The month so far as D1 had it at the last flush: `project|kind` → requests. */
   month: Map<string, { month: string; used: number }>;
 }
+// On globalThis, so the build's integration (astro.config) sees what its prerendered pages counted through another
+// copy of this module
 const KEY = Symbol.for("cougars.sanity-requests");
 const tally = ((globalThis as Record<symbol, Tally>)[KEY] ??= { pending: new Map(), month: new Map() });
 

@@ -1,8 +1,6 @@
-// The Kumite's awards on the website (ADR 0044, 0030): each Kumite keeps its own, so the website shows a Kumite's own
-// awards, not the series'. The series' are the defaults a new Kumite copies. Driven through the real Worker handlers
-// (ADR 0031), then read the way the website's build reads it: the snapshot (scripts/lib/kumite-sql.mjs).
-//
-// The user (2026-10-23): "Awards per Kumite, and the website follows."
+// The Kumite's awards on the website (apps/team/worker/tournaments/README.md): each Kumite shows its own awards; the
+// series' are the defaults a new one copies. Driven through the real Worker handlers (ADR 0031), then read as the
+// website's build reads it (scripts/lib/kumite-sql.mjs).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kumiteFrom, kumiteSql } from "../../../../scripts/lib/kumite-sql.mjs";
 import { testWorld } from "../testing";

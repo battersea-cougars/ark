@@ -102,7 +102,7 @@ describe("money", () => {
     expect(pounds(123456)).toBe("£1,234.56");
   });
 
-  // #117: a trailing zero of the pence was dropped, so a £7.50 night read "£7.5" on My tab and Home
+  // Formatting can drop a trailing zero of the pence, so a £7.50 night would read "£7.5" on My tab and Home
   it("an amount with pence shows both digits of them: £10.50, never £10.5 (#117)", () => {
     expect(pounds(1050)).toBe("£10.50");
     expect(pounds(750)).toBe("£7.50");

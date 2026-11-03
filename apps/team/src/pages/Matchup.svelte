@@ -1,12 +1,13 @@
 <script lang="ts">
   import { clock, ordinal } from "../lib/dates";
   import { waitingFor } from "../app/editions.svelte";
-  // One game's matchup (ADR 0130), from the fight card's Details: the two teams side by side, each squad in full and
+  // One game's matchup (apps/team/worker/tournaments/README.md), from the fight card's Details: the two teams side by side, each squad in full and
   // its record so far, the result and its goals once it's played, and when the captains' sides last met in a past
   // one (lib/matchups.ts). The game's live page (Game, /live: the clock, the score, and the scoresheet for whoever
   // keeps it) is behind Live, here and on the fight card.
   import PositionIcon from "../lib/PositionIcon.svelte";
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
+  import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
   import { PLAYERS } from "../demo/data";
   import { me } from "../demo/session.svelte";
@@ -68,7 +69,7 @@
             team: t,
             name: t ? teamName(i) : seed ? ordinal(seed) : "",
             captain: byId(t?.captainMemberId ?? null),
-            players: t?.players ?? [],
+            squad: t ? rosterOf(t, byId) : [],
             record: t?.id ? records.get(t.id) : undefined,
           };
         })
@@ -77,7 +78,7 @@
   const played = $derived(game?.status === "done");
   const href = $derived(`/tournaments/${type.slug}/games/${gameId}`);
 
-  // When these captains' sides last met, in past ones of this series: read from the server (#177), which has them all
+  // When these captains' sides last met, in past ones of this series: read from the server, which has them all
   let met = $state<{ gameId: number; editions: PastMeeting[] }>({ gameId: 0, editions: [] });
   $effect(() => {
     const id = gameId;
@@ -115,7 +116,7 @@
   />
 
   {#if waiting}
-    <!-- Its tournament on its way (#175): the room the page takes -->
+    <!-- Its tournament on its way: the room the page takes -->
     <div class="waiting" aria-busy="true" aria-label="Loading"></div>
   {:else if !tournament || !game}
     <p class="note">There's no such game.</p>
@@ -193,23 +194,15 @@
           <h2 class="section-title">{s.name}</h2>
           {#if s.team}
             <ol class="rows">
-              {#if s.captain}
+              <!-- Someone who's left keeps their place (lib/team-roster.ts) -->
+              {#each s.squad as p (p.key)}
                 <li class="row">
-                  <span class="c display" title="Captain" aria-label="Captain">C</span>
+                  {#if p.captain}<span class="c display" title="Captain" aria-label="Captain">C</span>
+                  {:else}<span class="c"></span>{/if}
                   <span class="name"
-                    >{goesByOf(s.captain)}{#if s.captain.id === me().id}<span class="you-stamp">You</span>{/if}</span
+                    >{p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
                   >
-                  <span class="pos-badge"><PositionIcon position={s.captain.position} /></span>
-                </li>
-              {/if}
-              {#each s.players as p (p.memberId ?? p.name)}
-                {@const m = byId(p.memberId)}
-                <li class="row">
-                  <span class="c"></span>
-                  <span class="name"
-                    >{goesByOf(m) || p.name}{#if p.memberId === me().id}<span class="you-stamp">You</span>{/if}</span
-                  >
-                  {#if m}<span class="pos-badge"><PositionIcon position={m.position} /></span>{/if}
+                  {#if p.position}<span class="pos-badge"><PositionIcon position={p.position} /></span>{/if}
                 </li>
               {/each}
             </ol>

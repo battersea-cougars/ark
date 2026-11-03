@@ -1,4 +1,4 @@
-// What a charge was for, in words, and what each member owes as the club read sends it (ADR 0007, #177).
+// What a charge was for, in words, and what each member owes as the club read sends it (apps/team/worker/dues/README.md).
 import type { IconName } from "../app/shell/icons";
 import { londonISO } from "../lib/dates";
 import type { Charge } from "../lib/dues";
@@ -40,7 +40,7 @@ export function labelFor(c: Charge): ChargeLabel {
   return { title: `Quarterly membership, ${q} ${year}`, at: londonISO(c.dueOn, "12:00"), icon: "pound", tone: "green" };
 }
 
-/** Your own charges with something left to pay, newest first (all the club read sends, #177). */
+/** Your own charges with something left to pay, newest first (all the club read sends). */
 export const unpaidCharges = (memberId: number) =>
   db.charges.filter((c) => c.memberId === memberId).sort((a, b) => b.dueOn.localeCompare(a.dueOn));
 

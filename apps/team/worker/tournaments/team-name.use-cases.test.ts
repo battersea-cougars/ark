@@ -1,9 +1,5 @@
-// A captain brings their team to the next edition of a series (ADR 0060, team-name.ts): driven through the real
-// Worker handlers in the fake world (testing.ts).
-//
-// The user (2026-10-23): "Once I set my team name, if I get chosen as captain again, that would be my team name again
-// unless I change it." The Kumite is one club's series, so nothing about it lives on the member: a captain's new team
-// is worked out from the last one they captained in an earlier edition of the same series, its name and logo.
+// A captain brings their team to the next edition of a series (apps/team/worker/tournaments/README.md, team-name.ts).
+// Driven through the real Worker handlers in the fake world (testing.ts).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { logoAt, testWorld } from "../testing";
 

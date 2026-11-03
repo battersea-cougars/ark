@@ -1,8 +1,5 @@
-// A training over something already on (ADR 0122): an admin adding a training, or moving one's day or hours, onto a
-// night the club already has something on (the Kumite, another training, a one-off) is asked, as the Kumite's editor
-// asks, whether that's off. The save says what the admin was asked about, and the check is in the statements that
-// write it (ADR 0121): something put on between the question and the answer refuses the save, and the app asks again.
-// What the admin calls off goes through its own cancel. Driven through the real Worker handlers.
+// A training over something already on (apps/team/worker/calendar/README.md): adding or moving one asks whether that's
+// off, checked in the statements that write it (ADR 0003). Driven through the real Worker handlers.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { londonISO } from "@cougars/shared/london";
 import { testWorld } from "../testing";

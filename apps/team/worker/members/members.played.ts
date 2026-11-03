@@ -1,9 +1,5 @@
-// How many training nights each member has played (#177): the player card's "played", in every member's row of the
-// club read. A night counts once its day has passed: they were in and weren't a no-show, and it wasn't called off.
-// Counting every night ever played on every open read more of D1 each week, so the nights whose register has closed
-// (06:00 London the morning after, lib/register-closes.ts) are counted once, into `members.played`, up to a day kept
-// beside the data version (`played_through`); from then nothing changes who came to them. The club read adds the few
-// nights since that day, held before today, which is at most a night or two, found by the sessions' day index.
+// How many training nights each member has played: the player card's "played". Nights whose register has closed are
+// counted once into `members.played`; the club read adds the few since.
 import { batch, first, statement } from "@cougars/shared/d1";
 import { londonEvening } from "@cougars/shared/london";
 
@@ -37,7 +33,7 @@ export async function countPlayed(db: D1Database, now: Date): Promise<void> {
   if (!row) return;
   const was = row.through ?? "";
   const through = closedThrough(now);
-  // The clock went back past what's counted (the dev clock, ADR 0123, put back after a journey): counted afresh
+  // The clock went back past what's counted (the dev clock, ADR 0010, put back after a journey): counted afresh
   if (through < was) return recountPlayed(db, now);
   if (through === was) return;
   const still = "(SELECT COALESCE(played_through, '') FROM data_version WHERE id = 1) = ?";

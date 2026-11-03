@@ -1,4 +1,4 @@
-// The website's security headers per environment (ADR 0036): production's policy lets in no placeholder photos,
+// The website's security headers per environment (ADR 0024): production's policy lets in no placeholder photos,
 // dev's does, and the _headers file the build writes for prerendered pages says exactly what the live routes send.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -1,4 +1,4 @@
-// What one member, or a stolen session, can spend of the club's free allowance (#73, ADR 0055): live streams held at
+// What one member, or a stolen session, can spend of the club's free allowance (ADR 0055): live streams held at
 // once, audit rows written by refusals, and how much a request may send. Driven through the real handlers in the fake
 // world (testing.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";

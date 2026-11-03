@@ -1,12 +1,9 @@
 <script lang="ts">
-  // The shell. Desktop: the page has the whole screen; a dock of the member pages floats mid-left (app/rail), the
-  // Settings gear at its foot, the brand mark top-left, your avatar (your You page) top-right, the wordmark bottom-left. A section's
-  // pages (The Kumite, Fight card, Draft) sit in the page header's toolbar row, which pins as the page scrolls
-  // (PageHeader). Phones: five tabs at the bottom, and a slim bar along the top with the page's name (or its
-  // section's strip of pages), its actions, and its filters: inline when they fit, otherwise a Filters button that
-  // opens them in a sheet. Home has neither: it starts with the greeting.
+  // The shell: on a desktop, the page has the whole screen with a dock of member pages mid-left (app/rail), the brand
+  // mark, your avatar and the wordmark in the corners; on a phone, five tabs at the bottom and a slim bar on top with
+  // the page's name or section strip, its actions and its filters. Home has neither: it starts with the greeting.
   import { goesBy, shortName } from "../../lib/names";
-  import { initials } from "../../lib/initials";
+  import Avatar from "../../lib/Avatar.svelte";
   import { type Snippet } from "svelte";
   import { granted, impersonating, me, realMember, rolesOf } from "../../demo/session.svelte";
   import { backFor, onTrack, stripCurrent, stripRoutes, tabHref, tabRoutes } from "../mobile-nav";
@@ -101,14 +98,14 @@
   });
   // The phone's last tab (your profile, with everything else listed on it): its bar says what the tab says
   const youLabel = $derived(tabList.find((t) => t.id === "more")?.label ?? "You");
-  // A tournament series' pages have none: their stage track, under the header, is the way between them (ADR 0074)
+  // A tournament series' pages have none: their stage track, under the header, is the way between them (apps/team/worker/tournaments/README.md)
   // Viewing as someone (ADR 0024): back to yourself, on the server, then a page you can see
   async function backToYou() {
     if (await viewAs(null)) stayIfAllowed();
   }
   const showBar = $derived(!route.focus && route.id !== "home" && !onTrack(route));
 
-  // Every page that isn't a tab's own: Back, named for where you were, along the trail (#86); opened from outside the
+  // Every page that isn't a tab's own: Back, named for where you were, along the trail; opened from outside the
   // app or after a reload, back to the page it belongs under (mobile-nav.ts backFor)
   const backTo = $derived.by(() => {
     const b = backFor(all, route, router.from, perms);
@@ -189,10 +186,10 @@
   // svelte-ignore state_referenced_locally
   let prevFold: string | undefined = route.fold;
   let lastScroll = 0;
-  // Where each page was scrolled to, so going back opens it there (#86). Not state: only read as a page opens
+  // Where each page was scrolled to, so going back opens it there. Not state: only read as a page opens
   // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const scrolls = new Map<string, number>();
-  // Phones (#83): the bar slides up out of the way as you scroll down, and back the moment you scroll up or reach
+  // Phones: the bar slides up out of the way as you scroll down, and back the moment you scroll up or reach
   // the top. It overlays the page, so nothing moves. Not while a sheet's open (the page under it can scroll)
   let tucked = $state(false);
   let barH = $state(0);
@@ -232,7 +229,7 @@
   function enter(node: Element, { focus }: { focus?: boolean }) {
     const index = all.findIndex((r) => r.id === route.id);
     const sideways = prevTab === route.tab && strip.length > 1;
-    // A tournament's pages: their stage track is their strip (ADR 0074)
+    // A tournament's pages: their stage track is their strip (apps/team/worker/tournaments/README.md)
     const within = !phone.current && !!route.fold && prevFold === route.fold && (strip.length > 1 || onTrack(route));
     const dir = prevIndex < 0 ? 1 : Math.sign(index - prevIndex) || 1;
     prevIndex = index;
@@ -418,7 +415,7 @@
               title="You"
             >
               <span class="sr-only">You: {goesBy(me())}</span>
-              <span class="avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
+              <Avatar player={me()} />
             </a>
           </div>
         </div>
@@ -498,7 +495,7 @@
           <span class="tab-icon">
             {#if tab.id === "more"}
               <!-- You: your initials, as a desktop's avatar shows them -->
-              <span class="avatar tab-avatar" aria-hidden="true">{initials(goesBy(me()))}</span>
+              <Avatar player={me()} extra="tab-avatar" />
             {:else}
               <Icon name={tab.icon} size={22} />
             {/if}
@@ -509,7 +506,7 @@
     </nav>
   </main>
 
-  <!-- A newer build is out (ADR 0104): offered, never forced, in the save note's place; a save's note goes first -->
+  <!-- A newer build is out (ADR 0022): offered, never forced, in the save note's place; a save's note goes first -->
   {#if update.ready && !update.dismissed && !note && !route.focus}
     <div
       class="save-note update-note"
@@ -800,7 +797,7 @@
     left: 0;
     right: 0;
     z-index: 6;
-    /* Only its bars take taps, not the room they leave: with a phone's bar hidden (#83), what sticks under it (Friday's
+    /* Only its bars take taps, not the room they leave: with a phone's bar hidden, what sticks under it (Friday's
        table header) sits in that room and must still be tapped */
     pointer-events: none;
   }
@@ -1090,7 +1087,7 @@
   .you-tile:hover {
     background: color-mix(in srgb, var(--surface-3) 90%, transparent);
   }
-  .you-tile .avatar {
+  .you-tile :global(.avatar) {
     width: 1.75rem;
     height: 1.75rem;
     background: var(--red-wash-strong);
@@ -1098,11 +1095,11 @@
     font-size: 0.65rem;
   }
   /* On your You page: lit, as the gear is in Settings */
-  .you-tile.on .avatar {
+  .you-tile.on :global(.avatar) {
     box-shadow: 0 0 0 2px var(--red-hot);
   }
   /* Viewing as a member: their initials, in the banner's amber */
-  .you-tile.as .avatar {
+  .you-tile.as :global(.avatar) {
     background: var(--caution-wash);
     color: var(--caution);
   }
@@ -1131,7 +1128,7 @@
         translate var(--t) var(--ease),
         visibility 0s;
     }
-    /* Scrolled down: up under the pinned band, out of sight (#83). Reduced motion: it just goes */
+    /* Scrolled down: up under the pinned band, out of sight. Reduced motion: it just goes */
     .phone-bar.tucked {
       translate: 0 calc(-100% - var(--pinned-h, 0px));
       visibility: hidden;
@@ -1320,7 +1317,7 @@
     }
     /* The same 22px as the icons beside it, so the row lines up */
     /* You: teal initials on the plain disc, so it reads as you; lit, the disc fills teal */
-    .tab-avatar {
+    .tab-icon :global(.tab-avatar) {
       width: 22px;
       height: 22px;
       font-size: 0.55rem;
@@ -1329,7 +1326,7 @@
       line-height: 1;
       letter-spacing: 0;
     }
-    .tab.on .tab-avatar {
+    .tab.on :global(.tab-avatar) {
       background: var(--tone-teal);
       color: var(--bg);
     }

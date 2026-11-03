@@ -1,4 +1,4 @@
-// How each award's decided (ADR 0044): the stats we track, a draw, a vote counted, and awards saved before they said
+// How each award's decided (apps/team/worker/tournaments/README.md): the stats we track, a draw, a vote counted, and awards saved before they said
 // how. The tricky pure part; the routes that save, vote and reveal have their use cases in worker/tournaments.
 import { describe, expect, it } from "vitest";
 import {

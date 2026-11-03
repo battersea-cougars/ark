@@ -1,8 +1,5 @@
-// A turn changing, as one timeline (ADR 0060): "burn in the name, scroll to next team, and then highlight" (the
-// user). The data moves at once; what's shown follows this, a step at a time: the pick burns into its team's card
-// (the team picking keeps its light, nothing scrolls), a moment held, then the carousels glide to the next team
-// together, and only when they've arrived does the light move to it (and the bar say so); then, on a phone, if it's
-// your turn, the Your pick button comes up. A pick landing meanwhile waits for the one before to finish.
+// A turn changing, as one timeline (apps/team/worker/tournaments/README.md): the data moves at once; what's shown
+// follows these steps, one at a time.
 
 export type TurnStepKind = "burn" | "hold" | "scroll" | "highlight" | "players";
 
@@ -23,7 +20,12 @@ export interface Landing {
   made: number;
 }
 
-/** The steps of one turn's change. `toPlayers`: it's now your turn and you're following on a phone. */
+/**
+ * The steps of one turn's change. `toPlayers`: it's now your turn and you're following on a phone.
+ * The pick burns into its team's card (the team picking keeps its light, nothing scrolls), a moment held, then the
+ * carousels glide to the next team together, and only when they've arrived does the light move to it (and the bar say
+ * so); then, on a phone, if it's your turn, the Your pick button comes up.
+ */
 export function turnSteps({ toPlayers = false, reduced = false } = {}): TurnStep[] {
   const steps: TurnStep[] = [
     { kind: "burn", ms: reduced ? 300 : 1200 },

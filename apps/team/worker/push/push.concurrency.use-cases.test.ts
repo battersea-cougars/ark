@@ -1,9 +1,6 @@
-// The push outbox when sends overlap (docs/load-testing.md, ADR 0108): a club-wide announcement's first batch, the
-// cron's drains, and another announcement, all at once. A real D1 runs each statement atomically but interleaves two
-// invocations' statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Rows are
-// claimed before they're sent, so no device hears a notice twice, and no invocation goes past the free plan's 50
-// subrequests. A third of the club is on a browser (Web Push, whose sealing and signing are settled WebCrypto too,
-// testing/crypto.ts, so a seed stays one order of events). Driven through the real handlers in the fake world (ADR 0031).
+// The push outbox when sends overlap (docs/load-testing.md, ADR 0108): no device hears a notice twice, and no
+// invocation passes the free plan's 50 subrequests, however the fake D1 interleaves them. Driven through the real
+// handlers in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { minutes, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";

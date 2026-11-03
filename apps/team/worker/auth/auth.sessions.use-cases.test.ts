@@ -1,7 +1,5 @@
-// Sessions ending (#72, ADR 0023): an admin signs a member out everywhere from their sheet, a member does it for
-// themselves on the You page, and a new sign-in email or being made inactive does it on its own. An ended session's
-// phones stop hearing from the club and its live pages close. A session in use gets a new token as it's renewed, and
-// ends a year after signing in however much it's used. Driven through the real handlers (testing.ts, ADR 0031).
+// Sessions ending (ADR 0023): signed out everywhere by an admin or by the member, or on its own; and a session's
+// renewal and lifetime. Driven through the real handlers (testing.ts, ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, minutes, testWorld } from "../testing";
 
@@ -132,7 +130,7 @@ describe("a session as it's used (#72)", () => {
     // A day on, the session is renewed: a new cookie, with the new token
     const renewed = await phone.club({ now: minutes(DAY + 1) });
     expect(renewed.status).toBe(200);
-    expect(renewed.headers.getSetCookie().join()).toMatch(/__Host-cougars_session=.+Max-Age=15552000/);
+    expect(renewed.headers.getSetCookie().join()).toMatch(/__Host-cougars_session=.+Max-Age=7776000/);
     expect(phone.jar.get("__Host-cougars_session")).not.toBe(before);
     // Requests already on their way with the old one still land
     expect((await stolen.club({ now: minutes(DAY + 3) })).status).toBe(200);
@@ -151,10 +149,12 @@ describe("a session as it's used (#72)", () => {
     expect(set).toBe(1);
   });
 
-  it("ends a year after signing in, however much it's used", async () => {
+  it("ends as the last quarter within a year of signing in starts, however much it's used", async () => {
+    // Signed in 6 October 2026: a year on is 6 October 2027, so it ends as 1 October 2027 starts (midnight, BST)
     const phone = await w.signedIn("reg@example.com");
-    for (let day = 30; day <= 360; day += 30) expect((await phone.club({ now: minutes(day * DAY) })).status).toBe(200);
-    expect((await phone.club({ now: minutes(366 * DAY) })).status).toBe(401);
+    for (let day = 30; day <= 330; day += 30) expect((await phone.club({ now: minutes(day * DAY) })).status).toBe(200);
+    expect((await phone.club({ now: new Date("2027-09-30T22:59:00Z") })).status).toBe(200);
+    expect((await phone.club({ now: new Date("2027-09-30T23:00:00Z") })).status).toBe(401);
   });
 
   it("isn't renewed by a request in the same day", async () => {

@@ -1,6 +1,5 @@
-// Best-effort per-IP rate limit using the Workers Cache API (free, per data
-// centre, not atomic). Good enough to stop a form being hammered; not a
-// security boundary. Same approach as ark's functions/_lib/form-rate-limit.js.
+// Best-effort per-IP rate limit using the Workers Cache API (free, per data centre, not atomic). Good enough to stop
+// a form being hammered; not a security boundary.
 
 export interface CacheLike {
   match(key: string): Promise<Response | undefined>;

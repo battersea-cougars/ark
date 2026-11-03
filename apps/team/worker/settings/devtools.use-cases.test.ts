@@ -55,7 +55,7 @@ describe("who gets their own email outside production", () => {
   });
 
   // The admins were found by the role's name, so a custom role that can do everything, or a renamed Admin, got
-  // nothing here and couldn't sign in by email code (#44)
+  // nothing here and couldn't sign in by email code
   it("anyone whose role can do everything gets their own email here, whatever the role is called (#44)", async () => {
     const dana = await w.signedIn("dana@example.com");
     const env = { ...w.env, SITE_ENV: "dev" };
@@ -76,7 +76,7 @@ describe("who gets their own email outside production", () => {
   });
 
   // Dev tools were hidden only where SITE_ENV said production, which wrangler.jsonc doesn't set: a deploy that skipped
-  // scripts/ci/target.mjs would have shown them (#81). Now they're there only where it says dev, or on your own machine.
+  // scripts/ci/target.mjs would have shown them. Now they're there only where it says dev, or on your own machine.
   it("doesn't exist on a deploy that never said where it is", async () => {
     const dana = await w.signedIn("dana@example.com");
     w.env.TEAM_ENV = undefined;

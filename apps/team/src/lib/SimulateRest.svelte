@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Dev only (ADR 0123): the rest of a tournament played out at random, from Manage, so its after-party can be tried
-  // without scoring every match by hand. One question, then it plays (lib/simulation.ts), a move at a time, paced to
-  // watch, paused or stopped from its floating control (lib/SimulationControl). The bootstrap says whether it's here
-  // (`simulator`): never in production. A sheet on a phone, a side drawer on a desktop.
+  // Dev only (apps/team/worker/settings/README.md): the rest of a tournament played out at random (lib/simulation.ts),
+  // from Manage, to try its after-party; paced to watch, from its floating control (lib/SimulationControl). Only where
+  // the bootstrap says (`simulator`): never in production.
   import type { Tournament, TournamentType } from "../demo/model";
   import { simulation } from "../app/simulation.svelte";
   import { formatDayDate, londonEvening, londonISO } from "./dates";

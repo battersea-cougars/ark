@@ -1,7 +1,5 @@
-// What a live page reads when the hub says something changed (ADR 0072, #112): D1's rows read are the free day's
-// limit a busy evening passes, so a burst of changes is one read on each phone, and a read is only the parts the
-// changes named, not the whole club. Phones here hold the app's own copy of the club (src/app/catch-up.ts), reading
-// through the real Worker, their streams from the real hub.
+// What a live page reads when the hub says something changed (ADR 0053): a burst of changes is one read on each
+// phone, of only the parts the changes named. Through the real Worker and the real hub.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { phoneOn as livePhone } from "./live.testing";
@@ -76,9 +74,10 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
     expect((await mo.change("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
     await settled();
     // An answer moves nothing on the calendar, so the agenda isn't read again (api.route.ts `calendar`)
-    // Tonight's nights, not the weeks just held (#178); your own charges and dues line (a member sees no one else's,
-    // nor the club's total); and Home's people, since it was Mo's first answer
-    expect(reg.asked.slice(1)).toEqual(["parts: sessions, charges, dues, people"]);
+    // Tonight's nights, not the weeks just held; your own dues line (a member sees no one else's, nor the
+    // club's total), but not the charges: Friday's still to come, so it charges nobody yet; and Home's people,
+    // since it was Mo's first answer
+    expect(reg.asked.slice(1)).toEqual(["parts: sessions, dues, people"]);
     expect(reg.club().sessions.find((s: Json) => s.id === f.session.id).going).toHaveLength(1);
   });
 
@@ -140,6 +139,46 @@ describe("Friday sign-up opens with everyone on Home, following the sign-ups liv
   });
 });
 
+describe("the register on the night, with everyone's phones on the night (#223)", () => {
+  it("each mark reads the night on the phones, not the whole club, and not the roster", async () => {
+    const f = await friday();
+    const reg = await w.signedIn("s1@example.com");
+    expect((await reg.call("POST", `/api/sessions/${f.session.id}/answer`, { answer: "in" })).status).toBe(200);
+    const roster = (await f.dana.call("GET", "/api/slices?names=members")).body.slices.members as Json[];
+    const regId = roster.find((m) => m.name === "Skater 1").id as number;
+    const phones = [await phoneOn("s2@example.com", ["sessions"]), await phoneOn("s3@example.com", ["sessions"])];
+    expect(
+      (await f.dana.call("POST", `/api/sessions/${f.session.id}/register`, { memberId: regId, here: true })).status,
+    ).toBe(200);
+    await settled();
+    for (const p of phones) {
+      const reads = p.asked.slice(1);
+      expect(
+        reads.filter((r) => r.startsWith("whole")),
+        `${p.email}: ${reads.join(" | ")}`,
+      ).toEqual([]);
+      // The nights and their people, and your own charges and dues line: not who anyone is, the roster, nor the
+      // agenda (a mark moves nothing on the calendar, nor anyone's card on the night itself)
+      expect(reads).toHaveLength(1);
+      expect(reads[0].replace("parts: ", "").split(", ").sort()).toEqual(
+        ["charges", "dues", "pastSessions", "people", "sessions"].sort(),
+      );
+      const night = p.club().sessions.find((s: Json) => s.id === f.session.id);
+      expect(night.going.find((m: Json) => (m.memberId ?? m.id ?? m) === regId)).toBeTruthy();
+    }
+  });
+
+  it("a tournament saved reads the tournaments on the phones, not the whole club", async () => {
+    const f = await friday();
+    const phone = await phoneOn("s2@example.com", ["tournaments"]);
+    const t = ((await f.dana.club()).body as Json).tournaments[0];
+    expect(t).toBeTruthy();
+    expect((await f.dana.call("PUT", `/api/tournaments/${t.id}`, { ...t, name: `${t.name} II` })).status).toBe(200);
+    await settled();
+    expect(phone.asked.slice(1)).toEqual([expect.stringMatching(/^parts: tournaments/)]);
+  });
+});
+
 describe("the hub, in a burst", () => {
   it("sends at most one event a second, naming every part and every version in it", async () => {
     const f = await friday();
@@ -155,7 +194,7 @@ describe("the hub, in a burst", () => {
     const versions = [...first.data.versions, ...second.data.versions];
     expect(versions).toHaveLength(6);
     expect(new Set(versions).size).toBe(6);
-    // A training answer names tonight's nights alone (#178)
+    // A training answer names tonight's nights alone
     expect(second.data.changed).toContain("tonight");
     expect(first.data.versions.length + second.data.versions.length).toBe(6);
     await reg.close();

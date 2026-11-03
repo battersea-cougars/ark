@@ -1,4 +1,4 @@
-// A captains' draft's turn order (ADR 0030), shared by the Draft page and the Worker: snake order, so the teams
+// A captains' draft's turn order (apps/team/worker/tournaments/README.md), shared by the Draft page and the Worker: snake order, so the teams
 // pick 1, 2, … n, then n, … 2, 1, and round again.
 import { ordinal } from "./dates";
 
@@ -16,7 +16,7 @@ export function onTheClock(teams: number, made: number): number {
 
 /**
  * The draft's next `count` picks, each as its slot in the snake (0: round one's first pick), from the pick numbers
- * taken (1, 2, …). The turn follows the numbers, not how many there are (#125): a pick that came off (the player said
+ * taken (1, 2, …). The turn follows the numbers, not how many there are: a pick that came off (the player said
  * they're out, an admin took them off) leaves its number empty, and that's filled first, by the team whose pick it
  * was; then on from the last. With no gaps, the next slot is how many picks there are.
  */
@@ -27,7 +27,7 @@ export function nextSlots(taken: Iterable<number>, count: number): number[] {
   return out;
 }
 
-/** Whether a draft's pick order is drawn (ADR 0060): every captain has their number. */
+/** Whether a draft's pick order is drawn (apps/team/worker/tournaments/README.md): every captain has their number. */
 export const orderDrawn = (teams: { pick?: number | null }[]) =>
   teams.length > 0 && teams.every((t) => typeof t.pick === "number");
 
@@ -56,7 +56,7 @@ interface Drafting {
 
 /**
  * Where a draft stands: the picks made (as the server counts them: a player an admin put on by hand isn't one), how
- * many are left to pick, the slots of the picks to come (nextSlots: the turn follows the pick numbers, #125), and,
+ * many are left to pick, the slots of the picks to come (nextSlots: the turn follows the pick numbers), and,
  * for a team, how many picks until its turn (0: now; Infinity: the pool runs out first).
  */
 export function draftTurn(t: Drafting, team = -1) {

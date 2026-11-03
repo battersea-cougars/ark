@@ -1,7 +1,5 @@
-// Scoring a game live, taps landing together (docs/load-testing.md): the scorekeeper may have the game open on two
-// phones (ADR 0072), and a tap can land just as another does. A real D1 runs each statement atomically but interleaves
-// two requests' statements between their awaits; the fake D1 does the same (`interleave`, a seed each run). Driven
-// through the real Worker handlers (ADR 0031).
+// Scoring a game live, taps landing together (docs/load-testing.md), with the fake D1 interleaving requests'
+// statements as a real one does. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -95,7 +93,7 @@ async function gameOn() {
 }
 
 describe("scoring live: taps at once", () => {
-  // Each tap says which it is (`tapId`, made when the button's pressed, #114): the same tap sent from the
+  // Each tap says which it is (`tapId`, made when the button's pressed): the same tap sent from the
   // scorekeeper's two phones, or sent again, is one goal, not two goals a second apart
   it.each(SEEDS)("the same goal tap sent from two phones at once is one goal (seed %i)", async (seed) => {
     const g = await gameOn();

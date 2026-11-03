@@ -1,8 +1,5 @@
-// The hourly run, caught up (ADR 0110): Cloudflare's hourly trigger at :07 doesn't retry, so when it's missed (a deploy,
-// a blip) or a job in it fails, the run every minute tries the hour again from 12, 17, 27, 37 and 47 past, one try each,
-// until it's done. Sentry's cron monitor hears once an hour: ok when the hour's done, however late; an error when the
-// last try fails too; nothing in between. Driven through the real Worker in the fake world (ADR 0031): the crons as
-// Cloudflare runs them, D1 failing as it can, and Sentry's ingest taking the check-ins.
+// The hourly run, caught up (ADR 0110): a missed or failed hour is tried again by the run every minute until it's
+// done, and Sentry's cron monitor hears once an hour. Driven through the real Worker in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { captureLogs } from "@cougars/shared/testing/scribe";
@@ -31,7 +28,7 @@ async function everyMinute(hour: string, from: number, to: number, day?: string)
 }
 
 /**
- * The hour's work, seen: a sign-in code from two months ago, which the hourly run forgets (retention.forget, #30). How
+ * The hour's work, seen: a sign-in code from two months ago, which the hourly run forgets (retention.forget). How
  * many such codes are left says whether a run did the hour since one was put there.
  */
 const oldCode = () =>
@@ -156,5 +153,53 @@ describe("the clocks go back", () => {
     await hourly("01:07", "2026-10-25");
     expect(oldCodes()).toBe(0);
     expect(heard()).toEqual(["ok", "ok"]);
+  });
+});
+
+describe("the nightly backup's export (ADR 0050, #197)", () => {
+  /** D1 busy exporting: it refuses every statement, as it does for the half minute a backup takes. */
+  const exporting = (busy = true) => {
+    w.db.failure = "D1_ERROR: Currently processing a long-running export.";
+    w.db.failing = busy ? /./ : null;
+  };
+  const errors = () => logs.entries.filter((e) => e.level === "error" || e.level === "fatal");
+
+  it("a backup at 28 past, the hour done: the minute does nothing, and it's a warning, not an error", async () => {
+    await hourly("11:07");
+    exporting();
+    await everyMinute("11", 28, 28);
+    expect(logs.messages()).toContain("cron.exporting");
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 29, 59);
+    expect(errors()).toEqual([]);
+    expect(heard()).toEqual(["ok"]);
+  });
+
+  it("a backup over the :07 run: nothing's reported, and at 12 past the hour's done and heard ok", async () => {
+    oldCode();
+    exporting();
+    await hourly("11:07");
+    expect(logs.messages()).toContain("cron.exporting");
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 8, 12);
+    expect(oldCodes()).toBe(0);
+    expect(heard()).toEqual(["ok"]);
+  });
+
+  it("a backup starting mid-try: the jobs it refuses are warnings, and the next try does the hour", async () => {
+    oldCode();
+    // Only the forgetting meets the export: the claim before it went through
+    w.db.failure = "D1_ERROR: Currently processing a long-running export.";
+    w.db.failing = /DELETE FROM login_challenges/;
+    await hourly("11:07");
+    expect(oldCodes()).toBe(1);
+    expect(logs.entries.find((e) => e.msg === "cron.exporting")?.fields).toMatchObject({ task: "retention.forget" });
+    expect(errors()).toEqual([]);
+    exporting(false);
+    await everyMinute("11", 8, 12);
+    expect(oldCodes()).toBe(0);
+    expect(heard()).toEqual(["ok"]);
   });
 });

@@ -1,8 +1,5 @@
-// Telling a member something that's theirs to know (what they owe, ADR 0007): one call, whatever the channel. Today
-// that's an email, through the club's sender and its rules (packages/shared/email.ts, ADR 0027: outside production it
-// reaches only the safe inbox, the admins and the Dev tools list), and a notification on their phone if they have the
-// store app (push/push.ts, ADR 0108). A feature says what to tell whom; it never touches Gmail or Firebase itself, so a
-// channel can be added (web push, #24) here without changing it.
+// Telling a member something that's theirs to know: one call, whatever the channel (an email, ADR 0027, and a
+// notification on their phone, ADR 0108). Features never touch Gmail or Firebase themselves.
 import { sendMail, type Mail } from "@cougars/shared/email";
 import { mailSetup } from "../auth/auth";
 import { notify, type Notice, type PushEnv } from "../push/push";

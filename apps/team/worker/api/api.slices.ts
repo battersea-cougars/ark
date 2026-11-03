@@ -1,4 +1,4 @@
-// The club, in parts (ADR 0036, ADR 0053, ADR 0057): what the bootstrap sends, and what a change sends back, each
+// The club, in parts (ADRs 0024, 0053): what the bootstrap sends, and what a change sends back, each
 // part as this member may see it.
 import { fromRow as agendaItem, ensureAgenda, type AgendaRow } from "@cougars/shared/agenda";
 import { can, type Action } from "../../src/access/actions";
@@ -23,9 +23,9 @@ import { levelsFrom } from "../settings/usage.levels";
 import { FAMILIES, HOLDS_HEADER, PAGE_PARTS, partsChanged } from "../../src/app/club-parts";
 
 // ─── The club, in parts ───
-// The bootstrap is all of them; a change's reply is the ones it touched. Each is what this member may see (ADR 0036).
+// The bootstrap is all of them; a change's reply is the ones it touched. Each is what this member may see (ADR 0024).
 
-// Who may see more than their own (ADR 0036). Anyone else sees, of anything personal, only their own.
+// Who may see more than their own (ADR 0024). Anyone else sees, of anything personal, only their own.
 /** Everyone's roles, and every role's actions: who sets them (ADR 0024). */
 export const SEES_ROLES: readonly Action[] = ["manage:Member", "manage:Role"];
 /** Everyone's answers (out as well as in) and the register (no-shows, walk-ins): who runs events and their teams. */
@@ -38,7 +38,7 @@ export const SEES_REGISTER: readonly Action[] = [
   "manage:Tournament",
   "run:Draft",
 ];
-/** Everyone's charges and payments (ADR 0007). Anyone else sees only their own. */
+/** Everyone's charges and payments (apps/team/worker/dues/README.md). Anyone else sees only their own. */
 export const SEES_DUES: readonly Action[] = ["read:Dues", "record:Payment"];
 export const holdsAny = (c: Ctx, actions: readonly Action[]) =>
   c.actions.has("manage:all") || actions.some((a) => c.actions.has(a));
@@ -98,7 +98,7 @@ function nightsFrom(sessions: Parts["sessions"], entries: Parts["sessionEntries"
   const teams = teamsFrom(teamRows);
   return withEntries(sessions as SessionRow[], entries).map((s) => ({
     ...s,
-    // Why it's off (#186): called off by hand, and the tournaments it's off for
+    // Why it's off: called off by hand, and the tournaments it's off for
     offByHand: !!s.offByHand,
     offFor: s.offFor ? String(s.offFor).split(",").map(Number) : [],
     teams: teams.get(s.id) ?? [],
@@ -116,7 +116,7 @@ const owedInAll = (row: { total: number | null; people: number; worst: number | 
 export const SLICES = {
   // The role the app opens as, when it isn't your full one (ADR 0024)
   everydayRole: { parts: ["everydayRole"], shape: (_c: Ctx, p: Parts) => (p.everydayRole[0] as number | null) ?? null },
-  // Everyone, as all of a role see them (a page's, #178); Home's people, below, are the core's
+  // Everyone, as all of a role see them (a page's); Home's people, below, are the core's
   members: { parts: ["members"], shape: (_c: Ctx, p: Parts) => membersFrom(p.members) },
   people: { parts: ["people"], shape: (_c: Ctx, p: Parts) => membersFrom(p.people) },
   // Every role, for whoever sets them; anyone else, only the roles they could hold as they are: their own, and the
@@ -140,7 +140,7 @@ export const SLICES = {
     shape: (_c: Ctx, p: Parts) => nightsFrom(p.pastSessions, p.pastSessionEntries, p.pastSessionTeams),
   },
   tournamentTypes: { parts: ["tournamentTypes"], shape: (_c: Ctx, p: Parts) => tournamentTypesFrom(p.tournamentTypes) },
-  // Home's and the calendar's (the core's), and each series' last one played, its front door's (a page's, #178)
+  // Home's and the calendar's (the core's), and each series' last one played, its front door's (a page's)
   tournaments: { parts: TOURNAMENT_PARTS, shape: (c: Ctx, p: Parts) => tournamentsSeenBy(c, p, (part) => part) },
   lastPlayed: {
     parts: TOURNAMENT_PARTS.map(lastPart),
@@ -150,13 +150,13 @@ export const SLICES = {
     parts: ["clubEvents", "eventEntries"],
     shape: (_c: Ctx, p: Parts) => withEntries(clubEventsFrom(p.clubEvents), p.eventEntries),
   },
-  // Dues (ADR 0007, #177): your own unpaid charges, and what each owes (your own, or everyone's for who sees Unpaid
+  // Dues (apps/team/worker/dues/README.md): your own unpaid charges, and what each owes (your own, or everyone's for who sees Unpaid
   // fees); a member's ledger is read a page at a time (dues.ledger.ts)
   charges: { parts: ["charges"], shape: (_c: Ctx, p: Parts) => chargesFrom(p.charges) },
   dues: { parts: ["dues"], shape: (_c: Ctx, p: Parts) => owedFrom(p.dues) },
-  // Everyone's, for who sees Unpaid fees: the members' pages' (#178)
+  // Everyone's, for who sees Unpaid fees: the members' pages'
   clubDues: { parts: ["clubDues"], shape: (_c: Ctx, p: Parts) => owedFrom(p.clubDues) },
-  // When each was last reminded of what they owe (ADR 0007): who sees everyone's dues; anyone else, nothing
+  // When each was last reminded of what they owe (apps/team/worker/dues/README.md): who sees everyone's dues; anyone else, nothing
   reminders: {
     parts: ["reminders"],
     shape: (_c: Ctx, p: Parts) => p.reminders as { memberId: number; at: string }[],
@@ -166,7 +166,7 @@ export const SLICES = {
     shape: (_c: Ctx, p: Parts) => p.subscriptionFees as { pence: number; from: string }[],
   },
   quips: { parts: ["quips"], shape: (_c: Ctx, p: Parts) => p.quips as { id: number; kind: string; text: string }[] },
-  // Home's announcements (#85)
+  // Home's announcements
   announcements: {
     parts: ["announcements"],
     shape: (_c: Ctx, p: Parts) =>
@@ -179,14 +179,14 @@ export const SLICES = {
         createdAt: string;
       }[],
   },
-  // How often live pages check for updates (ADR 0072), and the club's bank details (ADR 0007)
+  // How often live pages check for updates (ADR 0053), and the club's bank details (apps/team/worker/dues/README.md)
   settings: { parts: ["settings"], shape: (_c: Ctx, p: Parts) => settingsFrom(p.settings) },
   // Your own notifications, a choice per topic (ADR 0108)
   notifications: { parts: ["notifications"], shape: (_c: Ctx, p: Parts) => prefsFrom(p.notifications) },
   // What only admins act on, for Home's For admins, in with the club so it's there on first paint: the free limits
-  // getting close (ADR 0059), for whoever sees Usage; Google having cancelled the email (ADR 0027), for whoever looks
+  // getting close (ADR 0003), for whoever sees Usage; Google having cancelled the email (ADR 0027), for whoever looks
   // after it; what the club is owed in all, for whoever sees Unpaid fees; who's asking to join, for whoever manages
-  // members (#178). Anyone else, none
+  // members. Anyone else, none
   forAdmins: {
     parts: ["usageLevels", "mailFailure", "owedInAll", "asking"],
     shape: (c: Ctx, p: Parts) => ({
@@ -196,19 +196,20 @@ export const SLICES = {
       asking: (p.asking as { name: string }[]).map((m) => m.name),
     }),
   },
-  // What's on from today (ADR 0042)
+  // What's on from today (ADR 0016)
   agenda: { parts: ["agenda"], shape: (_c: Ctx, p: Parts) => (p.agenda as AgendaRow[]).map(agendaItem) },
 } satisfies Record<string, { parts: readonly Part[]; shape: (c: Ctx, p: Parts) => unknown }>;
 export type Slice = keyof typeof SLICES;
 /**
  * What a change can say it changed: a part, or a family of parts (src/app/club-parts.ts). `tonight` is the nights from
- * tonight alone, a training answer's: one already held takes no answers (#178).
+ * tonight alone, a training answer's: one already held takes no answers. `played` is what members' cards count,
+ * not who they are: the roster and Home's people, never the whole club.
  */
-export type Changed = Slice | "tonight";
+export type Changed = Slice | "tonight" | "played";
 
 /**
  * Each event with its answers: who's in and who's waiting, for everyone (that's what a sign-up is for); who said
- * they're out, who didn't turn up and who walked in, only your own, unless you run events (ADR 0036): the club read
+ * they're out, who didn't turn up and who walked in, only your own, unless you run events (ADR 0024): the club read
  * leaves the rest out.
  */
 export function withEntries<T extends { id: number }>(rows: T[], entries: Parameters<typeof entriesFrom>[0]) {
@@ -220,7 +221,7 @@ export function withEntries<T extends { id: number }>(rows: T[], entries: Parame
 }
 
 /**
- * A draft is for its captains and whoever runs it (ADR 0060): who went when is nobody else's business. Anyone else
+ * A draft is for its captains and whoever runs it (apps/team/worker/tournaments/README.md): who went when is nobody else's business. Anyone else
  * sees the captains and no players while it's on; once it's closed, the teams, with no pick numbers and in an order
  * that says nothing about them (a hash of the team and player, so it's the same every time they look).
  */
@@ -246,7 +247,7 @@ export function draftSeenBy<T extends ReturnType<typeof tournamentsFrom>[number]
   });
 }
 
-/** Anything on the calendar changed: the agenda comes back with it (ADR 0042). */
+/** Anything on the calendar changed: the agenda comes back with it (ADR 0016). */
 export const SCHEDULE: readonly Changed[] = [
   "series",
   "sessions",
@@ -256,17 +257,18 @@ export const SCHEDULE: readonly Changed[] = [
   "clubEvents",
 ];
 
-/** What opening the app sends (#178): who you are, the club's settings and menus, and what Home needs. */
+/** What opening the app sends: who you are, the club's settings and menus, and what Home needs. */
 export const CORE = (Object.keys(SLICES) as Slice[]).filter((name) => !PAGE_PARTS.includes(name));
 
 /**
  * The families (src/app/club-parts.ts) each part of the club is made from, beyond its own name: a change to any is a
- * change to it, for its tag and what's kept at the edge (#178). Home's people are whoever's in its next things; the
+ * change to it, for its tag and what's kept at the edge. Home's people are whoever's in its next things; the
  * nights' answers say who's a Quarterly skater and a keeper; what's owed comes of charges and payments.
  */
 const MADE_OF: Partial<Record<Slice, readonly string[]>> = {
   everydayRole: ["members"],
-  people: ["members", "sessions", "tournaments", "clubEvents"],
+  people: ["members", "played", "sessions", "tournaments", "clubEvents"],
+  members: ["played"],
   roles: ["members"],
   sessions: ["members", "tonight"],
   pastSessions: ["sessions", "members"],
@@ -282,10 +284,13 @@ const MADE_OF: Partial<Record<Slice, readonly string[]>> = {
 const familiesOf = (name: Slice) => [FAMILY_OF[name] ?? name, ...(MADE_OF[name] ?? [])];
 /** A page's part's family: the name its changes go by (club-parts.ts FAMILIES). */
 const FAMILY_OF: Partial<Record<Slice, string>> = Object.fromEntries(
-  Object.entries(FAMILIES).flatMap(([family, { pages }]) => pages.map((page) => [page, family])),
+  Object.entries(FAMILIES)
+    .flatMap(([family, { pages }]) => pages.map((page) => [page, family]))
+    // A page two families make (the roster: members, and what they've played) goes by the first's name
+    .reverse(),
 );
 
-/** Each part's version, as one string: what its tag and what's kept at the edge are at (#178). */
+/** Each part's version, as one string: what its tag and what's kept at the edge are at. */
 export const versionsOf = (at: DataVersion, names: readonly Slice[]) =>
   names.map((name) => versionOf(at, familiesOf(name))).join("-");
 
@@ -293,7 +298,7 @@ export const versionsOf = (at: DataVersion, names: readonly Slice[]) =>
  * The named parts of the club, in one read: D1's round trips are what the app waits on, so it's one statement however
  * many parts (api.club.ts). The agenda is filled from scratch first if it's empty (a rebuilt database). `at`: the
  * parts' versions, read first, so what's the same for everyone who sees the club alike is kept at the edge and read
- * from there (#178): then only this member's own is read from D1.
+ * from there: then only this member's own is read from D1.
  */
 export async function slices(
   c: Ctx,
@@ -317,7 +322,7 @@ export async function slices(
 }
 
 /**
- * What a change sends back to this member (#178): the core's parts of the families it changed, and the pages' the phone
+ * What a change sends back to this member: the core's parts of the families it changed, and the pages' the phone
  * holds. Everyone's dues and the club's total owed only for who sees them (club-parts.ts partsChanged).
  */
 export function touchedFor(c: Ctx, changes: readonly Changed[], held: readonly string[]): Slice[] {

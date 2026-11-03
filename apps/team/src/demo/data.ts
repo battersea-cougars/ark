@@ -1,8 +1,6 @@
-// The club's data as the app holds it: the core filled from D1 by /api/bootstrap before the app mounts
-// (app/backend.ts), each page's parts as it's opened (app/page-data.svelte.ts, #178); after a change, only the parts
-// it touched come back and are put in place (applySlices). The core's and the pages' parts of one list (everyone,
-// the nights, the tournaments, what's owed) are kept apart and put together (app/club-whole.ts), so a page reads one
-// list whichever they came from. The shapes match the D1 tables (docs/team-app-data-model.md).
+// The club's data as the app holds it (ADR 0053): the core from /api/bootstrap before the app mounts, each page's parts
+// as it's opened (app/page-data.svelte.ts), put together by app/club-whole.ts; after a change, only the parts it
+// touched are put in place (applySlices). The shapes match db/schema.sql.
 import type { Action } from "../access/actions";
 import { allOn, type NotificationPrefs } from "../lib/notification-topics";
 import type { IconName } from "../app/shell/icons";
@@ -30,6 +28,8 @@ export interface Player {
   webName?: string | null;
   /** Training sessions they came to. */
   played?: number;
+  /** When their profile photo was set (apps/team/worker/members/README.md, lib/photo.ts); null: none, their initials show. */
+  photoAt?: string | null;
 }
 
 /** Everyone in the club. Filled by hydrate(). */
@@ -39,9 +39,9 @@ export const PLAYERS: Player[] = [];
 export let REAL_ID = 0;
 /** Dev tools are here (outside production, for whoever sets the club's settings; ADR 0027). */
 export let DEV_TOOLS = false;
-/** Screens still on demo data (Upload) are shown: dev and local only (#63). */
+/** Screens still on demo data (Upload) are shown: dev and local only. */
 export let UNFINISHED = false;
-/** The Kumite simulator is here, for you (dev and your own machine, whoever runs tournaments; ADR 0123). */
+/** The Kumite simulator is here, for you (dev and your own machine, whoever runs tournaments; ADR 0010). */
 export let SIMULATOR = false;
 /** The role you run the app as day to day, if not your full one (ADR 0024). Read once by session.svelte.ts startSession. */
 export let EVERYDAY_ROLE: number | null = null;
@@ -56,7 +56,7 @@ const PHONES = new Map<number, string | null>();
 /** Only yours, unless you manage members. */
 export const phoneFor = (id: number) => PHONES.get(id) ?? null;
 export const emailFor = (p: Player) => EMAILS.get(p.id) ?? "No email yet";
-/** Their bank reference (ADR 0007), or a dash: one that isn't sent is never made up, as it's what they pay with. */
+/** Their bank reference (apps/team/worker/dues/README.md), or a dash: one that isn't sent is never made up, as it's what they pay with. */
 export const referenceFor = (id: number) => REFERENCES.get(id) ?? "—";
 
 export const VENUES: Venue[] = [];
@@ -64,18 +64,18 @@ export const SERIES: TrainingSeries[] = [];
 export const SESSIONS: TrainingSession[] = [];
 export const TOURNAMENT_TYPES: TournamentType[] = [];
 export const TOURNAMENTS: Tournament[] = [];
-/** The club's agenda, from today (ADR 0042). */
+/** The club's agenda, from today (ADR 0016). */
 export const AGENDA: AgendaRow[] = [];
-/** Where members pay by transfer (ADR 0007). */
+/** Where members pay by transfer (apps/team/worker/dues/README.md). */
 export interface Bank {
   name: string;
   sortCode: string;
   account: string;
 }
 /**
- * The club's settings for the app: how often live pages check for updates (ADR 0072), the club's bank details
- * (ADR 0007), null until whoever sets fees fills them in, and how many days before a quarter its Quarterly Members are
- * told its fee is due (#187; the server's, from the bootstrap).
+ * The club's settings for the app: how often live pages check for updates (ADR 0053), the club's bank details
+ * (apps/team/worker/dues/README.md), null until whoever sets fees fills them in, and how many days before a quarter its Quarterly Members are
+ * told its fee is due (the server's, from the bootstrap).
  */
 export const SETTINGS: ClubSettings = { liveRefreshSeconds: 10, bank: null };
 export interface ClubSettings {
@@ -96,7 +96,7 @@ export interface Role {
 }
 export const ROLES: Role[] = [];
 
-/** A member's plan (ADR 0007): Quarterly, pay as you go, or, for a keeper, free (the Keeper plan). */
+/** A member's plan (apps/team/worker/dues/README.md): Quarterly, pay as you go, or, for a keeper, free (the Keeper plan). */
 export type Plan = "Subscription" | "Pay as you go" | "Keeper";
 /** Keepers play training free, whatever else is on record; the rest by their quarterly membership. */
 export const planOf = (position: string, quarterly: boolean): Plan =>
@@ -113,7 +113,7 @@ export interface MemberRow {
   status: "pending" | "active" | "inactive";
   /** Highest first: Admin, then the others, Member last. */
   roles: string[];
-  /** A Quarterly Member today, from `subscriptions` (ADR 0007); a keeper plays training free (the Keeper plan);
+  /** A Quarterly Member today, from `subscriptions` (apps/team/worker/dues/README.md); a keeper plays training free (the Keeper plan);
    * everyone else pays as they go. */
   plan: Plan;
   /** Next quarter's: what they chose, or this one running on. Only your own (false for anyone else). */
@@ -123,13 +123,13 @@ export interface MemberRow {
 }
 export const MEMBERS: MemberRow[] = [];
 
-/** The quarterly rate, from each date (ADR 0007). */
+/** The quarterly rate, from each date (apps/team/worker/dues/README.md). */
 export const SUBSCRIPTION_FEES: DatedFee[] = [];
-/** Your own charges with something left to pay (ADR 0007, #177); the rest of your ledger is read a page at a time. */
+/** Your own charges with something left to pay (apps/team/worker/dues/README.md); the rest of your ledger is read a page at a time. */
 export const CHARGES: Charge[] = [];
-/** When each member was last reminded of what they owe (ADR 0007): for who sees everyone's dues. */
+/** When each member was last reminded of what they owe (apps/team/worker/dues/README.md): for who sees everyone's dues. */
 export const REMINDERS: { memberId: number; at: string }[] = [];
-/** What each owes, by age, and their credit: your own, or everyone's if you see Unpaid fees (ADR 0007, #177). */
+/** What each owes, by age, and their credit: your own, or everyone's if you see Unpaid fees (apps/team/worker/dues/README.md). */
 export const DUES: Owed[] = [];
 
 /** What /api/bootstrap sends (apps/team/worker/api/api.ts). */
@@ -140,46 +140,46 @@ export interface Bootstrap {
   viewingAs?: number | null;
   actions: Action[];
   devTools?: boolean;
-  /** Screens still on demo data (Upload) are shown: not in production (#63). */
+  /** Screens still on demo data (Upload) are shown: not in production. */
   unfinished?: boolean;
-  /** The Kumite simulator is here, and yours to use (ADR 0123): dev and your own machine only. */
+  /** The Kumite simulator is here, and yours to use (ADR 0010): dev and your own machine only. */
   simulator?: boolean;
   /** The role the app opens as, when it isn't your full one (ADR 0024). */
   everydayRole: number | null;
-  /** Home's people (#178): you in full, who you really are while viewing as someone, whoever's in your next things. */
+  /** Home's people: you in full, who you really are while viewing as someone, whoever's in your next things. */
   people: MemberJson[];
-  /** Everyone (a page's, #178): your own private details are in `people`. */
+  /** Everyone (a page's): your own private details are in `people`. */
   members?: MemberJson[];
   roles: Role[];
   venues: Venue[];
   series: TrainingSeries[];
   /** The nights from tonight, each with its sign-ups and teams. */
   sessions: SessionJson[];
-  /** The weeks just held (a page's, #178). */
+  /** The weeks just held (a page's). */
   pastSessions?: SessionJson[];
   tournamentTypes: TournamentType[];
   /** Home's and the calendar's: every one not played yet, and the last fortnight's. */
   tournaments: Tournament[];
-  /** Each series' last one played, its front door's "last time" (a page's, #178). */
+  /** Each series' last one played, its front door's "last time" (a page's). */
   lastPlayed?: Tournament[];
   clubEvents: OneOff[];
   quips: Quip[];
-  /** Home's announcements (#85): the two newest still on, less any you dismissed. */
+  /** Home's announcements: the two newest still on, less any you dismissed. */
   announcements: Announcement[];
-  /** What's on from today (ADR 0042). */
+  /** What's on from today (ADR 0016). */
   agenda: AgendaRow[];
   settings: ClubSettings;
   charges: Charge[];
-  /** When each was last reminded of what they owe (a page's, #178): for who sees everyone's dues. */
+  /** When each was last reminded of what they owe (a page's): for who sees everyone's dues. */
   reminders?: { memberId: number; at: string }[];
   /** Your own line of what you owe. */
   dues: Owed[];
-  /** Everyone's (a page's, #178), for who sees Unpaid fees. */
+  /** Everyone's (a page's), for who sees Unpaid fees. */
   clubDues?: Owed[];
   subscriptionFees: DatedFee[];
   /** Your own notifications, a choice per topic (ADR 0108). */
   notifications: NotificationPrefs;
-  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0059), the email stopped. */
+  /** What only admins act on, for Home's For admins: the free limits getting close (ADR 0003), the email stopped. */
   forAdmins: ForAdmins;
 }
 
@@ -197,6 +197,7 @@ interface MemberJson {
   bio: string;
   webName: string | null;
   phone: string | null;
+  photoAt: string | null;
   played: number;
   quarterly: boolean;
   quarterlyNext: boolean;
@@ -210,16 +211,16 @@ export interface ForAdmins {
   usage: UsageLevel[];
   /** Google cancelled the email's token (ADR 0027): for whoever looks after it (manage:Settings), nobody else. */
   emailStopped: boolean;
-  /** What the club is owed in all (#178): the total, by how many, how much is over 90 days; null unless you see it. */
+  /** What the club is owed in all: the total, by how many, how much is over 90 days; null unless you see it. */
   owed: { total: number; people: number; worst: number } | null;
-  /** Who's asking to join (#178), for whoever manages members. */
+  /** Who's asking to join, for whoever manages members. */
   asking: string[];
 }
 export const FOR_ADMINS: ForAdmins = { usage: [], emailStopped: false, owed: null, asking: [] };
 
 /** Home's lines, from D1. */
 export const QUIPS: Quip[] = [];
-/** An admin's note at the top of Home (#85), until its last day. */
+/** An admin's note at the top of Home, until its last day. */
 export interface Announcement {
   id: number;
   title: string;
@@ -249,7 +250,7 @@ export function hydrate(b: Bootstrap) {
   applySlices(b);
 }
 
-/** The lists that come in two parts, the core's and a page's (#178). */
+/** The lists that come in two parts, the core's and a page's. */
 const TWO_PART = [
   "people",
   "members",
@@ -272,8 +273,8 @@ function putMembers(members: MemberJson[]) {
     EMAILS.set(m.id, m.email);
     REFERENCES.set(m.id, m.paymentReference);
     PHONES.set(m.id, m.phone);
-    const { id, name, position, rating, cougar, bio, webName, played } = m;
-    return { id, name, position, rating, cougar, bio, webName, played };
+    const { id, name, position, rating, cougar, bio, webName, played, photoAt } = m;
+    return { id, name, position, rating, cougar, bio, webName, played, photoAt };
   });
   fill(PLAYERS, players);
   fill(

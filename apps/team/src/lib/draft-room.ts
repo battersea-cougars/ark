@@ -1,7 +1,6 @@
-// The draft room (ADR 0060): the draft as the whole screen, for its captains and whoever runs it, while it's open.
-// Nothing of the app around it (no rail, dock, tabs, header or track); the browser's full screen is the room's own
-// button. Who's let in, what the status shows where, what its bar says, and where it lives; the page is
-// pages/DraftRoom.svelte.
+// The draft room (apps/team/worker/tournaments/README.md): the draft as the whole screen, with nothing of the app
+// around it, for its captains and whoever runs it while it's open. Who's let in, what it shows and its full screen; the
+// page is pages/DraftRoom.svelte.
 import { draftTurn, onTheClock } from "./draft";
 
 /** Enough of a tournament to say who the room is for. */
@@ -22,7 +21,7 @@ export function canEnterRoom(t: Drafting | undefined, me: number, runs: boolean)
 }
 
 /**
- * What the draft's status shows (ADR 0060): the steps before it opens (the draw, opening it); while it's picked, on
+ * What the draft's status shows (apps/team/worker/tournaments/README.md): the steps before it opens (the draw, opening it); while it's picked, on
  * the Kumite's page a summary (who's picking, the last pick, the way into the room) and in the room the picking
  * itself; once everyone's picked, or it's closed, the teams (and the pick log). The picking's only ever in the room.
  */

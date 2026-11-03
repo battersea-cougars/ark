@@ -1,9 +1,5 @@
-// A past one recorded (ADR 0126): the club played Kumites before the app, and an admin puts one in after the fact, in
-// one go: when it was (a day gone by), its teams (names, captains, players, all members), its matches with their
-// scores (a final among them, if there was one) and, if anyone remembers, who scored, and who won each award. It goes
-// in done, its awards confirmed and every one revealed, so it's history at once (Past Kumites): no after-party, no
-// sign-up, no fees (it was paid for then). Its results are typed in (no kick-off), so it's played on its own day
-// (lib/edition.ts playedOn); a goal with nobody said counts in the score only, a named scorer in the all-time leaders.
+// A past one recorded (apps/team/worker/tournaments/README.md): an admin puts in a Kumite the club played before the
+// app, in one go, and it goes straight into history with nobody charged.
 import { batch, first, statement } from "@cougars/shared/d1";
 import { awardsToReveal, decidedByOf } from "../../src/lib/awards";
 import { HttpError, date, int, objectsIn, text } from "../api/api.http";
@@ -24,7 +20,7 @@ interface PastGame {
   awayGoals: number;
   /** The final (a playoff): it can't end level, and its winner is the champions. */
   final: boolean;
-  /** Who scored each side's goals, in any order: a member, or null where nobody remembers. */
+  /** Who scored each side's goals, in any order: a member, or null where nobody remembers (in the score only, not the leaders). */
   scorers: { home: (number | null)[]; away: (number | null)[] };
 }
 
@@ -141,7 +137,7 @@ async function pastIn(db: D1Database, o: Record<string, unknown>, today: string)
 type Past = Awaited<ReturnType<typeof pastIn>>;
 
 /**
- * An admin records a past one (ADR 0126): `{ typeId, name, heldOn, teams, games, winners }`, `heldOn` before today.
+ * An admin records a past one (apps/team/worker/tournaments/README.md): `{ typeId, name, heldOn, teams, games, winners }`, `heldOn` before today.
  * Checked whole before anything's written; then made as any is (createTournament: its series' rules and awards, its
  * teams and captains), and the rest in one batch (filling).
  */

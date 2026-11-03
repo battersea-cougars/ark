@@ -1,6 +1,5 @@
-// Who won a tournament's awards (ADR 0044): the awards are the tournament's own (its series', ADR 0044, 0030); an
-// admin says who won each, a team (Champions) or one of its players (Top scorer), on the tournament's page, and
-// everyone sees them. Driven through the real Worker handlers (ADR 0031).
+// Who won a tournament's awards (apps/team/worker/tournaments/README.md): an admin says who won each, a team or one
+// of its players, and everyone sees them. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 

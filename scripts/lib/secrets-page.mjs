@@ -1,10 +1,6 @@
-// The Secrets page (#149, docs/secrets.md "Handing a secret over"): at /__secrets on the show switch's ports, where
-// you hand a secret straight to Bitwarden Secrets Manager and check what's there. A value goes from the page to
-// Bitwarden in this process's memory and nowhere else: never to a file, a log or a terminal, and never back to the
-// page, which only ever sees a stored value's fingerprint (length, last 4, the start of its SHA-256).
-//
-// Only for this machine: a request must come from loopback and name localhost (no other host, no DNS rebinding);
-// every API call must carry the page's own token, as JSON from the page's own origin.
+// The Secrets page (docs/secrets.md "Handing a secret over"): at /__secrets on the show switch's ports, where you hand
+// a secret straight to Bitwarden Secrets Manager and check what's there. A value goes from the page to Bitwarden in
+// this process's memory only, never to a file, a log, a terminal or back to the page, which sees only fingerprints.
 import { randomBytes, randomUUID } from "node:crypto";
 import { secretsPageHtml } from "./secrets-page.html.mjs";
 import { fingerprint, shapeWarnings } from "./secret-shapes.mjs";
@@ -74,7 +70,10 @@ export function secretsPage({
   }
 }
 
-/** Why a request isn't served, if it isn't: only this machine, only at localhost, writes only from the page itself. */
+/**
+ * Why a request isn't served, if it isn't: only this machine, only at localhost (no other host, no DNS rebinding),
+ * writes only from the page itself, with its token, as JSON.
+ */
 export function refused(req) {
   if (!LOOPBACK.has(req.socket?.remoteAddress ?? "")) return "The Secrets page only answers this machine.";
   const host = req.headers.host ?? "";

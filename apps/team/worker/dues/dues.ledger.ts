@@ -1,9 +1,6 @@
-// What members owe, as the app reads it (ADR 0007, #177): opening the app sends each member's own unpaid charges and
-// a line per member of what they owe (by age, for Unpaid fees), never every charge and payment there has been. A
-// member's ledger is read a page at a time, newest first, each line with what they owed after it; and what a night or
-// a tournament collected, when an editor shows it. Every sum here is over the charges with something left to pay and
-// the payments with something left to spend (charges.paid_pence and payments.spent_pence, kept by the schema's
-// triggers), found by index, so none of it grows with the weeks behind the club.
+// What members owe, as the app reads it (apps/team/worker/dues/README.md): each member's line of what they owe by age,
+// and their ledger a page at a time. Every sum is over what's left to pay or spend, found by index, so none grows with
+// the weeks behind the club.
 import { HttpError } from "../api/api.http";
 import { chargesFrom, type ChargeJson } from "./dues";
 import type { Owed } from "../../src/lib/dues";

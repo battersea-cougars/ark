@@ -48,7 +48,7 @@ export async function saveCalendar(name: string, ics: string) {
 }
 
 /**
- * Whether to ask about notifications, once: "ask" (not yet asked: in the app, or a browser with Web Push, #24),
+ * Whether to ask about notifications, once: "ask" (not yet asked: in the app, or a browser with Web Push),
  * "homeScreen" (an iPhone in a Safari tab, where only the app on the Home Screen may have them: say how), or no.
  */
 export async function mayAskToNotify(): Promise<"ask" | "homeScreen" | false> {

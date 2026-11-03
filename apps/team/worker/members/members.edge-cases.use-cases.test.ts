@@ -88,8 +88,7 @@ describe("an admin adds a member, at the edges", () => {
     expect(w.mails).toHaveLength(0);
   });
 
-  // https://github.com/battersea-cougars/ark/issues/133
-  // #133: text() checked for an empty name before trimming it, so "   " went through as ""
+  // text() trims before checking for an empty name, so "   " can't go through as ""
   it("a name of only spaces is refused, like no name (#133)", async () => {
     const dana = await admin();
     expect((await dana.add({ name: "   ", email: "blank@example.com" })).status).toBe(400);
@@ -217,9 +216,8 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(signup("Wes Waiting")).toBe("in");
   });
 
-  // https://github.com/battersea-cougars/ark/issues/137
-  // #137: deleting an account deleted its places for what's to come straight from the table, without the move-up
-  // that saying out does, so Friday had a free place and the first waiting still waited
+  // Deleting an account gives up its places for what's to come with the move-up that saying out does, not straight
+  // from the table, or Friday would have a free place and the first waiting still wait
   it("a member in for a full Friday deletes their account, and the first one waiting moves up (#137)", async () => {
     const { signup } = await fullFriday();
     const reg = await w.signedIn("reg@example.com");
@@ -227,8 +225,7 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(signup("Wes Waiting")).toBe("in");
   });
 
-  // https://github.com/battersea-cougars/ark/issues/137
-  // #137: the same when an admin deletes the account for them
+  // The same when an admin deletes the account for them
   it("an admin deletes the account of a member in for a full Friday, and the first one waiting moves up (#137)", async () => {
     const { dana, signup } = await fullFriday();
     const reg = await dana.member("Reg Player");
@@ -236,8 +233,8 @@ describe("a member who goes while they still have places on what's to come", () 
     expect(signup("Wes Waiting")).toBe("in");
   });
 
-  // Their place on its team goes with their entry, as when they say out (#138: it stayed, as "Former member" in the
-  // lineup)
+  // Their place on its team goes with their entry, as when they say out: never a "Former member" in
+  // the lineup
   it("a member on a team for a tournament still to come deletes their account, and comes off the team", async () => {
     const dana = await admin();
     const reg = await dana.member("Reg Player");
@@ -264,7 +261,7 @@ describe("a member who goes while they still have places on what's to come", () 
   });
 
   // A team they captain keeps its place with no captain, as a team whose captain is gone, for an admin to name
-  // another (#160: it kept them, "Former member" as its captain); one already played keeps them, about nobody
+  // another (never "Former member" as its captain); one already played keeps them, about nobody
   it("the captain of a team for a tournament still to come deletes their account: the team stays, with no captain", async () => {
     const dana = await admin();
     const reg = await dana.member("Reg Player");
@@ -349,6 +346,23 @@ describe("an admin imports a file, at the edges", () => {
     const r = await check(`name\n${"A".repeat(80)}\n${"B".repeat(81)}\n🏒 Puck`);
     expect(r.body.add.map((p: Json) => p.name)).toEqual(["A".repeat(80), "🏒 Puck"]);
     expect(r.body.problems).toEqual([expect.objectContaining({ row: 3 })]);
+  });
+
+  it("500 players in a file is fine; 501 is refused", async () => {
+    const rows = (n: number) => ["name", ...Array.from({ length: n }, (_, i) => `Player ${i + 1}`)].join("\n");
+    expect((await check(rows(500))).body.add).toHaveLength(500);
+    const r = await check(rows(501));
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/Up to 500/);
+  });
+
+  it("a member manager can't import a role that can do more than they can", async () => {
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Members', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'manage:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'paul@example.com';`);
+    const paul = await w.signedIn("paul@example.com");
+    const r = await paul.call("POST", "/api/members/import", { file: "name,roles\nNina New,Admin" });
+    expect(r.body.problems).toEqual([expect.objectContaining({ row: 2, why: expect.stringMatching(/can do more/) })]);
   });
 
   it("a file over half a megabyte is refused before it's read", async () => {

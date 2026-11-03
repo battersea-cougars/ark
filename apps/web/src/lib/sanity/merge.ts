@@ -1,10 +1,5 @@
-// Pure merge rules for Sanity content, kept apart from content.ts (which needs Astro's env) so they can be tested.
-//
-// Each club-facts singleton merges with its own fallback (fallback.ts):
-// - No document yet: the fallback, whole.
-// - A document: field by field. A missing or blank required field falls back, so a half-filled venue never
-//   blanks the venue name. Fields that are optional in the Studio stay empty when empty: an editor clearing
-//   "Kit for first-timers" or "Fees" means "say nothing", not "show the old text".
+// Pure merge rules for Sanity content: each club-facts singleton over its fallback (fallback.ts). Apart from
+// content.ts (which needs Astro's env) so they can be tested.
 import type { Club, Fridays, Kumite, Pub, Team, TrainingSlot } from "./types";
 
 type Doc = Record<string, unknown>;
@@ -14,7 +9,9 @@ const blank = (v: unknown) =>
 const isObject = (v: unknown): v is Doc => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /**
- * Merge a singleton document over its fallback. `optional` names the fields (dotted for nested ones, e.g.
+ * Merge a singleton document over its fallback: no document, the fallback whole; else field by field. A missing or
+ * blank required field falls back, so a half-filled venue never blanks the venue name. Optional fields stay empty
+ * when empty: an editor clearing "Kit for first-timers" or "Fees" means "say nothing". `optional` names the fields (dotted for nested ones, e.g.
  * "venue.address") that are optional in the Studio: those come from the document only.
  */
 export function mergeFacts<T extends object>(fallback: T, doc: unknown, optional: readonly string[] = []): T {

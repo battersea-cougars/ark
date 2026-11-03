@@ -1,0 +1,161 @@
+// Next quarter's plan, a few days before it starts (apps/team/worker/dues/README.md): Ivy, going Quarterly, is told its
+// fee is due and switches to pay as you go, so she isn't charged; Pia, paying as she goes, hears nothing; Ada, the
+// admin, sees the lead time and who was told.
+import {
+  asMember,
+  at,
+  checks,
+  clubVia,
+  cron,
+  does,
+  expect,
+  london,
+  pushOutboxOf,
+  signIn,
+  test,
+  type Person,
+  type Queued,
+} from "./support/journey";
+
+const QUARTER = "2027-Q1";
+const KEY = `plan:${QUARTER}`;
+/** A journey run on a database other runs may have used: a phone token nobody's used yet. */
+const TAG = Date.now().toString(36).slice(-4);
+
+test.describe.serial("Next quarter's plan: told five days before, switched in time, not charged", () => {
+  let ada: Person;
+  let ivy: Person;
+  let pia: Person;
+  let everyone: Person[] = [];
+
+  let now = london("2026-12-20T12:00");
+  const moveTo = async (wall: string, people: Person[] = everyone) => {
+    now = london(wall);
+    for (const who of people) await at(who, now);
+  };
+  const open = async (who: Person, path: string) => {
+    await who.page.goto(path);
+    await expect(who.page.getByRole("main").getByRole("heading").first()).toBeVisible();
+  };
+  const plans = (outbox: Queued[]) => outbox.filter((n) => n.key === KEY);
+  let ivyId = 0;
+  const quarterCharges = async () =>
+    (
+      (await asMember(ada.email, { at: now })("GET", `/api/members/${ivyId}/ledger?limit=200`)).lines as {
+        kind: string;
+        charge?: { quarter: string | null };
+      }[]
+    ).filter((l) => l.kind === "charge" && l.charge?.quarter === QUARTER);
+  const nextPlan = () => ivy.page.getByRole("group", { name: "Next quarter's plan" });
+
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    ivy = await signIn(browser, "Quarterly next quarter", "Ivy Invite", "ivy@example.com");
+    pia = await signIn(browser, "Pays as she goes", "Pia Payer", "pia@example.com");
+    everyone = [ada, ivy, pia];
+    const members = (await clubVia(asMember(ada.email, { at: now }))).members as { id: number; name: string }[];
+    ivyId = members.find((m) => m.name === "Ivy Invite")!.id;
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, ivy, pia]) await who?.context.close();
+  });
+
+  test("1. Ivy goes Quarterly for next quarter; she and Pia have the app", async () => {
+    await moveTo("2026-12-20T12:00");
+    await does(ivy, "chooses Quarterly for Jan–Mar 2027 on her Dues page", async () => {
+      await open(ivy, "/me/tab");
+      await expect(ivy.page.getByText("Next quarter · Jan–Mar 2027")).toBeVisible();
+      await nextPlan()
+        .getByRole("button", { name: /^Quarterly/ })
+        .click();
+      await expect(nextPlan().getByRole("button", { name: /^Quarterly/ })).toHaveAttribute("aria-pressed", "true");
+    });
+    // Their phones, as the store app registers one after sign-in: a shortcut, not the step under test
+    for (const who of [ivy, pia])
+      await asMember(who.email)("PUT", "/api/auth/device", { token: `journey-${TAG}-${who.email}`, platform: "ios" });
+    await checks(ada, "sees on Settings → Membership that the reminder goes 5 days before each quarter", async () => {
+      await at(ada, now);
+      await open(ada, "/settings/fees");
+      await expect(ada.page.getByText("Reminder", { exact: true })).toBeVisible();
+      await expect(ada.page.getByText("5 days before", { exact: true })).toBeVisible();
+    });
+  });
+
+  test("2. Not the day before, not before 10am", async () => {
+    await moveTo("2026-12-26T12:07");
+    await cron(now);
+    await checks(ivy, "has nothing on Sat 26 Dec, the day before", async () => {
+      expect(plans(pushOutboxOf(ivy.email))).toEqual([]);
+    });
+    await moveTo("2026-12-27T09:07");
+    await cron(now);
+    await checks(ivy, "has nothing at 09:07 on Sun 27 Dec", async () => {
+      expect(plans(pushOutboxOf(ivy.email))).toEqual([]);
+    });
+  });
+
+  test("3. Five days before, from 10am: Ivy's told; Pia isn't", async () => {
+    await moveTo("2026-12-27T10:07");
+    await cron(now);
+    await checks(
+      ivy,
+      "is told on her phone: the quarter, its fee, the charge day and the last day to switch",
+      async () => {
+        const told = plans(pushOutboxOf(ivy.email));
+        expect(told).toHaveLength(1);
+        expect(told[0].title).toBe("Next quarter's fee is due");
+        expect(told[0].body).toMatch(
+          /^Your Quarterly membership for 2027-Q1 \(£\d+(\.\d\d)?\) is charged on Fri 1 Jan\. Want to pay as you go instead\? Change it on your Dues page by Thu 31 Dec\.$/,
+        );
+        expect(told[0].path).toBe("/me/tab?plan=next");
+      },
+    );
+    await checks(pia, "hears nothing: she pays as she goes", async () => {
+      expect(plans(pushOutboxOf(pia.email))).toEqual([]);
+    });
+    await checks(ada, "sees on the Audit log that the app told Ivy, by notification", async () => {
+      await open(ada, "/settings/audit");
+      await expect(
+        ada.page.getByText(`The app told Ivy Invite their ${QUARTER} fee is due, by notification`),
+      ).toBeVisible();
+    });
+    await moveTo("2026-12-27T11:07");
+    await cron(now);
+    await checks(ivy, "isn't told again by the next hour's run", async () => {
+      expect(plans(pushOutboxOf(ivy.email))).toHaveLength(1);
+    });
+  });
+
+  test("4. Ivy taps it, and switches to pay as you go", async () => {
+    await moveTo("2026-12-27T11:30");
+    await checks(
+      ivy,
+      "lands on her Dues page at next quarter's plan, which says she can change it by Thu 31 Dec",
+      async () => {
+        await open(ivy, "/me/tab?plan=next");
+        await expect(nextPlan()).toBeInViewport();
+        await expect(ivy.page.getByText("Change it by Thu 31 Dec")).toBeVisible();
+        await expect(ivy.page).toHaveURL(/\/me\/tab$/);
+      },
+    );
+    await does(ivy, "taps Pay as you go", async () => {
+      await nextPlan()
+        .getByRole("button", { name: /^Pay as you go/ })
+        .click();
+      await expect(nextPlan().getByRole("button", { name: /^Pay as you go/ })).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
+  test("5. The quarter starts: Ivy isn't charged for it", async () => {
+    await moveTo("2027-01-01T00:30");
+    await cron(now);
+    await checks(ivy, "has no 2027-Q1 charge after the hourly run at 00:30 on 1 January", async () => {
+      expect(await quarterCharges()).toEqual([]);
+    });
+    await moveTo("2027-01-01T10:00");
+    await checks(ivy, "sees this quarter as Pay as you go on her Dues page", async () => {
+      await open(ivy, "/me/tab");
+      await expect(ivy.page.getByText(/This quarter · Jan–Mar 2027\s*Pay as you go/)).toBeVisible();
+    });
+  });
+});

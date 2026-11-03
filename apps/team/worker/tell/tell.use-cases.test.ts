@@ -1,7 +1,5 @@
-// Telling a member what's theirs to know (tell.ts): the email, then their phone. A member whose email didn't go isn't
-// told on their phone either, so they hear it once, when it's tried again; and with Firebase on, the phones wait for
-// the next push drain, since the emails took the invocation's requests. Driven through an admin's send of dues
-// reminders, the one feature that tells, in the fake world (ADR 0031): Gmail is its outbox, which a test can make refuse one address.
+// Telling a member what's theirs to know (tell.ts): the email, then their phone. Driven through an admin's send of
+// dues reminders in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { outbox } from "@cougars/shared/email";
 import { captureLogs } from "@cougars/shared/testing/scribe";

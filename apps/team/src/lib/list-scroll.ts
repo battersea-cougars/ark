@@ -1,18 +1,5 @@
-// A long list under a page's header, with one scroller, the page. The page scrolls until the list's tabs and search
-// reach the top; from there it keeps scrolling, by the height of the rows that don't fit, and the list's box, stuck
-// under the tabs and exactly the height left, shows the rows passing by. A wheel anywhere on the page, or one
-// swipe, does the lot: nothing hands over to a second scroller, and the tabs never let go.
-//
-// - `.stuck` (the tabs, `.list-tabs`, and the box, `.list-box`) is `position: sticky` (the page's CSS). The box is
-//   the height left under the tabs (`--list-h`) and clips its list.
-// - `.list-spacer` after it is as tall as the rows that don't fit (`--list-extra`): the page's scroll past the stick
-//   point. On each scroll, the box scrolls by how far the stuck block has been pushed down its wrapper, which is
-//   exactly that.
-//
-// Use: <div class="hybrid" use:listScroll>
-//        <div class="stuck"> <div class="list-tabs"/> <div class="list-box"> the list </div> </div>
-//        <div class="list-spacer"></div>
-//      </div>
+// A long list under a page's header with one scroller, the page: the list's tabs stick at the top and its box shows the
+// rows passing by, so a wheel or one swipe does the lot and nothing hands over to a second scroller.
 
 /** Room the docked toolbar row takes on a desktop page that has one (PageHeader: its sticky top, it, and a gap). It
  * may sit in a wrapper (a tournament's header, lib/TournamentHead), so it's found anywhere on the page. */
@@ -22,6 +9,20 @@ function dockedRow(page: Element | null): number {
   return (parseFloat(getComputedStyle(row).top) || 0) * 2 + row.offsetHeight;
 }
 
+/**
+ * The page scrolls until the list's tabs and search reach the top; from there it keeps scrolling, by the height of the
+ * rows that don't fit, and the list's box, stuck under the tabs and exactly the height left, shows the rows passing by.
+ * - `.stuck` (the tabs, `.list-tabs`, and the box, `.list-box`) is `position: sticky` (the page's CSS). The box is the
+ *   height left under the tabs (`--list-h`) and clips its list.
+ * - `.list-spacer` after it is as tall as the rows that don't fit (`--list-extra`): the page's scroll past the stick
+ *   point. On each scroll, the box scrolls by how far the stuck block has been pushed down its wrapper, which is
+ *   exactly that.
+ *
+ * Use: <div class="hybrid" use:listScroll>
+ *        <div class="stuck"> <div class="list-tabs"/> <div class="list-box"> the list </div> </div>
+ *        <div class="list-spacer"></div>
+ *      </div>
+ */
 export function listScroll(node: HTMLElement) {
   const view = node.closest<HTMLElement>(".view");
   const page = node.closest<HTMLElement>(".page");

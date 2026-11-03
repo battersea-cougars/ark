@@ -1,4 +1,4 @@
-// Which build this is (ADR 0104): the release's version (package.json "version", semver) and the build id (the
+// Which build this is (ADR 0022): the release's version (package.json "version", semver) and the build id (the
 // commit), stamped by vite.config.ts into the app and its Worker alike. The dev server stamps "dev", and so does
 // anything unstamped (the Worker under test), so a dev app never hears of a newer build.
 declare const __APP_VERSION__: string | undefined;

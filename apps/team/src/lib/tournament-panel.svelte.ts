@@ -1,7 +1,6 @@
-// Which tournament the editor panel has open, from wherever an admin is: Settings → Tournaments, or a series' own
-// pages (Games, Standings, Draft), where "New date", "Edit" and "Add the captains" open it in place. A new date in a
-// series opens on its questions, a step at a time (ADR 0074, lib/Wizard); Advanced shows every field in the same
-// steps (#163).
+// Which tournament the editor panel has open, from Settings → Tournaments or a series' own pages, where New date, Edit
+// and Add the captains open it in place. A new date opens on its questions, a step at a time
+// (apps/team/worker/tournaments/README.md, lib/Wizard); Advanced shows every field in the same steps.
 import type { EditorTab as Tab } from "./TournamentDateEditor.svelte";
 export const tournamentPanel = $state<{
   open: number | "new" | null;

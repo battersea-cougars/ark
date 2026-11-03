@@ -1,7 +1,5 @@
-// A series' editions, read when they're wanted (#175, ADR 0074). Opening the app sends only the ones its pages show
-// at once (api.club.ts SHOWN_TOURNAMENTS); the rest are read here: one in full when its page opens, as the club read
-// would have sent it, and History a page at a time, newest first, each a line of what it was. All-time leaders are
-// counted in the database, not from every game sent.
+// A series' editions, read when they're wanted (apps/team/worker/tournaments/README.md): opening the app sends only
+// the ones its pages show at once (api.club.ts SHOWN_TOURNAMENTS); the rest are read here.
 import { champion } from "@cougars/shared/results";
 import { DONE, LOGO_SENT, LOGO_VERSION, readClub, rows } from "../api/api.club";
 import { HttpError } from "../api/api.http";
@@ -158,7 +156,7 @@ function summaryOf(e: EditionRow, allTeams: TeamRow[], allGames: GameRow[]) {
 }
 
 /**
- * Every played edition's leaders in a series (#47, lib/leaders.ts): each player's goals, assists and penalty minutes
+ * Every played edition's leaders in a series (lib/leaders.ts): each player's goals, assists and penalty minutes
  * over the games under way or played, counted in the database, so History's all-time board never needs every game.
  */
 export async function allTimeLeaders(db: D1Database, typeId: number) {

@@ -1,12 +1,11 @@
-// Show the user a checkout's apps on their ports (ADR 0115, docs/development.md#worktrees): 4500 the website, 4510 the team
-// app, 4520 the Studio. The one way to run them: the supervisor (scripts/app-supervisor.mjs) runs each app, keeps it
-// up and stops it, so nothing is started with & or nohup, and nothing is left behind.
+// Show the user a checkout's apps on their ports (ADR 0115, docs/development.md#worktrees): 4500 the website, 4510 the
+// team app, 4520 the Studio. The supervisor (scripts/app-supervisor.mjs) runs, keeps up and stops every app.
 //
 //   npm run app                      this checkout's website and team app, shown on 4500 and 4510
 //   npm run app -- studio            any of web, team, studio: just those (the Studio also starts when 4520 is opened)
 //   npm run app -- --private         run them without showing them: prints their own ports, for an agent's checks
 //   npm run app -- --own-db          this checkout's own local D1 (a copy of main's, for a branch that changes
-//                                    db/schema.sql); --shared-db goes back to main's
+//                                    db/schema.sql or adds a migration); --shared-db goes back to main's
 //   npm run app main                 show the main checkout
 //   npm run app status               what's shown and every app (in a browser: localhost:4500/__app)
 //   npm run app restart [service]    start this checkout's apps (or one) again
@@ -198,7 +197,7 @@ switch (sub) {
   }
 }
 
-/** A secret in .env stops the apps starting (ADR 0002, #149): it says where, never what. */
+/** A secret in .env stops the apps starting (ADR 0002): it says where, never what. */
 function refuseSecretsInEnv(dirs) {
   const problems = envProblems(dirs);
   if (!problems.length) return;

@@ -1,7 +1,5 @@
-// How many Fridays someone has played (#177), on their player card: counted once, as each night's register closes at
-// 06:00 the morning after, not every night ever played counted again on every open. Until it closes the night is
-// still counted from who came, so a tick or an untick on the night (an attendance update) shows at once; from then
-// the stored count is the record. Driven through the real Worker handlers, each person signed in as themselves.
+// How many Fridays someone has played, on their player card: counted once as each night's register closes, and from who
+// came until then. Driven through the real Worker handlers, each person signed in as themselves.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 

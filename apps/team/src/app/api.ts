@@ -23,7 +23,7 @@ export class ApiError extends Error {
 /** Set once the app is up: from then on, a session that's gone (signed out elsewhere, revoked) reloads to sign-in. */
 export const running = { app: false };
 
-/** The pages' parts the app holds (page-data.svelte.ts, #178): a change sends back its parts of them too. */
+/** The pages' parts the app holds (page-data.svelte.ts): a change sends back its parts of them too. */
 export const held = { parts: (): string[] => [] };
 
 export async function api<T = unknown>(method: string, path: string, payload?: unknown): Promise<T> {
@@ -57,9 +57,19 @@ async function send(path: string, init?: RequestInit, started?: Promise<Response
     return await (started ?? fetch(path, init));
   } catch (e) {
     brake.failed();
-    throw e;
+    throw unreached(e);
   }
 }
+
+/** What a tap with no signal says in the save note: words, not the browser's ("Failed to fetch", "Load failed"). */
+const NO_SIGNAL = "No network: that didn't reach the club. Try again when you've a signal.";
+
+/**
+ * A request that never reached the server (no signal, the network dropped it) as words a member can read. Still a
+ * TypeError naming the network, so it's still known as offline, never a bug to report (errors.early.ts). One called
+ * off (AbortError) stays as it was.
+ */
+const unreached = (e: unknown) => (e instanceof TypeError ? new TypeError(NO_SIGNAL, { cause: e }) : e);
 
 async function read<T>(res: Response, path: string): Promise<T> {
   const ours = (res.headers.get("content-type") ?? "").includes("application/json");
@@ -77,12 +87,12 @@ async function read<T>(res: Response, path: string): Promise<T> {
   return data as T;
 }
 
-// The bootstrap's ETag (ADR 0053), kept here in memory: the browser keeps no copy (no-store, #81), so opening the app
+// The bootstrap's ETag (ADR 0053), kept here in memory: the browser keeps no copy (no-store), so opening the app
 // reads the club whole. After that the app asks with the tag at the data version its copy holds, which moves on as
-// live pages read the club in parts (catch-up.ts, ADR 0072): a club that hasn't changed since is an empty 304.
+// live pages read the club in parts (catch-up.ts, ADR 0053): a club that hasn't changed since is an empty 304.
 let bootstrapTag: string | null = null;
 
-// index.html reads the club before any script has arrived (ADR 0120). The first getBootstrap takes that reply, once;
+// index.html reads the club before any script has arrived (ADR 0053). The first getBootstrap takes that reply, once;
 // if it never came (no network), the app asks itself, so a failure reads as it always did.
 declare global {
   interface Window {
@@ -122,7 +132,7 @@ export async function bootstrapIfChanged(held: number): Promise<Bootstrap | null
 }
 
 /**
- * A page's parts of the club (#178), with the tag they came with: asked again with that tag, no slices when they're
+ * A page's parts of the club, with the tag they came with: asked again with that tag, no slices when they're
  * unchanged (an empty 304). The data version they're at least as new as, for the copy (catch-up.ts). Never kept by
  * the browser, as the bootstrap isn't.
  */
@@ -147,7 +157,7 @@ export const readSlices = (names: string[]) =>
   api<{ version: number; slices: Slices }>("GET", `/api/slices?names=${names.join(",")}`);
 
 /**
- * Part of the club read on demand (a past tournament, a page of History; #175), with the tag it came with: asked again
+ * Part of the club read on demand (a past tournament, a page of History), with the tag it came with: asked again
  * with that tag, null when it's unchanged (an empty 304 after one row read). Never kept by the browser.
  */
 export async function readTagged<T>(path: string, tag: string | null): Promise<{ data: T | null; tag: string | null }> {

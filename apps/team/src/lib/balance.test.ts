@@ -133,6 +133,32 @@ describe("makeTeams", () => {
     for (const t of teams) expect(t.players.filter((id) => players[id - 1].position === "G").length).toBe(1);
   });
 
+  it("balances the average rating, not the total: the team of seven isn't also given the weaker players", () => {
+    // Six at 70 and seven at 60 would make equal totals (420 each) but averages ten points apart
+    const players = roster(13, (p, i) => ({ ...p, position: "F", cougar: false, rating: i < 6 ? 70 : 60 }));
+    const teams = makeTeams(players, TEAM_NAMES);
+    const { spread } = check(players, teams);
+    expect(spread).toBeLessThan(5);
+    const total = (t: Team) => t.players.reduce((s, id) => s + players[id - 1].rating, 0);
+    const [six, seven] = [...teams].sort((a, b) => a.players.length - b.players.length);
+    expect(total(seven)).toBeGreaterThan(total(six));
+  });
+
+  it("spreads each position's ratings too: one team doesn't get all the best defenders", () => {
+    const players = (["D", "D", "D", "D", "F", "F", "F", "F"] as Position[]).map((position, i) => ({
+      id: i + 1,
+      name: `Player ${i + 1}`,
+      position,
+      rating: i % 4 < 2 ? 90 : 30,
+      cougar: false,
+    }));
+    const teams = makeTeams(players, TEAM_NAMES);
+    for (const t of teams) {
+      const defenders = t.players.filter((id) => players[id - 1].position === "D").map((id) => players[id - 1].rating);
+      expect(defenders.sort()).toEqual([30, 90]);
+    }
+  });
+
   it("names the teams by colour when nobody is a Cougar", () => {
     const players = roster(8, (p) => ({ ...p, cougar: false }));
     expect(makeTeams(players, TEAM_NAMES).map((t) => t.name)).toEqual(["White", "Black"]);
@@ -148,7 +174,7 @@ describe("makeTeams", () => {
     const cpu = cpuUsage();
     makeTeams(players, TEAM_NAMES);
     // A second, as it says: a phone does this in tens of ms. The CPU it took, not the wall clock: on a busy machine the
-    // wall clock counts the time other work had the core, and went past a second (ADR 0121)
+    // wall clock counts the time other work had the core, and went past a second (ADR 0003)
     const { user, system } = cpuUsage(cpu);
     expect((user + system) / 1000).toBeLessThan(1000);
   });

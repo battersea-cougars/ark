@@ -1,4 +1,4 @@
-// The name a member goes by (ADR 0043): the one they chose on their profile (a nickname, their first name and initial,
+// The name a member goes by (apps/team/worker/members/README.md): the one they chose on their profile (a nickname, their first name and initial,
 // their full name), everywhere the app shows them, as on the website. Their full name stays for sign-in, payment
 // references and an admin's views, and search finds either.
 
@@ -24,6 +24,25 @@ export const matchesName = (p: Named, query: string) => {
 /** For a lookup that may find no one: their name, or nothing. */
 export const goesByOf = (p: Named | null | undefined) => (p ? goesBy(p) : "");
 export const shortNameOf = (p: Named | null | undefined) => (p ? shortName(p) : "");
+
+/** A member the viewer can't see: they've left (made inactive, or their account erased), and only admins see who. */
+export const SOMEONE_WHO_LEFT = "Someone who's left";
+
+/**
+ * A member named in the club's history (a goal, an assist, a penalty, an award, a roster): their name, "Someone who's
+ * left" when the viewer's app doesn't hold them, nothing for nobody (no assist, no scorer given).
+ */
+export function nameOfMember(id: number | null | undefined, person: (id: number) => Named | undefined): string {
+  if (!id) return "";
+  const p = person(id);
+  return p ? goesBy(p) : SOMEONE_WHO_LEFT;
+}
+
+/** A player on a team: a member as nameOfMember has them, a player from outside the club by the name entered. */
+export const nameOfPlayer = (
+  p: { memberId: number | null; name: string },
+  person: (id: number) => Named | undefined,
+) => (p.memberId ? nameOfMember(p.memberId, person) : p.name);
 
 interface Captained {
   name?: string | null;

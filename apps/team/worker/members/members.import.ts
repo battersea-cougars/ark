@@ -1,8 +1,5 @@
-// An admin brings players in from a file: a spreadsheet saved as CSV (a header row naming the columns), or the
-// roster's JSON (db/seed/README.md). Like the roster seed it only adds: someone already in the club, by email or by
-// name, is left as they are. The whole file is checked first and goes in all at once or not at all, in one D1 batch
-// (the free plan allows 50 queries per request). Nobody is emailed: they sign in with their email once told.
-// The columns are the club's own spreadsheet's (name, position, subx, email, role, is Cougars), or the app's names.
+// An admin brings players in from a file: a spreadsheet saved as CSV, or the roster's JSON (db/seed/README.md). The
+// columns are the club's own spreadsheet's (name, position, subx, email, role, is Cougars), or the app's names.
 import { all } from "@cougars/shared/d1";
 import { assignReferenceSql } from "@cougars/shared/payment-reference";
 import type { Action } from "../../src/access/actions";
@@ -19,7 +16,7 @@ export interface ImportRow {
   cougar: boolean;
   /** Besides Member, which everyone gets. */
   roles: string[];
-  /** Their plan this quarter (ADR 0007): a goalie is always on the Keeper plan. */
+  /** Their plan this quarter (apps/team/worker/dues/README.md): a goalie is always on the Keeper plan. */
   plan: Plan;
 }
 export type Plan = "quarterly" | "payg" | "keeper";
@@ -207,7 +204,7 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
       typeof planValue === "boolean" ? (planValue ? "quarterly" : "payg") : PLANS[raw("plan").toLowerCase()];
     if (!chosen) wrong("Subx should be quarterly, payg or keeper");
     else if (chosen === "keeper" && position && position !== "G") wrong("Keeper is for position G");
-    // Keepers play training free, whatever the file says (ADR 0007)
+    // Keepers play training free, whatever the file says (apps/team/worker/dues/README.md)
     const plan: Plan = position === "G" ? "keeper" : (chosen ?? "payg");
 
     const roleValue = get("roles");
@@ -236,7 +233,11 @@ export async function checkImport(db: D1Database, file: unknown, caller: Readonl
   return out;
 }
 
-/** Adds everyone the file would add, all at once. Refuses a file with any problem. */
+/**
+ * Adds everyone the file would add, all at once. Refuses a file with any problem. Like the roster seed it only adds:
+ * someone already in, by email or name, is left as they are. One D1 batch (the free plan allows 50 queries a request).
+ * Nobody is emailed.
+ */
 export async function importMembers(db: D1Database, file: unknown, caller: ReadonlySet<Action>, now: Date) {
   const check = await checkImport(db, file, caller);
   if (check.problems.length)

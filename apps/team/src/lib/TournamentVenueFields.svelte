@@ -1,5 +1,5 @@
 <script lang="ts">
-  // Where a tournament is and where everyone goes after (ADR 0030, 0074): one section, each field saying which. Left on
+  // Where a tournament is and where everyone goes after (apps/team/worker/tournaments/README.md): one section, each field saying which. Left on
   // Usual, both are its series'. In the wizard's Details step (Advanced) and the editor's Details tab alike.
   import FormSection from "./FormSection.svelte";
   import PlacePicker from "./PlacePicker.svelte";

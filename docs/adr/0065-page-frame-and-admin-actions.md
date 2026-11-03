@@ -1,8 +1,8 @@
 # 0065. One page frame; admin actions live on the thing's own page, in a drawer, sheet or panel chosen by what's in it
 
 - **Status:** Accepted
-- **Date:** 2026-10-07 · updated 2026-10-24
-- **Merges:** 0078, 0103
+- **Date:** 2026-10-07 · updated 2026-11-02
+- **Merges:** 0078, 0103, 0117
 
 ## Context
 
@@ -33,8 +33,8 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   on a desktop. The menu holds only what has no page of its own; something with its own tab (running the draft,
   making the fixtures) is done there, not from the menu.
 - **One main button may sit beside Manage** when it's the job the page is waiting for: Next Kumite on a series page
-  when nothing's coming up (in the page's own "No Kumite yet", [0074](0074-tournament-home-and-scheduling.md)), Make
-  teams on a training for whoever makes the teams ([0076](0076-training-teams.md)). Once that job is done it goes, and
+  when nothing's coming up (in the page's own "No Kumite yet", [the tournament notes](../../apps/team/worker/tournaments/README.md)), Make
+  teams on a training for whoever makes the teams ([the training notes](../../apps/team/worker/training/README.md)). Once that job is done it goes, and
   the rest stays in Manage. (Make teams stays as Remake teams, with Clear teams beside it, since the team maker's night
   is making and remaking them.)
 - **Settings is for setting up, not for running.** It keeps the full list (every tournament, every series, the members
@@ -75,9 +75,19 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - **Stacking:** one overlay at a time, except a pop-over inside a form and a short sheet opened from an editor panel
   (a member's Charge, Adjust and Record a payment), which stacks on top as its own modal dialog. Pop-overs and a
   player's card are moved to `<body>`, or into the open dialog they're in (`portal` in `lib/overlay.ts`), out of the
-  page's stacking context. Escape closes the top
-  layer only. Overlays don't touch the history: iOS's back swipe still goes back a page.
+  page's stacking context. Escape closes the top layer only, and so does **Back** (below).
+- **Back closes what's open (`lib/back.ts`)**: each overlay (a sheet, a drawer, a player's card, the date field's
+  month) puts an entry of its own on the history as it opens, at the same address, so Back takes it off and closes the
+  top one, staying on the page: Android's back gesture and button, the Android app's back, the browser's Back, and
+  Safari's swipe from the edge on an iPhone. Closed another way, it takes its entry off itself, so the next Back is
+  a real one; with unsaved changes Back asks first, as × does. A link inside one opens its page in the overlay's
+  entry, so Back from that page comes to the page under it. An installed iPhone app has no back gesture: there the
+  sheet's pull-down and the × are the way out.
 - **A sheet's or drawer's main action sits in its footer**, not at the end of the body, so it's always in reach.
+- **Save has one place.** In a sheet, drawer or editor panel it's the footer's `lib/SaveBar`, Save on the right. A form
+  on a page (the You page's Details) has the same `SaveBar` pinned at the foot of the screen, above a phone's tabs,
+  while the form runs on under it. Nothing ends a form with a Save of its own. A switch, a pick that isn't in a
+  form, or a photo saves as you tap and has no Save at all.
 
 **One drawer, one sheet, one close contract**
 
@@ -117,7 +127,7 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - On a desktop every page is the same frame (`--page-max`, 76rem) and its content keeps a reading width (52rem) from
   the frame's left edge. A page that needs the room (the Draft, the club, Settings → Tournaments) is `.page.full` and
   uses the whole frame. A page that is one big table (Settings → Members) is `.page.fill`
-  ([0069](0069-members.md)). Nothing is centred on its own.
+  ([the members notes](../../apps/team/worker/members/README.md)). Nothing is centred on its own.
 - Every title is at the same height: PageHeader keeps the eyebrow's line on a desktop even when there's none, and
   Home's own header matches it.
 - An editor panel opens in the page's column: the same left edge and width as the content under it
@@ -136,7 +146,7 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   came from.
 - **The desktop rail is member pages only**: Home, the trainings, Calendar, the tournament types and the club
   (`/club`), then the gear for whoever can set something up. Past announcements are Home's page (`/announcements`,
-  [0107](0107-announcements.md)).
+  [the announcements notes](../../apps/team/worker/announcements/README.md)).
 - A page under its section's front page says its way back once: on a phone the app bar's ‹, so the header's eyebrow
   button shows on a desktop only.
 - On a phone a training's usual day, hours and place are on its session card (a page whose list has a sticky header
@@ -169,11 +179,25 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
   widens leftwards into the field, over the headings, and rows that sift as you type. Short lists (Quarterly rate,
   Venues) get the columns but no search.
 
+**A create that asks several questions is a wizard**
+
+- **`lib/Wizard.svelte`**, after Ledger's, a step at a time: the steps along the top (Tabs' italic capitals; on a
+  phone just the numbers), the step in the middle sliding in, and a foot that stays put: Cancel or Back, "Step x of
+  y", and Next with the next step's name as the main button; on the last step, the job's own button. One line above
+  them says what stops this step, what the job will do, or what failed, in place.
+- **How far it goes is `reachable`**, the first step whose needs aren't met (`lib/wizard.ts`); the steps after it are
+  shut and Next is off.
+- **It fills what holds it**: `EditorPanel` and `Sheet` take `fill`, so a phone gets the tall bottom sheet and a
+  desktop the panel, the same height on every step. **The last step is a check**: each answer in words, with Change
+  going back to its step.
+- A wizard is more taps than one form, so short jobs (a payment, a score) stay single sheets. The first is the next
+  date in a series (`TournamentQuickCreate`).
+
 ## Consequences
 
 - The tournament pages open the tournament editor in place (`TournamentEditorPanel`), on the tab the action needs;
   Settings → Tournaments uses the same panel. A new date in a series opens on its quick questions
-  (`TournamentQuickCreate`, [0128](0128-scheduling-a-tournament.md)).
+  (`TournamentQuickCreate`, [the tournament notes](../../apps/team/worker/tournaments/README.md)).
 - The Calendar is where an admin puts any date on: its **New event** button (in words on a phone too) opens one
   sheet asking what kind (a one-off, a training, a series' next date, a tournament), only the kinds their full role
   can create (`lib/new-event.ts`), each in the editor Settings uses (`TrainingEditorPanel`, `TournamentEditorPanel`),
@@ -186,49 +210,3 @@ a list and wastes space on two fields, and it leaves the page in view, which is 
 - On a desktop a sheet hides the page and a drawer doesn't, so a phone/desktop switch changes more than the shape.
   That's fine for a menu, which you leave as soon as you choose, but not for anything you'd want the page beside.
 - A page's column width (`.page:not(.full) > *`) leaves out a `<dialog>`: a sheet declared in the page sizes itself.
-
-## History
-
-- 2026-10-07: Admin actions moved from Settings onto the thing's own page, opening over it; Settings kept for setting
-  up, with the same editors (was 0065).
-- 2026-10-08: One page frame on a desktop (76rem, a 52rem reading width, `.page.full`), every title at one height,
-  editors in the page's column (was 0078).
-- 2026-10-09: A main button beside Manage when the page is waiting for it; Manage keeps only what has no page of its
-  own (was 0087, now in 0127 and 0128).
-- 2026-10-09: Which overlay for what, from a survey of every one: drawer, sheet or panel by what's inside; drawers
-  moved to `<body>`; a pop-over's Escape leaves the drawer under it open (was 0103).
-- 2026-10-10: On a phone the bar hides on scrolling down and comes back on scrolling up (#83); a page's search stays
-  in the page.
-- 2026-10-10: A one-list page fits the window and its list scrolls inside (`.page.fit`, `.scroll-fill`); lists are
-  glass.
-- 2026-10-10: A long list under a header has one scroller, the page, driving a window on its rows
-  (`lib/list-scroll.ts`), Friday's and Unpaid fees'; the phone bar hides there too.
-- 2026-10-10: Tables share Roles' look and Friday's search; square corners, no outer edge, soft lines; frosted
-  fields; a dark tint under the glass on touch phones.
-- 2026-10-20: Make teams stays as Remake teams, with Clear teams beside it (ADR 0076).
-- 2026-10-20: On a phone a training's usual day, hours and place are on its session card.
-- 2026-10-20: Next Kumite sits in the series page's "No Kumite yet" when nothing's on (ADR 0074).
-- 2026-10-20: One overlay on a phone: every sheet, drawer and editor panel is a bottom sheet there, with a handle to
-  pull down; the desktop split stays (#82, was 0103).
-- 2026-10-20: The Calendar's New event puts on any kind of date from one sheet, in Settings' own editors.
-- 2026-10-20: You + one gear: the gear opens one Settings page listing every admin area; the desktop rail is member
-  pages only.
-- 2026-10-21: On a desktop the gear sits at the foot of the rail; the top right keeps only your avatar.
-- 2026-10-21: Past announcements leave Settings for Home's page ([0107](0107-announcements.md)); Teammates is the
-  club (`/club`).
-- 2026-10-21: Settings in the order an admin needs it: Club, Schedule, Content, System, kept in one place
-  (`nav-routes.ts`, pinned by `settings-list.test.ts`).
-- 2026-10-23: One side drawer and one bottom sheet with one close contract (`lib/overlay.ts`); the editor panel is
-  the drawer's `page` placement.
-- 2026-10-23: Save forms show unsaved and saved in one footer (`lib/SaveBar`), and leaving unsaved asks first.
-- 2026-10-23: A training's Manage has Cancel this night and It's back on.
-- 2026-10-23: A page under its section's front page says its way back once (the phone bar's ‹).
-- 2026-10-23: An overlay's save state has one owner at a time, kept out of reactive state (`FormOwner`).
-- 2026-10-24: ADR 0103 (drawers, sheets and panels) merged in; its stale lines dropped (drawers are native dialogs
-  now, the account menu is gone, its to-do list is done).
-- 2026-10-24: One home for each look and word, a first pass (#153): every page's Manage menu is `lib/ManageMenu`, a
-  question before a job is `lib/Confirm`, both in a `short` drawer (no more Sheet-on-a-phone, Drawer-on-a-desktop by
-  hand); the red confirm is `.btn.danger`; `portal` lives in `lib/overlay.ts`, one copy; ordinals, plurals and stored
-  days in words come from `lib/dates.ts`. `scripts/team-one-home.test.mjs` fails on a copy. Nothing looks different,
-  except fixes: Passkeys' "Remove it" is red, a pick past the 20th says "21st", and a member's card or the team
-  maker's deal opened from inside a sheet opens in front of it.

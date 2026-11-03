@@ -1,5 +1,5 @@
-// Announcements (#85): posting and taking one down (on the record), a member getting one ("Got it", for themselves),
-// and looking back over all of them.
+// Announcements: posting and taking one down (on the record), a member getting one ("Got it"), and looking back
+// over all of them.
 import { id, ok, type Route } from "../api/api.route";
 import { HttpError, body, json } from "../api/api.http";
 import {

@@ -1,11 +1,7 @@
 <script lang="ts">
-  // Who's in, for a tournament's Sign-up open view (ADR 0074), as Friday's Who's coming says it: one line a player,
-  // their initials, name and position, numbered in the order they said they're in, the captains marked once they're
-  // named; then whoever's waiting, then (for whoever sees it) who said they're out. Nobody in yet: a quip about
-  // slackers (Settings → Quips, "Nobody in"), as Friday's says it. The Kumite's is by invitation (lib/motif.ts
-  // invitationOnly): its players are The fighters, each with their fighter's number (lib/fighters.ts), whoever's
-  // waiting the Reserves, numbered too, and who said out Declined. A row turns the player's card over (PlayerCardZoom),
-  // as Friday's does.
+  // Who's in, for a tournament's Sign-up open view (apps/team/worker/tournaments/README.md), as Friday's Who's coming:
+  // a numbered line each, then who's waiting and who's out; a row turns the player's card over (PlayerCardZoom). The
+  // Kumite's by invitation (lib/motif.ts invitationOnly): The fighters with their numbers, Reserves and Declined.
   import PositionIcon from "./PositionIcon.svelte";
   import { PLAYERS, type Player } from "../demo/data";
   import type { Tournament } from "../demo/model";

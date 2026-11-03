@@ -1,11 +1,7 @@
 ---
-// The Kumite, sold like an 80s fight-film release with Bloodsport's underground-tournament
-// mystique, and the joke that it is open to anyone: struck-out "invitation only", a venue scrambled into Chinese
-// characters that decodes itself on hover, a billing block. The header of /kumite/ (an <h1>); the home page shows its
-// teaser (KumiteTeaser), which cuts into it. Kumite is 組手 in Japanese: the kanji run down the side in brush, the club
-// is spelt in katakana. As the page opens, under the title the statement types itself out ("Only one team walks
-// away."), a pause, then the reveal ("Champions") is slammed down from the screen as an ink stamp with 優勝, as the team
-// app's stamps; once, and it stays. The tagline, statement and reveal are Studio settings (Kumite).
+// The header of /kumite/ (an <h1>): the Kumite sold like an 80s fight-film release, with Bloodsport's underground
+// mystique and the joke that it's open to anyone (struck-out "invitation only", a scrambled venue, a billing block,
+// 組手 in brush). The tagline, statement and reveal are Studio settings (Kumite); the home page shows KumiteTeaser.
 import { getImage } from "astro:assets";
 import background from "../assets/cougars_background.png";
 // Only the nine characters the poster uses (Yuji Boku, SIL OFL), so it's a 5 KB file
@@ -23,7 +19,7 @@ const { next, href, heading: Heading = "h2" } = Astro.props;
 const Tag = href ? "a" : "div";
 const bg = (await getImage({ src: background, width: 1600, format: "webp", quality: 70 })).src;
 const { kumite } = await getSettings();
-// The next Kumite as the team app has it (ADR 0042), else Sanity's event
+// The next Kumite as the team app has it (ADR 0016), else Sanity's event
 const upcoming =
   kumite.next ?? (next ? { startsAt: next.startsAt, venue: next.location ?? "", dateTbc: false, season: null } : null);
 const dated = upcoming && !upcoming.dateTbc && !upcoming.season;

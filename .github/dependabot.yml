@@ -12,6 +12,12 @@ updates:
       npm:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # `typescript` is TypeScript 6, kept for svelte-check, @astrojs/check and typescript-eslint, which need its
+      # JavaScript API; TypeScript 7 is `@typescript/native` and updates like anything else (ADR 0105). Drop this when
+      # `typescript` becomes 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directories: ["/", "/.github/actions/*"]
     schedule:

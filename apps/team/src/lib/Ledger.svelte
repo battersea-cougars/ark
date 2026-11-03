@@ -1,8 +1,7 @@
 <script lang="ts">
-  // A member's dues as a ledger (ADR 0007), the way a bank statement reads: every charge and payment by date, newest
-  // first, with what they owe after each. Its header stays in view as it scrolls, under whatever is pinned above it
-  // (--below; on a page, the shell's top bar). Whoever records payments can take back a payment or a quarter charged
-  // by hand, each with a second tap so a stray one can't.
+  // A member's dues as a ledger, read like a bank statement (apps/team/worker/dues/README.md): every charge and payment,
+  // newest first, with what they owe after each, its header in view under --below. Taking back a payment or a quarter
+  // charged by hand takes a second tap, so a stray one can't.
   import { untrack } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { removeCharge, removePayment } from "../app/backend.svelte";
@@ -15,7 +14,7 @@
 
   let { memberId, editable = false }: { memberId: number; editable?: boolean } = $props();
 
-  // Read a page at a time, newest first (#177, app/ledger.svelte.ts): again when dues change, as far as it was read
+  // Read a page at a time, newest first (app/ledger.svelte.ts): again when dues change, as far as it was read
   const book = $derived(ledgerOf(memberId));
   $effect(() => {
     void [db.dues, db.charges];
@@ -41,8 +40,8 @@
       <tr>
         <th class="date">Date</th>
         <th>What</th>
-        <th class="r">Charged</th>
-        <th class="r">Paid</th>
+        <th class="r"><span class="wide">Charged</span><span class="narrow">Amount</span></th>
+        <th class="r paid-col">Paid</th>
         <th class="r">Owes</th>
         {#if editable}<th class="act"><span class="sr-only">Take back</span></th>{/if}
       </tr>
@@ -72,8 +71,10 @@
             </span>
             <span class="on num">{day(l.on)}</span>
           </td>
-          <td class="r num">{l.kind === "charge" ? pounds(l.pence) : ""}</td>
-          <td class="r num in">{l.kind === "payment" ? pounds(l.pence) : ""}</td>
+          <td class="r num">
+            {#if l.kind === "charge"}{pounds(l.pence)}{:else}<span class="narrow in">{pounds(l.pence)}</span>{/if}
+          </td>
+          <td class="r num in paid-col">{l.kind === "payment" ? pounds(l.pence) : ""}</td>
           <td class="r num bal" class:credit={l.balance < 0}>{balance(l.balance)}</td>
           {#if editable}
             <td class="act">
@@ -208,6 +209,9 @@
   .none {
     color: var(--fg-muted);
   }
+  .narrow {
+    display: none;
+  }
   .more {
     height: 1px;
   }
@@ -222,6 +226,19 @@
     .on {
       display: block;
       margin: 2px 0 0 calc(1.75rem + var(--s-2));
+    }
+    /* On a phone what was charged and what was paid share a column, Amount (a payment's in green, by its £), and
+       Take back comes closer in: six columns run past a 320 phone's card */
+    .paid-col,
+    .wide {
+      display: none;
+    }
+    .narrow {
+      display: inline;
+    }
+    .act .btn {
+      min-width: 2.75rem;
+      padding-inline: var(--s-1);
     }
   }
 </style>

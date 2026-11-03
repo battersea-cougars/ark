@@ -1,7 +1,7 @@
 # 0031. Tests describe what people do, against a fake world, at three levels: unit, use case, journey
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-10-24
+- **Date:** 2026-10-06 · updated 2026-11-02
 - **Merges:** 0124
 
 ## Context
@@ -39,11 +39,11 @@ How to write them: [docs/testing.md](../testing.md).
 
 **Each level has its own job. A check lives at one level only**: the cheapest that can see it.
 
-| Level        | What it checks                                                                                                                            | Where                                                   | When                                                  |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------- |
-| **Unit**     | Tricky pure logic, every case in isolation: recurrence, the solver, standings, what Manage offers at each stage to each role              | `{domain}.test.ts` beside the code (Vitest)             | every push and PR                                     |
-| **Use case** | The rules and the routes: what someone does through the real Worker handlers, what they'd see after, what reached the outside world       | `{domain}.use-cases.test.ts` (Vitest, the fake world)   | every push and PR                                     |
-| **Journey**  | A whole workflow, by role, in a real browser on the real app: can each person do what needs doing at each step, and not what they mustn't | `apps/team/journeys/{workflow}.journey.ts` (Playwright) | nightly, on demand and before a release; never blocks |
+| Level        | What it checks                                                                                                                            | Where                                                              | When                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------- |
+| **Unit**     | Tricky pure logic, every case in isolation: recurrence, the solver, standings, what Manage offers at each stage to each role              | `{domain}.test.ts` beside the code (Vitest)                        | every push and PR                                     |
+| **Use case** | The rules and the routes: what someone does through the real Worker handlers, what they'd see after, what reached the outside world       | `{domain}.use-cases.test.ts` (Vitest, the fake world)              | every push and PR                                     |
+| **Journey**  | A whole workflow, by role, in a real browser on the real app: can each person do what needs doing at each step, and not what they mustn't | `apps/team/tests/journeys/{workflow}.journey.test.ts` (Playwright) | nightly, on demand and before a release; never blocks |
 
 - **What goes where.** A rule (a refusal, a count, who may) is a use case; a pure function with many cases is a unit
   test; a journey checks that the app puts the right things in front of each person at each step and that they work
@@ -51,16 +51,22 @@ How to write them: [docs/testing.md](../testing.md).
   case (one tap that's refused is enough), and a use case doesn't check a page.
 - **Journeys are functional first**: roles, labels and text, not pixels or layout. A `data-testid` only where nothing
   stable a person would read is there.
-- **A journey is one story in stages** (`stage`), each a list of what a person does (`does`: the story needs it, so a
-  failure stops the journey) and checks (`checks`: they can, they can't, they see; a failure is noted and the journey
-  goes on, so one run finds every broken check). Three people at least: an admin, someone in it, a member who isn't.
-  A known bug is `knownBug(…)`, as `it.fails` is in a use case: it runs, should fail, and says so when it doesn't.
+- **A journey is one story, its steps each a test**, in plain Playwright: a `test.describe.serial` per file, a `test`
+  per step in the story's order, its people signed in in `test.beforeAll` and closed in `test.afterAll`, so VS Code's
+  Testing panel and the report list every step. Steps share the people and the database, so a step runs only as part
+  of its journey. A step is a list of what a person does (`does`: the story needs it, so a failure stops the step,
+  and a failed step skips the rest of the journey) and checks (`checks`: they can, they can't, they see; a failure is
+  noted and the step goes on to its end, so it finds every broken check in it). Three people at least: an admin,
+  someone in it, a member who isn't. A known bug is `test.fail(true, "Known bug: …")` on its step, as `it.fails` is
+  in a use case: it runs, should fail, and the summary says so when it doesn't.
   Shortcuts (the API as a member, the dev simulator, Move to…) only to get to a step that isn't the one under test,
   each said so in a comment; the steps under test are real taps.
-- **Its own fresh database every run**: `npm run journeys` wipes the checkout's own local D1 (`--own-db`), rebuilds it
-  from `db/schema.sql`, the club seed and a made-up roster (`journeys.roster.json`), starts the team app on a private
-  port (`npm run app -- --private --own-db team`), runs, and stops it. It refuses to run in the main checkout, whose
-  D1 is everyone's; it never touches 4500/4510/4520. The Kumite night runs on the real clock: scheduled by season
+- **Its own fresh database every run**: the journeys' global setup (`support/journeys.setup.mjs`, in Playwright's
+  config, `playwright.config.ts` at the root) makes a D1 of their own in `.journeys/d1` from `db/schema.sql`, the
+  club seed and a made-up roster (`journeys.roster.json`), starts the team app on it on a port the OS picks, beside
+  the show switch rather than through it (its own Vite cache too), and stops it after. Nothing it touches is a
+  checkout's, so it runs anywhere, the main checkout included, the same way from `npm run journeys`, `npx playwright
+test` and VS Code's Testing panel; it never touches 4500/4510/4520 or anyone's apps or local D1. The Kumite night runs on the real clock: scheduled by season
   only (the wizard's default) and played tonight, so it's the evening a match kicked off, not its date, that counts.
 - **Both clocks move where a day is under test**: `at(person, when)` sets their browser's clock (Playwright's) and the
   server's for their requests (`x-dev-now`, `worker/api/api.dev-clock.ts`: only where the simulator is, so never in
@@ -68,15 +74,19 @@ How to write them: [docs/testing.md](../testing.md).
   real clock), and `cron(when)` runs the Worker's hourly job at a moment through the local dev server's own trigger.
   The days that matter (London midnight, 17:00, 06:00, the clocks changing, 29 February) are each walked once
   (`kumite.on-the-clock`, `fridays`); a journey only moves forward.
-- **The browser is listened to**: every person's pages (`journey.ts`) report an uncaught error, a console error or a
-  Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check. Noise
+- **The browser is listened to**: every person's pages (`support/journey.ts`) report an uncaught error, a console error or a
+  Svelte dev warning that means a bug (a named list), and it fails the step it happened in, noted like a check: looked
+  for after every step by an automatic fixture on the journeys' `test` (`support/journey.ts`), with axe's look too
+  under `--a11y`. Noise
   that isn't the app's goes on an allowlist, each entry with its reason. **Every page opens clean**
-  (`pages.journey.ts`): each of the three opens every page in their menus and, the admin, each editor (shut unsaved);
+  (`pages.journey.test.ts`): each of the three opens every page in their menus and, the admin, each editor (shut unsaved);
   it only looks, never saves.
-- **Failures never block.** A run with failures writes one summary (`.journeys/summary.md`: each failing step, by
-  stage and role, expected and what happened) and, in CI or with `--file-issue`, opens **one issue for the run**
+- **Failures never block.** A run with failures writes one summary (`.journeys/summary.md`: each failing check, by
+  journey, step and role, expected and what happened, and where a journey stopped) and, in CI or with `--file-issue`, opens **one issue for the run**
   (label `regression`) to review: fix the code, or change what the journey expects. `npm run journeys` locally prints
   it and files nothing unless asked.
+- **A journey can't break the next one.** A person's `page.goto` waits for an overlay just closed to take its history
+  entry off (`lib/back.ts`), and a journey that makes a training pauses it in `test.afterAll` however it ended.
 - **Two runs: core and full.** The core run (`npm run journeys -- --core`) is every journey but the Kumite on the
   clock, about 6 minutes; the full run adds it (its three played-out Kumites), 10½ to 13½.
 - **CI** (`.github/workflows/journeys.yml`): the core run nightly on `main` (some time after 02:41 UTC), so a broken
@@ -100,23 +110,4 @@ How to write them: [docs/testing.md](../testing.md).
   then (sessions a year on, say) for the journeys after it: they're written to cope, and that's how the calendar's
   two Marches were found.
 - Overlap between levels is to be taken out as it's found (#154): the same check twice is twice the upkeep.
-- The checkout's own D1 (`--own-db`) is the journeys': a branch that needs its own D1 for its own work loses it to a
-  run.
-
-## History
-
-- 2026-10-06: Tests describe what people do, against a fake world.
-- 2026-10-23: Three levels, a check at one only; journeys by role in Playwright, on demand and before a release, one
-  issue per failing run (#154). The first journey: the Kumite night (was ADR 0124).
-- 2026-10-23: The Kumite night is scheduled by season only, and played on the real clock; browser errors fail their
-  step; every page opens clean.
-- 2026-10-23: Journeys for the whole app, mapped workflow by workflow (testing-map.md); the server's clock moves per
-  request on dev and local (`x-dev-now`), and the cron runs at a moment.
-- 2026-10-23: On dev the clock moves only for an admin; a loose time is ignored (#148).
-- 2026-10-24: Two runs: the core (all but the Kumite on the clock) nightly on `main`, the full one on a push to
-  `release`, either by hand; a failing commit's later runs comment on its open issue (#148, was in 0124).
-- 2026-10-24: ADR 0124 (test levels) merged in. The fake world's facts brought up to date: it is `testWorld` in
-  `apps/team/worker/testing.ts`, its D1 is the schema and seed, and it fakes Gmail, Turnstile, Sentry, Firebase and
-  web push.
-- 2026-10-24: The Fees journey (a Friday's fee as it changes: from that Friday, the day after, a day apart, back in
-  time over a closed and paid night, £0, the clocks) joins the core run, about 6 minutes now (was 5).
+- Two runs at once in one checkout share `.journeys/`: the second stops the first's app.

@@ -1,7 +1,7 @@
 <script lang="ts">
-  // An admin adds someone to the club, in a sheet over Teammates (ADR 0065, 0069): name, email, position. They're in
-  // straight away, and the app emails them a link to itself unless the switch is off (#164: told in person, or later
-  // from their card); they sign in with that email either way.
+  // An admin adds someone to the club, in a sheet over Teammates (ADR 0065, apps/team/worker/members/README.md):
+  // name, email, position. They're in at once and emailed a link to the app unless the switch is off; either way they
+  // sign in with that email.
   import Icon from "../app/shell/Icon.svelte";
   import Sheet from "./Sheet.svelte";
   import { POSITIONS, POSITION_ICONS, type Position } from "../demo/data";
@@ -9,7 +9,7 @@
 
   let { open = $bindable(false) }: { open?: boolean } = $props();
 
-  // The switch starts on: emailing them is the usual add, a quiet one the exception (#164)
+  // The switch starts on: emailing them is the usual add, a quiet one (told in person) the exception
   const blank = () => ({ name: "", email: "", position: "F" as Position, emailThem: true });
   let form = $state(blank());
   let busy = $state(false);

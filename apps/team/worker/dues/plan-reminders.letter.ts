@@ -1,7 +1,5 @@
-// Next quarter's plan, as a Quarterly Member reads it a few days before the quarter (ADR 0007, #187): the quarter, the
-// rate in force on its first day, the day it's charged, and the last day they can switch to pay as you go. The line
-// on their phone, or for anyone without the app the same words by email: plain text first, the same in the club's
-// HTML frame (packages/shared/email-html.ts).
+// Next quarter's plan reminder as a Quarterly Member reads it (apps/team/worker/dues/README.md): the line on their
+// phone, and the same words by email in the club's HTML frame (packages/shared/email-html.ts).
 import { EMAIL_TYPE, emailPage, escapeHtml } from "@cougars/shared/email-html";
 import type { Mail } from "@cougars/shared/email";
 import { formatDayDate, pounds } from "../../src/lib/dates";

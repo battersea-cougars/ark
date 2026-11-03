@@ -1,0 +1,639 @@
+// The Kumite night, end to end (ADR 0031, apps/team/worker/tournaments/README.md): sign-up, captains, the draft,
+// fixtures, live scores, the vote and the awards, then the morning after. Ada runs it (an admin, not playing), Fay
+// plays, Nell isn't in it. On the real clock and a fresh database; the morning after is the browser's clock a day on.
+import { asMember, clubVia, checks, does, expect, signIn, test, type Person } from "./support/journey";
+
+/** Today in London as the app's day picker names it: "Fri 23 Oct 2026". */
+const todayLabel = () =>
+  new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+    .format(new Date())
+    .replace(/,/g, "");
+
+const KUMITE = "/tournaments/kumite";
+
+test.describe.serial("The Kumite night", () => {
+  let ada: Person;
+  let fay: Person;
+  let nell: Person;
+  let everyone: Person[];
+  const open = (who: Person, path = KUMITE) => who.page.goto(path);
+  // The Kumite as the API has it (its id, its places, its teams and games), as the admin
+  let adaApi: ReturnType<typeof asMember>;
+  const kumite = async () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((await clubVia(adaApi)).tournaments as any[]).find((t) => t.typeId === 1 && t.heldOn);
+  // Read once the Kumite's scheduled (step 2 on)
+  let id: number;
+  let members: { id: number; name: string }[];
+  const memberId = (name: string) => members.find((m) => m.name === name)!.id;
+  /** The Kumite as last read, for its teams. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let cached: any;
+  const captainOf = (teamId: number) => {
+    const team = (cached.teams as { id: number; captainMemberId: number }[]).find((x) => x.id === teamId)!;
+    return members.find((m) => m.id === team.captainMemberId)!.name;
+  };
+  /** A team none has named yet goes by its captain's: "Team Cara". */
+  const teamName = (teamId: number) => `Team ${captainOf(teamId).split(" ")[0]}`;
+  const manage = async (who: Person) => {
+    await who.page.getByRole("button", { name: "Manage the Kumite" }).click();
+    return who.page.getByRole("dialog", { name: "Manage the Kumite" });
+  };
+  /** What Manage offers, by each job's own name ("Move to…", not its line under it). */
+  const offered = async (who: Person) => {
+    const menu = await manage(who);
+    await expect(menu.getByRole("button").nth(1)).toBeVisible();
+    const jobs = await menu.locator("button strong").allTextContents();
+    await menu.getByRole("button", { name: "Close", exact: true }).click();
+    return jobs;
+  };
+
+  test.beforeAll(async ({ browser }) => {
+    ada = await signIn(browser, "Admin", "Ada Admin", "admin@example.com");
+    fay = await signIn(browser, "Player", "Fay Forward", "fay@example.com");
+    nell = await signIn(browser, "Member, not in it", "Nell Nonplayer", "nell@example.com");
+    everyone = [ada, fay, nell];
+    adaApi = asMember(ada.email);
+  });
+  test.afterAll(async () => {
+    for (const who of [ada, fay, nell]) await who?.context.close();
+  });
+
+  test("1. The Kumite scheduled: sign-up opens", async () => {
+    for (const who of [fay, nell])
+      await checks(who, "can't schedule a Kumite", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: "No Kumite yet" })).toBeVisible();
+        await expect(who.page.getByRole("button", { name: "Next Kumite" })).toHaveCount(0);
+      });
+
+    await does(
+      ada,
+      "schedules the next Kumite by season only, no day, sign-up opening today, no captains yet, then Advanced in the same wizard: nine places, the rules looked over",
+      async () => {
+        await open(ada);
+        const wizard = ada.page.getByRole("dialog", { name: "The next Kumite" });
+        await ada.page.getByRole("button", { name: "Next Kumite" }).click();
+        // The day's left unset, as the wizard has it: just the season
+        await expect(wizard.getByRole("button", { name: /^Day:/ })).toContainText("Not set");
+        // What it takes from the series is said, with the way to change it for this one
+        await expect(wizard.getByRole("button", { name: "change it" })).toBeVisible();
+        await wizard.getByRole("button", { name: "Next · Sign-up" }).click();
+        await expect(wizard.getByRole("button", { name: "Sign-up opens" })).toHaveText(todayLabel());
+        // Without Advanced, the places and the fee are a line, not fields
+        await expect(wizard.getByRole("spinbutton", { name: "Places" })).toHaveCount(0);
+        await expect(wizard.getByText(/24 places/)).toBeVisible();
+        // "change it" turns Advanced on, here: the fee for this one, the places, when sign-up closes
+        const change = wizard.getByRole("button", { name: "change it" });
+        await expect(change).toHaveCount(1);
+        await change.click();
+        await expect(wizard.getByRole("switch", { name: "Advanced" })).toHaveAttribute("aria-checked", "true");
+        await expect(wizard.getByRole("textbox", { name: "Fee (£)" })).toBeFocused();
+        await expect(wizard.getByRole("button", { name: "Sign-up closes" })).toBeVisible();
+        await wizard.getByRole("spinbutton", { name: "Places" }).fill("9");
+        // The club's data refreshed while it's open (the series changed elsewhere, the app back in view): what's been
+        // typed stays, and the fee is still the one it started with, not the series' new one
+        const series = ((await adaApi("GET", "/api/bootstrap")).tournamentTypes as { id: number }[]).find(
+          (t) => t.id === 1,
+        )!;
+        const fee = await wizard.getByRole("textbox", { name: "Fee (£)" }).inputValue();
+        await adaApi("PUT", "/api/tournament-types/1", { ...series, defaultFeePence: 1500 });
+        const refreshed = ada.page.waitForResponse((r) => r.url().includes("/api/bootstrap"));
+        await ada.page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+        await refreshed;
+        await expect(wizard.getByRole("spinbutton", { name: "Places" })).toHaveValue("9");
+        await expect(wizard.getByRole("textbox", { name: "Fee (£)" })).toHaveValue(fee);
+        await adaApi("PUT", "/api/tournament-types/1", series);
+        await wizard.getByRole("button", { name: "Next · Teams" }).click();
+        // The captains offered, but none chosen yet: they're named after (below, and the draft asks, step 3)
+        await expect(wizard.getByRole("button", { name: "Add Cara Captain as a captain" })).toBeVisible();
+        await expect(wizard.getByRole("button", { name: "Draft day" })).toBeVisible();
+        // Advanced's last step before Check: the rules and awards, as the series has them
+        await wizard.getByRole("button", { name: "Next · Rules" }).click();
+        await expect(wizard.getByRole("spinbutton", { name: "Points for a win" })).toBeVisible();
+        await wizard.getByRole("button", { name: "Next · Check" }).click();
+        await expect(wizard.getByText("9 places", { exact: false })).toBeVisible();
+        await wizard.getByRole("button", { name: "Schedule it" }).click();
+        // Scheduled, the wizard closes on the Kumite's page, which shows it
+        await expect(wizard).toHaveCount(0);
+        await expect.poll(async () => (await kumite())?.capacity).toBe(9);
+      },
+    );
+
+    // Then its editor, from the page (Manage → Kumite settings): the same tabs as the wizard's steps; a captain added
+    // lights Save, and it saves
+    await checks(
+      ada,
+      "adds a captain in its editor (Manage → Kumite settings, Draft & teams), Save, and saves",
+      async () => {
+        await ada.page.getByRole("button", { name: "Manage the Kumite" }).click();
+        await ada.page
+          .getByRole("dialog", { name: "Manage the Kumite" })
+          .getByRole("button", { name: /^Kumite settings/ })
+          .click();
+        for (const tab of ["Details", "Sign-up", "Draft & teams", "Rules & awards"])
+          await expect(ada.page.getByRole("tab", { name: tab })).toBeVisible();
+        await ada.page.getByRole("tab", { name: "Draft & teams" }).click();
+        await ada.page.getByRole("combobox", { name: "Add a captain" }).fill("Cara Captain");
+        await ada.page.getByRole("option", { name: "Cara Captain" }).click();
+        const save = ada.page.getByRole("button", { name: "Save", exact: true });
+        await expect(save).toBeEnabled();
+        await save.click();
+        await expect.poll(async () => ((await kumite()).teams as unknown[]).length).toBe(1);
+      },
+    );
+    await does(ada, "leaves the editor for the Kumite's page", async () => {
+      await open(ada);
+      await expect(ada.page.getByRole("dialog")).toHaveCount(0);
+    });
+  });
+
+  test("2. Players sign up", async () => {
+    ({ id } = await kumite());
+    members = (await clubVia(adaApi)).members as { id: number; name: string }[];
+    cached = await kumite();
+    await does(fay, "accepts her invitation and is in", async () => {
+      await open(fay);
+      const invite = fay.page.getByRole("article", { name: "Your invitation to the Kumite" });
+      await invite.getByRole("button", { name: "Accept" }).click();
+      await expect(fay.page.getByRole("button", { name: "Fay Forward: see their card" })).toBeVisible();
+    });
+
+    // A shortcut to a card with enough on it: the other players say they're in through the API, as themselves (Cole
+    // and Cass too, captains still to be named, and Cara, named or not: nine places, full)
+    for (const email of ["cara", "cole", "cass", "gus", "gwen", "gil", "sam", "dee"].map((n) => `${n}@example.com`))
+      await asMember(email)("POST", `/api/tournaments/${id}/answer`, { answer: "in" });
+
+    await checks(nell, "declines her invitation, and isn't in", async () => {
+      await open(nell);
+      await nell.page
+        .getByRole("article", { name: "Your invitation to the Kumite" })
+        .getByRole("button", { name: "Decline" })
+        .click();
+      await expect(nell.page.getByRole("heading", { name: /Who's in 9/ })).toBeVisible();
+      await expect(nell.page.getByRole("heading", { name: "Declined 1" })).toBeVisible();
+    });
+
+    for (const who of [fay, nell])
+      await checks(who, "can't manage the Kumite", async () => {
+        await open(who);
+        await expect(who.page.getByRole("button", { name: "Manage the Kumite" })).toHaveCount(0);
+      });
+
+    await checks(nell, "can't get a place once the card's full: she'd be a reserve", async () => {
+      await open(nell, `${KUMITE}/sign-up`);
+      await expect(nell.page.getByText("Changed your mind? You'd be a reserve.")).toBeVisible();
+    });
+
+    await does(ada, "closes sign-up from the sign-up view", async () => {
+      await open(ada);
+      await ada.page.getByRole("button", { name: "Close sign-up" }).click();
+      await expect(ada.page.getByRole("status", { name: "Status: Draft open" })).toBeVisible();
+    });
+
+    await checks(nell, "can't sign up once sign-up's closed", async () => {
+      await open(nell, `${KUMITE}/sign-up`);
+      await expect(nell.page.getByRole("button", { name: "Accept" })).toHaveCount(0);
+    });
+  });
+
+  test("3. The captains named, the order drawn", async () => {
+    await checks(ada, "sees No captains yet, with Name the captains, not Fighting blind", async () => {
+      await open(ada);
+      await expect(ada.page.getByRole("heading", { name: "No captains yet" })).toBeVisible();
+      await expect(ada.page.getByRole("button", { name: "Name the captains" })).toBeVisible();
+      await expect(ada.page.getByRole("heading", { name: "Fighting blind" })).toHaveCount(0);
+    });
+    for (const who of [fay, nell])
+      await checks(who, "fights blind while there are no captains, and can't name them", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: "Fighting blind" })).toBeVisible();
+        await expect(who.page.getByRole("button", { name: "Name the captains" })).toHaveCount(0);
+      });
+
+    /** Adds captains in the editor that's open, on its captains' tab: found by name, each a row. */
+    const addCaptains = async (names: string[]) => {
+      const find = ada.page.getByRole("combobox", { name: "Add a captain" });
+      for (const captain of names) {
+        await find.fill(captain);
+        await ada.page.getByRole("option", { name: captain }).click();
+      }
+    };
+    const captainsNamed = async () =>
+      ((await kumite()).teams as { captainMemberId: number }[]).map((x) => x.captainMemberId);
+
+    await does(ada, "names the captains (Name the captains), three in all", async () => {
+      // Cara's named already, unless step 1's settings couldn't save her
+      const named = await captainsNamed();
+      await open(ada);
+      await ada.page.getByRole("button", { name: "Name the captains" }).click();
+      await addCaptains(["Cara Captain", "Cole Captain", "Cass Captain"].filter((n) => !named.includes(memberId(n))));
+      await ada.page.getByRole("button", { name: "Save", exact: true }).click();
+      await expect.poll(captainsNamed).toHaveLength(3);
+      await ada.page.keyboard.press("Escape");
+      await expect(ada.page.getByRole("dialog")).toHaveCount(0);
+    });
+
+    await checks(ada, "has the order to draw, now sign-up's closed", async () => {
+      await expect(ada.page.getByRole("heading", { name: "Draw the order" })).toBeVisible();
+    });
+
+    await does(ada, "draws the order (Shuffle)", async () => {
+      await ada.page.getByRole("button", { name: "Shuffle" }).click();
+      await expect(ada.page.getByRole("region", { name: "Pick order" }).getByRole("listitem")).toHaveCount(3);
+      await expect(ada.page.getByRole("button", { name: "Open draft" })).toBeVisible();
+    });
+
+    for (const who of [fay, nell])
+      await checks(who, "can't see the draft (fighting blind), nor run it", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: "Fighting blind" })).toBeVisible();
+        await expect(who.page.getByRole("button", { name: /Shuffle|Open draft/ })).toHaveCount(0);
+      });
+
+    await does(ada, "opens the draft", async () => {
+      await open(ada);
+      await ada.page.getByRole("button", { name: "Open draft" }).click();
+      await expect(ada.page.getByRole("link", { name: "Enter the draft room" })).toBeVisible();
+    });
+  });
+
+  test("4. The draft: the captains choose", async ({ browser }) => {
+    const captains = new Map<number, Person>();
+    for (const [name, email] of [
+      ["Cara Captain", "cara@example.com"],
+      ["Cole Captain", "cole@example.com"],
+      ["Cass Captain", "cass@example.com"],
+    ]) {
+      const captain = await signIn(browser, "Captain", name, email);
+      await open(captain, `${KUMITE}/draft/room`);
+      captains.set(memberId(name), captain);
+    }
+
+    await checks(ada, "Manage has the draft's jobs and no awards", async () => {
+      await open(ada);
+      const jobs = await offered(ada);
+      expect(jobs).toEqual(expect.arrayContaining(["Close it now", "Back to the drawn order", "Pick log"]));
+      expect(jobs).not.toContain("Confirm the awards");
+    });
+    for (const who of [fay, nell])
+      await checks(who, "can't enter the draft room", async () => {
+        await open(who);
+        await expect(who.page.getByRole("heading", { name: "Fighting blind" })).toBeVisible();
+        await expect(who.page.getByRole("link", { name: "Enter the draft room" })).toHaveCount(0);
+      });
+
+    // A goalie each in the first round, then a skater each (a team takes one goalie); the order snakes
+    const rounds = [
+      ["Gus Goalie", "Gwen Glove", "Gil Pads"],
+      ["Fay Forward", "Sam Skater", "Dee Defence"],
+    ];
+    for (const [round, players] of rounds.entries())
+      for (const [i, player] of players.entries()) {
+        const order = ((await kumite()).teams as { id: number; pick: number; captainMemberId: number }[]).sort(
+          (a, b) => a.pick - b.pick,
+        );
+        const team = (round % 2 ? order.reverse() : order)[i];
+        const captain = captains.get(team.captainMemberId)!;
+        if (round === 0 && i === 0)
+          for (const other of captains.values())
+            if (other !== captain)
+              await checks(other, "can't choose while another team is choosing", async () => {
+                await expect(other.page.getByRole("region", { name: "Players" })).toBeVisible();
+                await expect(other.page.getByRole("button", { name: `Choose ${player}` })).toHaveCount(0);
+              });
+        await does(captain, `chooses ${player}`, async () => {
+          await captain.page.getByRole("button", { name: `Choose ${player}` }).click();
+          await captain.page.getByRole("button", { name: `Yes, ${player}` }).click();
+          await expect
+            .poll(async () => ((await kumite()).teams as typeof order).find((x) => x.id === team.id))
+            .toMatchObject({
+              players: expect.arrayContaining([expect.objectContaining({ memberId: memberId(player) })]),
+            });
+        });
+      }
+    for (const captain of captains.values()) await captain.context.close();
+  });
+
+  test("5. Teams set, and the fixtures", async () => {
+    await does(ada, "seals the teams, and the fixtures are made", async () => {
+      await open(ada);
+      await ada.page.getByRole("button", { name: "Close draft & make fixtures" }).click();
+      // Not on its day (it has none), the fixtures are out and it waits for its first match (apps/team/worker/tournaments/README.md)
+      await expect(ada.page.getByRole("status", { name: "Status: Fixtures set" })).toBeVisible();
+    });
+
+    for (const who of everyone)
+      await checks(who, "sees the three teams in full", async () => {
+        await open(who, `${KUMITE}/teams`);
+        await expect(who.page.getByRole("link", { name: /^Team \w+ .*3 players/ })).toHaveCount(3);
+      });
+    await checks(fay, "sees her own team first", async () => {
+      await expect(fay.page.getByRole("link", { name: /^Team \w+ .*3 players/ }).first()).toContainText(
+        /Your team[\s\S]*Fay Forward/,
+      );
+    });
+
+    for (const who of everyone)
+      await checks(who, "sees the fixtures: three matches", async () => {
+        await open(who, `${KUMITE}/schedule`);
+        await expect(who.page.getByRole("link", { name: /^Game \d:/ })).toHaveCount(3);
+      });
+
+    await checks(ada, "Manage offers to make the fixtures again, and no awards", async () => {
+      await open(ada);
+      const jobs = await offered(ada);
+      expect(jobs).toContain("Make the fixtures again");
+      expect(jobs).not.toContain("Confirm the awards");
+    });
+    for (const who of [fay, nell])
+      await checks(who, "can't manage the Kumite", async () => {
+        await open(who);
+        await expect(who.page.getByRole("button", { name: "Manage the Kumite" })).toHaveCount(0);
+      });
+    await checks(fay, "can still take herself off before a match starts (Punk out)", async () => {
+      await open(fay, `${KUMITE}/sign-up`);
+      await expect(fay.page.getByRole("button", { name: "Punk out" })).toBeVisible();
+    });
+  });
+
+  test("6. KUMITE!: the matches scored live", async () => {
+    cached = await kumite();
+    const [first] = cached.games as { id: number; awayTeamId: number }[];
+    const live = `${KUMITE}/games/${first.id}/live`;
+    // The order was drawn at random: the first match's away team, its captain scoring
+    const awayName = teamName(first.awayTeamId);
+    const scorer = captainOf(first.awayTeamId);
+    // Fay and Nell watch the first match as it's scored
+    for (const who of [fay, nell]) await open(who, live);
+
+    await does(ada, "keeps score of the first match and starts the game", async () => {
+      await open(ada, live);
+      await ada.page.getByRole("button", { name: "Keep score" }).click();
+      await ada.page.getByRole("button", { name: "Start the game" }).click();
+      await expect(ada.page.getByRole("button", { name: "Pause" })).toBeVisible();
+    });
+
+    await checks(nell, "sees it's KUMITE! now a match has started, though it isn't its day (it has none)", async () => {
+      const own = await nell.context.newPage();
+      await own.goto(KUMITE);
+      await expect(own.getByRole("status", { name: "Status: Kumite!" })).toBeVisible();
+      await own.close();
+    });
+
+    await does(ada, "logs a goal for the away team, its captain scoring, no assist", async () => {
+      await ada.page.getByRole("button", { name: "Goal" }).last().click();
+      await ada.page.getByRole("dialog", { name: "Who scored?" }).getByRole("button", { name: scorer }).click();
+      await ada.page.getByRole("dialog", { name: "Who assisted?" }).getByRole("button", { name: "No assist" }).click();
+      await expect(ada.page.getByRole("row", { name: `${awayName} 1` })).toBeVisible();
+    });
+
+    for (const who of [fay, nell])
+      await checks(who, "sees the goal come in live, and who's keeping score", async () => {
+        await expect(who.page.getByRole("row", { name: `${awayName} 1` })).toBeVisible();
+        await expect(who.page.getByText("Score kept by Ada Admin")).toBeVisible();
+      });
+    for (const who of [fay, nell])
+      await checks(who, "can't take the scoresheet while Ada has it", async () => {
+        await expect(who.page.getByRole("button", { name: "Keep score" })).toHaveCount(0);
+        await expect(who.page.getByRole("button", { name: "Goal" })).toHaveCount(0);
+      });
+
+    await checks(fay, "can't take herself off once it's live", async () => {
+      const own = await fay.context.newPage();
+      await own.goto(`${KUMITE}/sign-up`);
+      await expect(own.getByText("On the card. Ask an admin to change it.")).toBeVisible();
+      await expect(own.getByRole("button", { name: "Punk out" })).toHaveCount(0);
+      await own.close();
+    });
+
+    await does(ada, "calls full time", async () => {
+      await ada.page.getByRole("button", { name: "You're keeping score: tools" }).click();
+      await ada.page.getByRole("button", { name: /^Full time now/ }).click();
+      // The review: the goal she logged, then the seal
+      const review = ada.page.getByRole("dialog", { name: "Full time?" });
+      await expect(review.getByRole("listitem").filter({ hasText: scorer }).filter({ hasText: "0–1" })).toBeVisible();
+      await review.getByRole("button", { name: "Seal the result" }).click();
+      await expect
+        .poll(async () => ((await kumite()).games as { status: string }[])[0])
+        .toMatchObject({ status: "done", awayGoals: 1, homeGoals: 0 });
+    });
+
+    await checks(ada, "Manage has no awards while matches are still to play", async () => {
+      await open(ada);
+      expect(await offered(ada)).not.toContain("Confirm the awards");
+    });
+
+    // The other two matches aren't what this journey tests: the dev simulator plays them out (ADR 0010)
+    await does(ada, "plays out the rest (Manage → Play out the Kumite, Spin kick)", async () => {
+      await open(ada);
+      await (await manage(ada)).getByRole("button", { name: /^Play out the Kumite/ }).click();
+      await ada.page.getByRole("button", { name: "Play it out" }).click();
+      await ada.page.getByRole("region", { name: "Simulation" }).getByRole("button", { name: "Spin kick" }).click();
+      await expect
+        .poll(async () => ((await kumite()).games as { status: string }[]).every((g) => g.status === "done"), {
+          timeout: 180_000,
+          intervals: [2000],
+        })
+        .toBe(true);
+    });
+  });
+
+  test("7. The Anchor: the vote", async () => {
+    for (const who of everyone)
+      await checks(who, "sees the Kumite at The Anchor, with the final table", async () => {
+        await open(who);
+        await expect(who.page.getByRole("status", { name: "Status: The Anchor" })).toBeVisible();
+        await expect(who.page.getByRole("heading", { name: "The final table" })).toBeVisible();
+      });
+
+    await checks(nell, "can't vote: she didn't play", async () => {
+      await open(nell);
+      await expect(nell.page.getByRole("region", { name: "The awards" })).toContainText("Waiting for the reveal");
+      await expect(nell.page.getByRole("button", { name: "Vote" })).toHaveCount(0);
+    });
+    for (const who of [fay, nell])
+      await checks(who, "can't confirm the awards", async () => {
+        await open(who);
+        await expect(who.page.getByRole("button", { name: "Confirm the awards" })).toHaveCount(0);
+        await expect(who.page.getByRole("button", { name: "Manage the Kumite" })).toHaveCount(0);
+      });
+
+    await does(fay, "votes for Best keeper", async () => {
+      await open(fay);
+      await fay.page.getByRole("region", { name: "Cast your vote" }).getByRole("button", { name: "Vote" }).click();
+      const sheet = fay.page.getByRole("dialog", { name: "Cast your vote" });
+      await sheet.getByRole("listbox", { name: "Your vote for Best keeper" }).getByRole("option").first().click();
+      await sheet.getByRole("button", { name: "Cast your vote" }).click();
+      await expect(sheet).toHaveCount(0);
+    });
+
+    await checks(ada, "sees Fay's vote counted, and Manage offers to confirm the awards", async () => {
+      await open(ada);
+      await expect(ada.page.getByRole("region", { name: "The awards" })).toContainText("Best keeper: 1 of 6 voted");
+      expect(await offered(ada)).toContain("Confirm the awards");
+    });
+  });
+
+  test("8. The awards confirmed, then revealed one by one", async () => {
+    await does(ada, "confirms the awards, making the judges' call", async () => {
+      await open(ada);
+      await ada.page
+        .getByRole("region", { name: "The awards" })
+        .getByRole("button", { name: "Confirm the awards" })
+        .click();
+      const drawer = ada.page.getByRole("dialog", { name: "Confirm the awards" });
+      await drawer.getByRole("button", { name: "Make the call" }).click();
+      const call = ada.page.getByRole("dialog", { name: "The Judges' Call" });
+      await call.getByRole("option", { name: "Best Celly" }).click();
+      await call.getByRole("option", { name: /^Fay Forward/ }).click();
+      await call.getByRole("button", { name: "Make the call" }).click();
+      await expect(call).toHaveCount(0);
+      await drawer.getByRole("button", { name: "Confirm the awards" }).click();
+      await expect(drawer).toHaveCount(0);
+      await expect.poll(async () => (await kumite()).awardsConfirmedAt).not.toBeNull();
+    });
+
+    await checks(fay, "can't vote once they're confirmed", async () => {
+      await open(fay);
+      await expect(fay.page.getByRole("button", { name: "Vote" })).toHaveCount(0);
+    });
+    await checks(ada, "Manage offers to change the awards, till the reveal", async () => {
+      await open(ada);
+      const jobs = await offered(ada);
+      expect(jobs).toContain("Change the awards");
+      expect(jobs).not.toContain("Confirm the awards");
+    });
+
+    // Everyone on the awards' page, watching the stage
+    const awards = `${KUMITE}/awards`;
+    for (const who of everyone) await open(who, awards);
+    for (const who of [fay, nell])
+      await checks(who, "waits for the reveal: no Reveal of her own", async () => {
+        await expect(who.page.getByText("Waiting for the reveal")).toBeVisible();
+        await expect(who.page.getByRole("button", { name: /^(Reveal|Next award|The champions)$/ })).toHaveCount(0);
+      });
+
+    // The judges' call, Top scorer, Best keeper, then the champions, the finale
+    const total = ((await kumite()).awards as unknown[]).length;
+    for (let n = 1; n <= total; n++) {
+      const last = n === total;
+      await does(ada, `reveals award ${n} of ${total}${last ? ", the champions" : ""}`, async () => {
+        if (n > 1) await ada.page.getByRole("button", { name: "Next award", exact: true }).click();
+        await expect(ada.page.getByText(`${n} of ${total}`)).toBeVisible();
+        // The champions' card is revealed by its own button, the finale
+        await ada.page.getByRole("button", { name: last ? "The champions" : "Reveal", exact: true }).click();
+        await expect.poll(async () => (await kumite()).awardsRevealed).toBe(n);
+      });
+      if (n === 1)
+        for (const who of [fay, nell])
+          await checks(who, "sees the judges' call revealed live: Best Celly, Fay", async () => {
+            await expect(who.page.getByText("Best Celly")).toBeVisible();
+            await expect(who.page.getByText("Fay Forward").first()).toBeVisible();
+          });
+      if (n === 1)
+        await checks(ada, "can't change the awards once the reveal's started", async () => {
+          const other = await ada.context.newPage();
+          await other.goto(KUMITE);
+          await other.getByRole("button", { name: "Manage the Kumite" }).click();
+          const menu = other.getByRole("dialog", { name: "Manage the Kumite" });
+          await expect(menu.getByRole("button", { name: /^Move to…/ })).toBeVisible();
+          await expect(menu.getByRole("button", { name: /^(Change|Confirm) the awards/ })).toHaveCount(0);
+          await other.close();
+        });
+      if (n === total - 1)
+        await checks(nell, "still sees it at The Anchor with the champions still to come", async () => {
+          const own = await nell.context.newPage();
+          await own.goto(KUMITE);
+          await expect(own.getByRole("status", { name: "Status: The Anchor" })).toBeVisible();
+          await own.close();
+        });
+    }
+  });
+
+  test("9. Done that evening: the champions, every award, the final table", async () => {
+    cached = await kumite();
+    const champions = (cached.winners as { award: string; teamId: number }[]).find((w) => w.award === "Champions")!;
+    const championsName = teamName(champions.teamId);
+    for (const who of everyone)
+      await checks(
+        who,
+        `sees the end: ${championsName} the champions, every award face up, the final table`,
+        async () => {
+          await expect(who.page.getByText(championsName).first()).toBeVisible();
+          for (const award of ["Best Celly", "Top scorer", "Best keeper"])
+            await expect(who.page.getByText(award).first()).toBeVisible();
+          await expect(who.page.getByRole("heading", { name: "The final table" })).toBeVisible({ timeout: 15_000 });
+          await expect(who.page.getByRole("list", { name: "The awards" }).getByRole("listitem")).toHaveCount(3);
+          // No card still sealed, as a screen reader has the page (a winner's area says "?" till it's out)
+          await expect.poll(async () => who.page.getByRole("main").ariaSnapshot()).not.toMatch(/: "\?"$/m);
+        },
+      );
+    await checks(ada, "has nothing left to press on the stage", async () => {
+      await expect(ada.page.getByRole("button", { name: /^(Reveal|Next award|The champions)$/ })).toHaveCount(0);
+    });
+    await checks(ada, "Manage has no awards to confirm or change, only Back to before the awards", async () => {
+      await open(ada);
+      const jobs = await offered(ada);
+      expect(jobs).toContain("Back to before the awards");
+      expect(jobs).not.toContain("Confirm the awards");
+      expect(jobs).not.toContain("Change the awards");
+    });
+    for (const who of everyone)
+      await checks(who, "sees the Kumite's page stay on it, Done, its awards and final table still there", async () => {
+        await open(who);
+        await expect(who.page.getByRole("status", { name: "Status: Done" })).toBeVisible();
+        await expect(who.page.getByRole("heading", { name: "The final table" })).toBeVisible();
+        await expect(who.page.getByText(championsName).first()).toBeVisible();
+        const awards = who.page.getByRole("list", { name: "The awards" });
+        for (const award of ["Best Celly", "Top scorer", "Best keeper"]) await expect(awards).toContainText(award);
+        await expect(who.page.getByRole("heading", { name: "No Kumite yet" })).toHaveCount(0);
+      });
+  });
+
+  test("10. The morning after: nothing on the card, the Kumite first in Past Kumites", async () => {
+    cached = await kumite();
+    const champions = (cached.winners as { award: string; teamId: number }[]).find((w) => w.award === "Champions")!;
+    const championsName = teamName(champions.teamId);
+    // Its evening runs till 06:00 (lib/dates.ts londonEvening): the browser's clock a day on, the app's own
+    // reckoning (the server keeps no evening)
+    const morningAfter = async (who: Person) => {
+      const page = await who.context.newPage();
+      await page.clock.setFixedTime(new Date(Date.now() + 24 * 3_600_000));
+      await page.goto(KUMITE);
+      return page;
+    };
+    for (const who of everyone)
+      await checks(who, `sees No Kumite yet, and ${championsName} won it first under Past Kumites`, async () => {
+        const page = await morningAfter(who);
+        await expect(page.getByRole("heading", { name: "No Kumite yet" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: /^Past Kumites/ })).toBeVisible();
+        await expect(page.getByRole("link", { name: /won it/ }).first()).toContainText(`${championsName} won it`);
+        const next = page.getByRole("button", { name: "Next Kumite" });
+        if (who === ada) await expect(next).toBeVisible();
+        else await expect(next).toHaveCount(0);
+        await page.close();
+      });
+
+    await checks(nell, "opens it: its results, the final table and every award", async () => {
+      const page = await morningAfter(nell);
+      await page
+        .getByRole("link", { name: /won it/ })
+        .first()
+        .click();
+      await expect(page).toHaveURL(new RegExp(`${KUMITE}/${id}`));
+      await expect(page.getByRole("link", { name: /^Game \d:/ })).toHaveCount(3);
+      await expect(page.getByRole("heading", { name: /^Fight card/ })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "The board" })).toBeVisible();
+      for (const award of ["Best Celly", "Top scorer", "Best keeper"])
+        await expect(page.getByText(award).first()).toBeVisible();
+      await page.close();
+    });
+  });
+});

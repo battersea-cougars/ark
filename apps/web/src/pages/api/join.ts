@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
   const reply = (status: number, body: Record<string, unknown>, location: string) =>
     wantsJson ? Response.json(body, { status }) : redirect(location, 303);
 
-  // Plenty for the form's fields; anything bigger is refused before it's read (#73)
+  // Plenty for the form's fields; anything bigger is refused before it's read
   const sent = await withinLimit(request, MAX_FORM);
   if (!sent) return reply(413, { ok: false, error: "That's too much to send." }, refusedAt("invalid"));
   const form = await sent.formData();
@@ -76,7 +76,7 @@ export const POST: APIRoute = async ({ request, redirect, clientAddress, locals 
 
   // A person, says Turnstile? Only they can get an auto-reply; everyone else's enquiry still counts.
   // Rendered for the enquiry form only: a token from the team app's sign-in or Ask to join widgets (the same account's)
-  // isn't one (ADR 0028)
+  // isn't one (ADR 0027)
   const verified = await verifyTurnstile(form.get(TURNSTILE_FIELD), turnstileSecret(), clientAddress, {
     action: ENQUIRY_ACTION,
   });

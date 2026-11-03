@@ -14,7 +14,7 @@ Apple Developer account.
 Three things shape it:
 
 - **Sign-in and every change are first-party.** The session and the sign-in nonce are `__Host-` cookies,
-  `SameSite=Lax`; every change must come from the app's own origin ([0036](0036-api-security.md)); there's no CORS.
+  `SameSite=Lax`; every change must come from the app's own origin ([0024](0024-action-based-authorization.md)); there's no CORS.
   A shell serving a bundled copy of the app (at `capacitor://localhost`) would be another origin: sign-in and every
   change would break, and the cookies wouldn't be kept.
 - **Apple rejects a website in a wrapper** (App Store Review Guideline 4.2): the app must do things a Home Screen
@@ -24,36 +24,36 @@ Three things shape it:
 ## Decision
 
 - **A Capacitor shell that loads the live team app** (`apps/team/capacitor.config.ts`, `server.url`): dev's for test
-  builds, production's for the store. Sign-in, the live hub, the update offer ([0104](0104-app-versions-and-updates.md))
+  builds, production's for the store. Sign-in, the live hub, the update offer ([0022](0022-team-app-svelte-pwa.md))
   and every change work as in a browser, and **a deploy of `team` updates the app**: the shell is rebuilt only when it
   changes. Only the offline screen is in the app (`apps/team/native/offline.html`, "Can't reach the club", Try again).
   `limitsNavigationsToAppBoundDomains` keeps the shell to the team app's own domains, and Turnstile's
-  (`challenges.cloudflare.com`, the sign-in page's check, [0028](0028-turnstile-and-auto-reply.md)).
+  (`challenges.cloudflare.com`, the sign-in page's check, [0027](0027-email-through-gmail-api.md)).
 - **What the app does that a browser can't** (`src/app/native.ts`, which asks "is this the app", never "is this an
   iPhone", and falls back to the browser's way everywhere else):
   - **Notifications**: the night's teams are out (which team you're on), a place came up off the waitlist, a
-    Quarterly Member took your place and you're waiting ([0131](0131-training-sign-ups.md), #97), a session
+    Quarterly Member took your place and you're waiting ([the training notes](../../apps/team/worker/training/README.md), #97), a session
     you're in is off, an announcement, a training night's sign-up is open (on its day, once a night, from the cron:
     `worker/training/training.signup.ts`, topic `places`, queued for the push drain straight after it). A route says what's news with `notify` (`worker/push/push.notices.ts`), read
-    before and after the change like the record ([0095](0095-audit-log.md)); the wrapper sends it after the reply
+    before and after the change like the record ([0024](0024-action-based-authorization.md)); the wrapper sends it after the reply
     (`waitUntil`), and a notification that can't be sent never fails the change. A place changing hands isn't worked out from before and after
     (two requests at once would both see it): the statement that moves someone marks their sign-up (`moved`: up
     because a place came up, up by the team maker's Let in, or bumped down by a Quarterly Member), and `places` reads and
     clears every mark in one batch, so each move is told once whichever request gets there first
-    ([0121](0121-load-and-concurrency.md)). Every route that can move someone says `notify: places`: an answer, an
+    ([0003](0003-free-tiers-only.md)). Every route that can move someone says `notify: places`: an answer, an
     admin putting someone in or taking them off, Let in, the register (a night's, or a member's Fridays), a limit raised
     (a training, a tournament, a club event), an account deleted. Home asks once, a row in its feed
-    ([0118](0118-home-calls-to-action-then-feed.md)) saying what they're for, before the phone's own question; "Not now" is remembered. Next quarter's fee a few days before it starts, to its Quarterly Members (topic `dues`, from the hourly cron, an
+    ([the team app's page notes](../../apps/team/src/pages/README.md)) saying what they're for, before the phone's own question; "Not now" is remembered. Next quarter's fee a few days before it starts, to its Quarterly Members (topic `dues`, from the hourly cron, an
     email instead for anyone without the app, #187). A reminder of what you owe
-    ([0007](0007-dues-and-payments.md)) comes with its email: the dues code tells a member through
+    ([the dues notes](../../apps/team/worker/dues/README.md)) comes with its email: the dues code tells a member through
     `worker/tell/tell.ts`, which sends the email and hands the notification to `notify`.
   - **A topic each, the member's to switch off** (#24): every Notice says its topic, from one list
     (`src/lib/notification-topics.ts`: `teams`, `places`, `sessionOff`, `announcements`, `dues`, `draft`, `email`, `security`, `usage`; a topic
     joins it only once something's sent on it, so there's never a switch for nothing). `draft`: a draft's opening,
-    to each of its captains with their place ([0060](0060-the-draft.md)). `security`: a break-glass sign-in, to
+    to each of its captains with their place ([the tournament notes](../../apps/team/worker/tournaments/README.md)). `security`: a break-glass sign-in, to
     admins only, whose switch only admins see ([0023](0023-sign-in-and-sessions.md)). `usage` ("Free limits"): a free
     limit at 70% or 90%, or a request stopped for its CPU time, to admins only, whose switch only they see
-    ([0059](0059-usage-page-and-check.md)). Every topic is on until a member
+    ([0003](0003-free-tiers-only.md)). Every topic is on until a member
     turns it off: `notification_prefs` holds only what they switched, and the statement that fills the outbox skips
     them, so choosing costs no round trip. The choice is the member's, not a device's: one copy, whichever phone or
     browser they sign in on. The You page shows a switch per topic to everyone; it's in the bootstrap
@@ -77,7 +77,7 @@ Three things shape it:
   claim: with Google's access token, the live hub and a Sentry report that leaves about ten fetches to spare. The rest
   go from the cron (`push.drain`): **every minute** (`* * * * *`) a whole batch of 40, and on the five-minute run
   `DRAIN_AT_ONCE` (25), since that run also sends dues reminders and may ask for a website rebuild
-  ([0121](0121-load-and-concurrency.md) has the sums); the minute run skips the minutes the five-minute one runs. A
+  ([0003](0003-free-tiers-only.md) has the sums); the minute run skips the minutes the five-minute one runs. A
   third cron trigger is free (5 an account; the team Worker has 3, the website 1), and every five minutes wasn't
   enough: a debounced notice would wait up to seven minutes, and 120 phones held overnight would take 25 minutes from
   08:00; a minute's run makes them about three. A notification sent with an email (`tell`) is only queued, for the
@@ -144,68 +144,3 @@ Three things shape it:
 - Apple's fee is paid yearly on the existing account; Firebase Cloud Messaging and the macOS runners cost nothing.
 - Web Push (#24) shares `push_devices` (`platform: web`) and `notify`; only its sending differs. A member on Android
   hears the club without the Play Store. An iPhone in Safari without the app on its Home Screen still hears nothing.
-
-## History
-
-- 2026-10-11: The store app: a Capacitor shell loading the live team app, notifications through Firebase, links
-  opening the app, App Review's sign-in, TestFlight builds from Actions; iOS first, Android ready (#26).
-- 2026-10-20: Sending within the free plan: a push outbox sent 40 phones at a time, the rest by the cron, claimed
-  before sending, retried with backoff (Workers Free's 50 subrequests an invocation).
-- 2026-10-20: Topics: each notification says what it's about, and a member turns any topic off on the You page
-  (`notification_prefs`, absent is on, read inside the outbox statement) (#24); a pay-as-you-go player a Quarterly
-  Member bumps to the waitlist hears it, topic `places` (#97).
-- 2026-10-20: A dues reminder is news too: `tell` (worker/tell/tell.ts) emails a member and notifies their phone in
-  one call, so a feature never talks to Gmail or Firebase itself (#79).
-- 2026-10-21: Home's notification ask moved under the calls to action, a row in its feed
-  ([0118](0118-home-calls-to-action-then-feed.md)).
-- 2026-10-21: A cron run drains 25 phones, not 40, and `tell` queues its phones for the drain: a five-minute run with
-  a club-wide send and reminders waiting made 95 subrequests, over the free plan's 50
-  ([0121](0121-load-and-concurrency.md)).
-- 2026-10-21: Set up for real. Apple: the user's Individual membership (Team ID from `store-setup.mjs`) until it
-  becomes an Organisation for Typesmiths, which makes and releases the app (#103). Firebase is on in the club's one
-  Google Cloud project, `battersea-cougars` (no second project), set up by `scripts/firebase-setup.mjs`; only the
-  APNs key's upload is by hand. Every key, the APNs one too, is backed up in Bitwarden ([0002](0002-secrets-in-bitwarden.md)).
-- 2026-10-21: Teams published again only notify a player whose team changed ("Team change: you're now on …"); the first
-  publish still tells everyone their team.
-- 2026-10-21: Web Push (#24): browsers are devices too (`platform: web`), sent straight to their push service by
-  `worker/push/webpush.ts` through the same outbox; one VAPID pair for both environments (`VAPID_PRIVATE_KEY`,
-  `scripts/webpush-setup.mjs`); Home's ask and the You page's "On this device" in a browser, and on an iPhone in a
-  Safari tab a line about the Home Screen instead of a prompt.
-- 2026-10-21: `challenges.cloudflare.com` joins the iPhone app's app-bound domains, for Turnstile on sign-in (#13); App
-  Review's address skips the check.
-- 2026-10-22: The `draft` topic: opening a draft tells each captain, "<tournament> Draft Open", "You pick 2nd"
-  ([0060](0060-the-draft.md)).
-- 2026-10-22: A training night's sign-up opening is a notification (topic `places`, to everyone with the app): the
-  cron takes each night that opens today in the statement that marks it told (`training_sessions.signup_told_at`),
-  so it goes once however many runs there are, and queues it for the drain (ADR 0131, 0121).
-- 2026-10-22: "You're in" whatever moved them up (someone out, an admin, a limit raised, an account deleted, the
-  register, Let in), with the training and its day ("A place came up for Friday Training, Fri 9 Oct. Off the bench,
-  skates on."), and "On the waitlist" whatever bumped them (signing up, or the register for a member's Fridays), each
-  told once per move: the move marks the sign-up (`moved`) and the notification takes the mark, so a double tap or two
-  requests at once no longer tell anyone twice (ADR 0121).
-- 2026-10-22: The outbox is a row per member per notice, sent to their devices as it goes, with a state (queued,
-  claimed, sent, dropped); quiet hours 22:00 to 08:00 London hold what isn't `live` (the draft and the awards are);
-  a two-minute debounce per member and `key` lets the latest win and drops a round trip back to what they were last
-  told (`push_told`); a drain every minute between the five-minute runs, 40 a run, so a club-wide send held overnight
-  is out by 08:03. The numbers are in `worker/push/push.rules.ts`.
-- 2026-10-22: Passkeys in the app ([0023](0023-sign-in-and-sessions.md)): its entitlements add `webcredentials:` for
-  both team domains, which `apple-app-site-association` already names it for; and the `security` topic (a break-glass
-  sign-in, admins only).
-- 2026-10-22: "Email has stopped" and a break-glass sign-in are `live` too: nobody can get a code, or someone got in
-  by the back door, so neither waits for the morning.
-- 2026-10-23: The APNs key's recovery copy moves to the organisation's Bitwarden vault (no code reads it, so it's out
-  of Secrets Manager and CI), and `APPLE_TEAM_ID` and the App Store Connect key's IDs are committed settings
-  (`scripts/lib/settings.mjs`), not Bitwarden entries; `store-setup.mjs` checks the team ID instead of storing it
-  ([0002](0002-secrets-in-bitwarden.md)).
-- 2026-10-23: A Notice can say `except` (everyone but these members), skipped in the statement that fills the outbox,
-  so it costs no round trip. "Sign-up's open" (a training night's, a tournament's, the Kumite's invitation) skips
-  those who've answered already, read in the statement that marks it told: one who said Out, or was put in, isn't
-  told; taking back an Out puts you among those told ([0131](0131-training-sign-ups.md)).
-- 2026-10-24: A notification about one training night opens that night's own page (`/training/{series}/{date}`,
-  [0030](0030-training-and-tournament-schedule.md)), not the series' page.
-- 2026-10-24: The awards' reveal sends no push: the user, "no push needed" (`awardsOut` is gone; ADR 0129).
-- 2026-10-24: The `usage` topic ("Free limits", admins only): the hourly check's 70% and 90% of a free limit, queued
-  for the next drain and waiting out quiet hours, unless the limit resets before they end ([0059](0059-usage-page-and-check.md), #157).
-- 2026-10-28: Next quarter's plan reminder on the `dues` topic (#187, ADR 0007): a few days before a quarter, each
-  member who'll be Quarterly then, on their devices if they have any, by email if not (not both); queued from the
-  hourly cron for the next drain; tapping it opens `/me/tab?plan=next`.

@@ -1,6 +1,6 @@
-// Past, on or next, by status (ADR 0074, #182): "status decides whether an event or game is past, on or next, never its
-// date or time" (the user, 2026-10-25). The cases that are easy to get wrong: a Kumite played early, a game running
-// late, a night or a Kumite whose time has gone by without being played or closed. Pure, so a unit test.
+// Past, on or next, by status, never by date (apps/team/worker/tournaments/README.md). The cases that are easy to get
+// wrong: a Kumite played early, a game running late, a night or a Kumite whose time has gone by without being played or
+// closed.
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
 import { londonISO } from "./dates";

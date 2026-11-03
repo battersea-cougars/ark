@@ -1,5 +1,5 @@
-// An admin views the app as a member (ADR 0024, #40): the server answers as that member would see the club, and
-// refuses every change until they go back to themselves. Starting and ending are on the record (ADR 0095). Driven
+// An admin views the app as a member (ADR 0024): the server answers as that member would see the club, and
+// refuses every change until they go back to themselves. Starting and ending are on the record (ADR 0024). Driven
 // through the real handlers in the fake world (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
@@ -20,7 +20,7 @@ const bootstrap = async (b: Browser) => (await b.club()).body;
 const idOf = async (b: Browser) => (await bootstrap(b)).me as number;
 /**
  * The club as it shows, less who's asking: who you are, who you're viewing as, and among Home's people who's really
- * signed in (their name only, so the app can say who's viewing, #178).
+ * signed in (their name only, so the app can say who's viewing).
  */
 const club = ({ me, viewingAs, people, ...rest }: Record<string, unknown>) => ({
   ...rest,
@@ -158,5 +158,37 @@ describe("who can view as someone", () => {
     const dana = await w.signedIn("dana@example.com");
     expect((await dana.call("PUT", "/api/me/view-as", { memberId: await idOf(dana) })).status).toBe(400);
     expect((await dana.call("PUT", "/api/me/view-as", { memberId: 9999 })).status).toBe(404);
+  });
+
+  // Viewing as someone reads what they may read: a role with only View as a member mustn't read as an admin
+  const helper = () =>
+    w.db.raw.exec(`INSERT INTO roles (id, name, description, is_system) VALUES (9, 'Helper', 'Viewing', 0);
+      INSERT INTO role_actions (role_id, action) VALUES (9, 'impersonate:Member');
+      INSERT INTO member_roles (member_id, role_id) SELECT id, 9 FROM members WHERE email = 'reg@example.com';`);
+
+  it("not as someone who can do more than you: a helper can't view as an admin", async () => {
+    helper();
+    const reg = await w.signedIn("reg@example.com");
+    const dana = await w.signedIn("dana@example.com");
+    const r = await reg.call("PUT", "/api/me/view-as", { memberId: await idOf(dana) });
+    expect(r.status).toBe(403);
+    expect((await bootstrap(reg)).viewingAs).toBeNull();
+    expect((await reg.call("GET", "/api/audit")).status).toBe(403);
+    // ...while a member who can do no more than them is fine
+    const sam = await w.signedIn("sam@example.com");
+    expect((await reg.call("PUT", "/api/me/view-as", { memberId: await idOf(sam) })).status).toBe(200);
+  });
+
+  it("a member made an admin while being viewed ends the view: it never reads as them", async () => {
+    helper();
+    const reg = await w.signedIn("reg@example.com");
+    const sam = await w.signedIn("sam@example.com");
+    const samId = await idOf(sam);
+    expect((await reg.call("PUT", "/api/me/view-as", { memberId: samId })).status).toBe(200);
+    w.db.raw.exec(`INSERT INTO member_roles (member_id, role_id) SELECT ${samId}, id FROM roles WHERE name = 'Admin'`);
+    expect((await reg.call("GET", "/api/audit")).status).toBe(403);
+    const asReg = await bootstrap(reg);
+    expect(asReg.viewingAs).toBeNull();
+    expect(asReg.actions).not.toContain("manage:all");
   });
 });

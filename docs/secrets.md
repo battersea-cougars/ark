@@ -2,12 +2,12 @@
 
 Every secret the website, the team app, the scripts and CI use, by the system it comes from, and within each system
 by environment. For each: what it's for, where it comes from, who reads it, how it gets there, whether it expires, and
-how to change it. Checked against Bitwarden and the code on 2026-10-23.
+how to change it. The accounts that issue them (who owns each, where to sign in, how it's set up) are in
+[accounts.md](accounts.md); this doc names an account only to link it.
 
 - How secrets work, in short: [below](#how-secrets-work).
 - The rules, and why: [ADR 0002](adr/0002-secrets-in-bitwarden.md). The two environments:
   [ADR 0010](adr/0010-environments-and-deploys.md).
-- Every outside service and who owns it: [accounts.md](accounts.md). Account setup, step by step: [setup.md](setup.md).
 
 ## How secrets work
 
@@ -121,13 +121,10 @@ personal data, such as an email address, which stays out of this public repo.
 
 ## Bitwarden
 
-Bitwarden is where every secret lives, and nowhere else. The club has one Bitwarden **organisation**, on Bitwarden's
-EU server (log in at <https://vault.bitwarden.eu>), on the free plan: 3 projects, 3 machine accounts, 2 people.
-People (organisation members) get access to the projects they look after. It has two halves: the **vault**
-(Password Manager, the `bw` command), opened with your master password; and **Secrets Manager** (`bws`), which only
-takes a **machine account's access token**. Secrets Manager holds what code reads; the vault holds the tokens for
-your machine and the recovery copy of a key no code reads (the [Apple push key](#apple-push-key-recovery-copy), in
-the organisation's vault, ADR 0002 point 1). Secrets Manager has two projects:
+Bitwarden is where every secret lives, and nowhere else: the club's organisation ([accounts.md](accounts.md#bitwarden)).
+Secrets Manager holds what code reads; the vault holds the tokens for your machine and the recovery copy of a key no
+code reads (the [Apple push key](#apple-push-key-recovery-copy), in the organisation's vault, ADR 0002 point 1).
+Secrets Manager has two projects:
 
 | Project       | Holds                                                                          | Read by                                         |
 | ------------- | ------------------------------------------------------------------------------ | ----------------------------------------------- |
@@ -205,10 +202,9 @@ Your machine's token. It can read and write both projects, so you add secrets fr
 
 ## Cloudflare
 
-Cloudflare runs both apps: the Workers, the D1 database, the domain, Turnstile and Access. There are two accounts, so
-dev can never touch production: **Cougars** (production) and **Cougars Dev**. Log in at <https://dash.cloudflare.com>;
-the club account and a maintainer are Super Administrators on both. Tokens are **account API tokens** (Manage Account →
-**Account API Tokens**): they belong to the account, not a person.
+Cloudflare runs both apps: the Workers, the D1 database, the domain, Turnstile and Access, in two accounts,
+**Cougars** (production) and **Cougars Dev** ([accounts.md](accounts.md#cloudflare)). Tokens are **account API
+tokens** (Manage Account → **Account API Tokens**): they belong to the account, not a person.
 
 ### Production
 
@@ -235,7 +231,7 @@ deploys.
   | All zones in Cougars   | Workers Routes Write                                             | Attach the domain to the worker (`target.mjs`)             |
 
 - **Used by:** `deploy.yml` on `release` and Studio publishes (`target.mjs`, migrations, `wrangler deploy`);
-  `backup.yml`; `scripts/admin-break-glass.mjs`, `scripts/club-snapshot.mjs` (through `scripts/lib/d1-api.mjs`) and
+  `backup.yml`, `restore-db.yml` (D1 Write covers Time Travel); `scripts/admin-break-glass.mjs`, `scripts/club-snapshot.mjs` (through `scripts/lib/d1-api.mjs`) and
   the `scripts/*-setup.mjs` scripts, with `--environment production`.
 - **Gets there by:** CI pull from Bitwarden. On your machine,
   `node scripts/env-pull.mjs --environment production -- <script>`.
@@ -260,7 +256,7 @@ secret: an ID**, on the account's home page and in every dashboard URL; useless 
 #### `CLOUDFLARE_ANALYTICS_TOKEN__PRODUCTION`
 
 The team app's Usage page, and its hourly check, read today's Worker requests and database rows from Cloudflare, to
-warn the admins before the free allowance runs out ([ADR 0059](adr/0059-usage-page-and-check.md)). Read-only. It
+warn the admins before the free allowance runs out ([ADR 0003](adr/0003-free-tiers-only.md)). Read-only. It
 lives inside the Worker, so it's never the deploy token. Without it the page says "Not set up yet".
 
 - **Comes from:** Cloudflare: the Cougars account → Manage Account → Account API Tokens, named
@@ -310,7 +306,7 @@ your machine.
   `CLOUDFLARE_API_TOKEN__DEV`.
 - **Permissions:** scope **Entire Cougars Dev account**; **Workers Admin** (Editor can't create a new worker),
   **D1 Write**, **Turnstile Write** (`scripts/turnstile-setup.mjs`).
-- **Used by:** `deploy.yml` on `main` and pull requests, `backup.yml`, `scripts/deploy-dev.sh`, and the scripts
+- **Used by:** `deploy.yml` on `main` and pull requests, `backup.yml`, `restore-db.yml`, `scripts/deploy-dev.sh`, and the scripts
   above run for dev.
 - **Gets there by:** CI pull. On your machine, `node scripts/env-pull.mjs -- bash scripts/deploy-dev.sh`.
 - **Expires:** no, unless you set a TTL.
@@ -334,7 +330,7 @@ Dev's Usage page, as production's, and the CPU time per route.
 - **Comes from:** Cloudflare: the Cougars Dev account → Manage Account → Account API Tokens, named
   `CLOUDFLARE_ANALYTICS_TOKEN__DEV`. Permissions, on the entire Cougars Dev account: **Account Analytics Read**
   (today's Worker requests and D1 rows) and **Workers Observability Read** (CPU time per route,
-  `scripts/cpu-by-route.mjs`, ADR 0059). Cloudflare lists Workers Observability under its legacy permissions; it still
+  `scripts/cpu-by-route.mjs`, ADR 0003). Cloudflare lists Workers Observability under its legacy permissions; it still
   works. Production's doesn't need it.
 - **Used by:** the dev team Worker (`worker/settings/usage.ts`); `scripts/cpu-by-route.mjs` and the load tests'
   report.
@@ -358,7 +354,7 @@ Dev's [Turnstile](#turnstile) secret (a plain name, but dev's: production has it
 ### Turnstile
 
 Cloudflare Turnstile tells people from bots on the "Try a session" form, and only people get the automatic reply
-([ADR 0028](adr/0028-turnstile-and-auto-reply.md)). Free. The team app's sign-in and Ask to join use the same widget
+([ADR 0027](adr/0027-email-through-gmail-api.md)). Free. The team app's sign-in and Ask to join use the same widget
 and secret (#13), and refuse a failed check. One widget per account, named `cougars`. Its hostnames cover the website
 and the team app (`team.cougars-dev.workers.dev`, `team.batterseacougars.com`), so there's no second widget.
 
@@ -379,7 +375,7 @@ security_ in the new dashboard) → **Add widget**: name `cougars-website`, host
 
 ### Cloudflare Access
 
-Until launch, production's team app is behind Cloudflare Access ([setup.md](setup.md)) (the website is open): only
+Until launch, production's team app is behind Cloudflare Access ([accounts.md](accounts.md#the-domain)) (the website is open): only
 people on its list get in, and CI
 gets past it with the service token above. At launch the gate and the token go.
 
@@ -387,10 +383,8 @@ gets past it with the service token above. At launch the gate and the token go.
 
 ## Google
 
-One Google Cloud project for the whole club: _Battersea Cougars_, ID `battersea-cougars` (permanent, so no "website"
-or "dev" in it), at <https://console.cloud.google.com>. It's owned by **the developer account** (the Gmail account
-kept for the club's technical work), with the club's Gmail account as a second Owner (**IAM → Grant access**), so the
-club can always reach it. Free, no billing account. The Gmail clients, the YouTube keys and Firebase all live in it.
+The Google Cloud project `battersea-cougars` ([accounts.md](accounts.md#google-cloud)) issues the Gmail client, the
+YouTube keys and Firebase's.
 
 ### Production
 
@@ -537,7 +531,7 @@ instead: re-run `gmail-auth.mjs`, then deploy both environments (it's only used 
 ### YouTube
 
 The website lists the club's YouTube videos live (`apps/web/src/lib/server/videos.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). One key per environment.
+[ADR 0016](adr/0016-how-the-website-gets-its-data.md)). One key per environment.
 
 **Setting it up:** **APIs & Services → Library → YouTube Data API v3 → Enable**, then **Credentials → Create
 credentials → API key**. Name it like the secret, and under **API restrictions** pick **Restrict key → YouTube Data
@@ -559,10 +553,9 @@ the Firebase console; it prints the link.
 
 ## Apple
 
-The team app in the App Store ([ADR 0108](adr/0108-store-apps.md)): built and sent to TestFlight by `store.yml`.
-Owned, for now, by a maintainer's Apple Developer membership (log in at <https://developer.apple.com> and
-<https://appstoreconnect.apple.com>); making it the club's is #103. One copy each, used by both environments, except
-the App Review pair, which is production's alone.
+The team app in the App Store ([ADR 0108](adr/0108-store-apps.md)), from the Apple Developer membership
+([accounts.md](accounts.md#apple)). One copy each, used by both environments, except the App Review pair, which is
+production's alone.
 
 **Android, later:** `PLAY_SERVICE_ACCOUNT` (Play Console upload), `PLAY_UPLOAD_KEY` and `FIREBASE_ANDROID_CONFIG`
 join these (ADR 0108).
@@ -649,12 +642,9 @@ secret**. **A leaked key could** send notifications to the app's users, given th
 
 ## Sentry
 
-Errors from both apps, server and browser, and the down alerts ([ADR 0110](adr/0110-structured-logging.md)). One
-organisation, `battersea-cougars`, in Sentry's **EU region** (log in at <https://de.sentry.io>), on the free Developer
-plan (one user: the developer account, which forwards the alerts). Projects `web` and `team`; each event says its
-environment. Alerts email on a new issue in **production** or **dev**, and on a spike in production; the team
-Worker's hourly cron has a cron monitor. Without these, errors only go to the log. Everything here is one copy for
-both environments.
+Errors from both apps, server and browser, and the down alerts ([ADR 0110](adr/0110-structured-logging.md)), from the
+organisation `battersea-cougars` ([accounts.md](accounts.md#sentry)). Without these, errors only go to the log.
+Everything here is one copy for both environments.
 
 ### Both environments (one value)
 
@@ -719,17 +709,15 @@ browser code for anyone to read, so it lives in `scripts/lib/settings.mjs`, not 
 
 ## Sanity
 
-Two Sanity projects hold the website's content: **Cougars** (`ah165efl`, production) and **Cougars Dev**
-(`zmg6rbe3`), each with one public `production` dataset (log in at <https://www.sanity.io/manage>). Their IDs aren't
-secret (`packages/shared/sanity.ts`), and public datasets need no read token. The club account and a maintainer are
-Administrators.
+Two Sanity projects hold the website's content, **Cougars** and **Cougars Dev**
+([accounts.md](accounts.md#sanity)). Their datasets are public, so reading needs no token.
 
 ### Production
 
 #### `SANITY_DEPLOY_TOKEN__PRODUCTION`
 
 Lets CI send the Studio's schema to Sanity on every push to `release`, so Sanity's own tools know the fields. The
-Studio itself is self-hosted at <https://studio.batterseacougars.com> ([ADR 0112](adr/0112-self-hosted-studio.md)),
+Studio itself is self-hosted at <https://studio.batterseacougars.com> ([ADR 0004](adr/0004-astro-workers-sanity-d1.md)),
 deployed with Cloudflare's token. Without it, the schema deploy step fails.
 
 - **Comes from:** Sanity: manage → project **Cougars** → API → Tokens, role **Deploy Studio**, named
@@ -744,7 +732,7 @@ deployed with Cloudflare's token. Without it, the schema deploy step fails.
 #### `SANITY_CONTENT_TOKEN__PRODUCTION`
 
 Until launch, lets the website's deploy write its words (the Kumite's intro and the like) into production Sanity
-([ADR 0014](adr/0014-sanity-public-content.md)). Without it the deploy leaves Sanity's words as they are.
+([ADR 0004](adr/0004-astro-workers-sanity-d1.md)). Without it the deploy leaves Sanity's words as they are.
 
 - **Comes from:** Sanity: manage → project **Cougars** → API → Tokens, role **Editor**, named
   `SANITY_CONTENT_TOKEN__PRODUCTION`.
@@ -757,7 +745,8 @@ Until launch, lets the website's deploy write its words (the Kumite's intro and 
 
 #### `SANITY_CONTENT_TOKEN__DEV`
 
-The same for dev Sanity (**Cougars Dev**), on pushes to `main`.
+The same for dev Sanity (**Cougars Dev**), on pushes to `main`. **Not set yet** (2026-11-02): dev Sanity refuses writes
+until its monthly quota resets, so the token is made after that; until then dev's deploy leaves its words as they are.
 
 - **Comes from:** Sanity: manage → project **Cougars Dev** → API → Tokens, role **Editor**, named
   `SANITY_CONTENT_TOKEN__DEV`.
@@ -771,7 +760,7 @@ scripts/sanity-copy.mjs`.
 
 ## GitHub
 
-The repository `battersea-cougars/ark`, in the `battersea-cougars` organisation. GitHub holds only the two
+The repository `battersea-cougars/ark` ([accounts.md](accounts.md#github)). GitHub holds only the two
 [Bitwarden tokens](#bitwarden), one per GitHub environment. Everything else is in Bitwarden.
 
 ### Both environments (one value)
@@ -780,7 +769,7 @@ The repository `battersea-cougars/ark`, in the `battersea-cougars` organisation.
 
 The private key of the GitHub App **Cougars rebuilds**. The team Worker signs a short request with it and swaps that
 for a token that lasts an hour, to start a website rebuild when a result changes
-([ADR 0100](adr/0100-website-reads-tournament-results.md)). Without it, results reach the website only at the daily
+([ADR 0016](adr/0016-how-the-website-gets-its-data.md)). Without it, results reach the website only at the daily
 rebuild. Nothing needs a different value per environment.
 
 - **Comes from:** GitHub: the `battersea-cougars` organisation (not a person, so it outlives any maintainer) →
@@ -793,7 +782,7 @@ rebuild. Nothing needs a different value per environment.
   | `battersea-cougars/ark` | Metadata: read      | Required by GitHub for every App                   |
 
   **A leaked key could** start or cancel workflow runs, and delete runs and their artifacts (old backups,
-  [ADR 0106](adr/0106-database-backups.md)). Not push code, not read secrets, not change settings. Each token the
+  [ADR 0050](adr/0050-schema-and-seed-until-launch.md)). Not push code, not read secrets, not change settings. Each token the
   Worker takes asks for Actions: write on this repo alone. `main` and `release` refuse force-pushes and deletion
   (repository ruleset), and only `release` deploys production.
 
@@ -811,8 +800,8 @@ rebuild. Nothing needs a different value per environment.
 ## Instagram
 
 The website's photos are the club's Instagram posts (`apps/web/src/lib/server/instagram.ts`,
-[ADR 0016](adr/0016-photos-and-videos-read-live.md)). The club's Meta business portfolio owns the Instagram account
-(Professional), the Meta app and the system user `photosreader` that the token belongs to ([accounts.md](accounts.md#instagram)).
+[ADR 0016](adr/0016-how-the-website-gets-its-data.md)). The token belongs to the system user `photosreader` in the club's Meta business portfolio
+([accounts.md](accounts.md#instagram)).
 One value for both environments: there's one club Instagram and no dev copy of it, so dev, previews and your machine
 read the real account, read-only ([ADR 0010](adr/0010-environments-and-deploys.md)). Without the token, a checkout
 shows a sample feed, and production "No photos yet".
@@ -833,6 +822,10 @@ A system-user token that reads the club's posts. Never expires; nothing renews i
   reports `instagram.feed_error`.
 - **Changing or revoking it:** **photosreader → Revoke tokens**, then **Generate token** as above,
   `npm run secret:set INSTAGRAM_TOKEN`, and a deploy of each environment. Any admin of the club's portfolio can.
+- **In Bitwarden today (2026-11-02):** besides the plain `INSTAGRAM_TOKEN`, `INSTAGRAM_TOKEN__PRODUCTION` (the
+  system-user token, made 2026-10-30), which wins in production, and `INSTAGRAM_TOKEN_KEY__PRODUCTION`, the sealing key
+  of the old renewing token, read by nothing since. Once the system-user code is live, the plain `INSTAGRAM_TOKEN`
+  should hold the system-user token and both `__PRODUCTION` entries go (one value, as above).
 - **Setting it up from nothing:** the Instagram account a Professional account, in the club's portfolio; a Meta app
   connected to that portfolio (an admin with full control: **Settings → Accounts → Apps → Add**); then the system
   user and its two assets as above. The account's Graph API ID is in `apps/web/src/lib/server/instagram-env.ts`.
@@ -877,14 +870,14 @@ for another. Make one with 32 random bytes, never seen by anyone, for example
 
 #### `BACKUP_KEY__PRODUCTION`
 
-Seals production's database backups ([ADR 0106](adr/0106-database-backups.md)). A backup is the whole database,
+Seals production's database backups ([ADR 0050](adr/0050-schema-and-seed-until-launch.md)). A backup is the whole database,
 members' names and emails included, kept as an artifact on this public repo, so it's encrypted
 (`scripts/lib/backup.mjs`). One per environment, so a dev key can't open production's backups. Without it, backups
 fail.
 
 - **Comes from:** we make it:
   `node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("base64url"))' | node scripts/secret-set.mjs BACKUP_KEY__PRODUCTION`.
-- **Used by:** `scripts/db-backup.mjs` (`backup.yml` nightly, and `deploy.yml` before it changes the schema) and
+- **Used by:** `scripts/db-backup.mjs` (`backup.yml` nightly, `deploy.yml` before it changes the schema, `restore-db.yml` before it restores) and
   `scripts/db-restore.mjs`, which opens one ([db/README.md](../db/README.md#backups)).
 - **Gets there by:** CI pull. On your machine,
   `node scripts/env-pull.mjs --environment production -- node scripts/db-restore.mjs …`.
@@ -990,6 +983,10 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `APP_STORE_CONNECT_ISSUER_ID` | no              | [Its issuer](#app_store_connect_key_id-app_store_connect_issuer_id)                     |
 | `SENTRY_DSN_TEAM`             | no              | [Where the team app's errors go](#sentry_dsn_team)                                      |
 
+A setting wins over a Bitwarden entry of the same name, and `npm run secrets` leaves such an entry out. Bitwarden still
+held old copies of these on 2026-11-02 (`APPLE_TEAM_ID`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`,
+`CLOUDFLARE_ACCOUNT_ID__DEV`, `CLOUDFLARE_ACCOUNT_ID__PRODUCTION`, `SENTRY_DSN_TEAM`): read by nothing, to be deleted.
+
 **Elsewhere:**
 
 | Name                                   | Where                       | What                                                                                                            |
@@ -1000,10 +997,11 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `SANITY_PROJECT_ID` / `SANITY_DATASET` | `packages/shared/sanity.ts` | Picked from `SITE_ENV`: Cougars on production, Cougars Dev else                                                 |
 | `SANITY_STUDIO_SITE_ENV`               | CI (Studio deploy)          | `production` builds the live Studio; unset is the dev project                                                   |
 | `DEMO_CONTENT`                         | `.env`, CI                  | Sample content + `noindex`; `true` on dev and PR builds, never on production                                    |
-| `PUBLIC_BUILD_VERSION`                 | Set by CI                   | Shown in `<meta name="generator">`; checked by the smoke test; its commit is the team app's build id (ADR 0104) |
+| `PUBLIC_BUILD_VERSION`                 | Set by CI                   | Shown in `<meta name="generator">`; checked by the smoke test; its commit is the team app's build id (ADR 0022) |
 | `GITHUB_APP_CLIENT_ID`                 | team `wrangler.jsonc`       | `Iv23liuUhxYcTesso0TW`, the Cougars rebuilds App                                                                |
 | `GITHUB_APP_INSTALLATION_ID`           | team `wrangler.jsonc`       | `169599165`, its installation on `battersea-cougars/ark`                                                        |
 | `VAPID_PUBLIC_KEY`                     | team `wrangler.jsonc`       | Web Push's public key ([Web Push](#web-push))                                                                   |
+| `WEB_ANALYTICS_TOKEN`                  | `deploy.yml`                | Cloudflare Web Analytics' site token, public in every page, production only; empty until copied (setup.md)      |
 
 `.env` is optional and holds your own non-secret overrides only ([.env.example](../.env.example)). Never a secret.
 
@@ -1011,7 +1009,7 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 
 ## Setting up from scratch
 
-The accounts first ([setup.md](setup.md)), then the secrets, in this order. Each step stores its values straight in
+The accounts first ([accounts.md](accounts.md#setting-up-from-scratch)), then the secrets, in this order. Each step stores its values straight in
 Bitwarden; `npm run secrets` (and `-- --environment production`) lists the names to check.
 
 1. **Bitwarden:** the organisation, the two projects, the three machine accounts and their
@@ -1086,9 +1084,11 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SENTRY_DSN_TEAM`](#sentry_dsn_team)                                                                         | Sentry     | both | no (`settings.mjs`)              | Team Worker and app                       |
 | [`SANITY_DEPLOY_TOKEN__PRODUCTION`](#sanity_deploy_token__production)                                         | Sanity     | prod | yes                              | Studio schema deploy                      |
 | [`SANITY_CONTENT_TOKEN__PRODUCTION`](#sanity_content_token__production)                                       | Sanity     | prod | yes                              | Website words, until launch               |
-| [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev)                                                     | Sanity     | dev  | yes                              | Website words, until launch               |
+| [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev) (not set yet)                                       | Sanity     | dev  | yes                              | Website words, until launch               |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
 | [`INSTAGRAM_TOKEN`](#instagram_token)                                                                         | Instagram  | both | yes                              | Website: photos                           |
+| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token) (to fold into the plain one)                                | Instagram  | prod | yes                              | Website: photos, in production            |
+| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token) (to delete)                                             | Instagram  | prod | yes                              | Nothing (the old token's sealing key)     |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
 | [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |

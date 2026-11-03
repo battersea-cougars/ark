@@ -1,4 +1,4 @@
-// The club's settings that aren't a feature of their own: venues, live refresh, the plan reminder's lead time, quips, dev tools (ADR 0027), usage (ADR 0059), the apps' errors (ADR 0110) and the audit log (ADR 0095).
+// The club's settings that aren't a feature of their own: venues, live refresh, the plan reminder's lead time, quips, dev tools (ADR 0027), usage (apps/team/worker/settings/README.md), the apps' errors (ADR 0110) and the audit log (ADR 0024).
 import { id, ok, rowOf, type Route } from "../api/api.route";
 import { AUDIT_PAGE, readAudit } from "./audit";
 import { addDevMail, devMailList, removeDevMail } from "./devtools";
@@ -15,7 +15,7 @@ export const SETTINGS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/venues\/used$/,
     action: "manage:Venue",
-    // What picks each venue, for Settings → Venues (#177)
+    // What picks each venue, for Settings → Venues
     handle: (c) => versionedRead(c, "venuesUsed", async () => ({ used: await venuesUsed(c.env.DB) })),
   },
   {
@@ -44,7 +44,7 @@ export const SETTINGS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/usage$/,
     action: "read:Usage",
-    // Today's use of the club's free Cloudflare allowance (ADR 0059)
+    // Today's use of the club's free Cloudflare allowance (apps/team/worker/settings/README.md)
     handle: async (c) => json(await readUsage(c.env, new Date(c.now))),
   },
   {
@@ -58,7 +58,7 @@ export const SETTINGS_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/audit$/,
     action: "read:Audit",
-    // The record, newest first (ADR 0095): ?before=<id> for the page after, ?limit= up to 200
+    // The record, newest first (ADR 0024): ?before=<id> for the page after, ?limit= up to 200
     handle: async (c) => {
       const q = new URL(c.request.url).searchParams;
       const before = q.get("before");
@@ -82,7 +82,7 @@ export const SETTINGS_ROUTES: Route[] = [
     },
     action: "manage:Settings",
     changes: ["settings"],
-    // { liveRefreshSeconds }: how often live pages check for updates (ADR 0072)
+    // { liveRefreshSeconds }: how often live pages check for updates (ADR 0053)
     handle: async (c) => (await saveSettings(c.env.DB, await body(c.request)), ok()),
   },
   {
@@ -97,7 +97,7 @@ export const SETTINGS_ROUTES: Route[] = [
     },
     action: "manage:Fees",
     changes: ["settings"],
-    // { name, sortCode, account }: where members pay (ADR 0007), on their Dues page and in reminders
+    // { name, sortCode, account }: where members pay (apps/team/worker/dues/README.md), on their Dues page and in reminders
     handle: async (c) => (await saveBank(c.env.DB, await body(c.request)), ok()),
   },
   {
@@ -106,7 +106,7 @@ export const SETTINGS_ROUTES: Route[] = [
     audit: { event: "settings.plan_reminder", subject: (c) => planReminderDays(c.env.DB) },
     action: "manage:Fees",
     changes: ["settings"],
-    // { days }: how many days before a quarter its Quarterly Members are told its fee is due (ADR 0007, #187),
+    // { days }: how many days before a quarter its Quarterly Members are told its fee is due (apps/team/worker/dues/README.md),
     // on Settings → Membership
     handle: async (c) => (await savePlanReminder(c.env.DB, await body(c.request)), ok()),
   },

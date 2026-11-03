@@ -1,6 +1,5 @@
-// Screens whose backend isn't built yet (Upload) run on demo data. They show on dev and
-// locally, so they can be tried, and are hidden in production so members never see made-up amounts (#63).
-// Driven through the real Worker handlers (ADR 0031).
+// Screens whose backend isn't built yet (Upload) run on demo data: shown on dev and locally, hidden in production so
+// members never see made-up amounts. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
 

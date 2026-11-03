@@ -1,9 +1,7 @@
 <script lang="ts">
-  // Cast your vote (ADR 0044): on the awards' page, from the last match played till the awards are confirmed,
-  // everyone who played votes for the voted awards (Best keeper: the skaters, for a keeper), one vote an award,
-  // secret, never for yourself. A card that opens the ballot (lib/VoteSheet); once cast, "Your votes are in", the
-  // votes there to look back at. Nothing at all for someone who didn't play, or once the awards are confirmed. At the
-  // after-party the vote is on the awards' own card (lib/AwardsEntry) instead.
+  // Cast your vote (apps/team/worker/tournaments/README.md), on the awards' page from the last match till the awards are
+  // confirmed: a card that opens the ballot (lib/VoteSheet), for everyone who played. At the after-party the vote is on
+  // the awards' own card (lib/AwardsEntry) instead.
   import Icon from "../app/shell/Icon.svelte";
   import { PLAYERS } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";

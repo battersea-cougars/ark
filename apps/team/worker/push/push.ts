@@ -1,11 +1,5 @@
-// Notifications on members' devices (ADR 0108). The store app registers its phone after sign-in, and a browser its
-// Web Push subscription (#24); a change that's news to someone (the night's teams, a place coming up, a session off,
-// an announcement) says who to tell and what, and the API wrapper hands it to the outbox once the change is made, after
-// the reply (waitUntil). A device belongs to a sign-in: signing out, or the session running out, stops its
-// notifications. Each notification is a row in push_outbox, one per member, until it's sent to their devices: what's
-// due goes at once, a batch small enough for the free plan, and the cron sends the rest. Quiet hours and the debounce
-// decide when it's due (push.rules.ts has the numbers). A phone's goes through Firebase (fcm.ts), a browser's straight
-// to its push service (webpush.ts); the outbox, its batches and retries are the same for both.
+// Notifications on members' devices (ADR 0108): registering a phone or browser, and the outbox each notification waits
+// in until it's due and sent (push.rules.ts has the numbers; fcm.ts and webpush.ts send).
 import { batch, run, statement } from "@cougars/shared/d1";
 import { HttpError } from "../api/api.http";
 import { sendAll, type Message, type Outcome, type Result } from "./fcm";
@@ -249,9 +243,12 @@ export async function drainPush(env: PushEnv, now: Date, atOnce = DRAIN_AT_ONCE)
   const claimId = crypto.randomUUID();
   const week = ago(now, KEEP_DAYS * 24 * 60 * MINUTE);
   const [, , , claimed] = await batch<Claimed>(env.DB, [
+    // Oldest first by push_outbox_created: ordered by id, SQLite walks the whole outbox (a week's) every minute to
+    // find nothing to prune
     statement(
       env.DB,
-      `DELETE FROM push_outbox WHERE id IN (SELECT id FROM push_outbox WHERE created_at < ? ORDER BY id LIMIT ?)`,
+      `DELETE FROM push_outbox WHERE id IN
+         (SELECT id FROM push_outbox WHERE created_at < ? ORDER BY created_at, id LIMIT ?)`,
       [week, PRUNE_AT_ONCE],
     ),
     statement(env.DB, "DELETE FROM push_told WHERE told_at < ?", [week]),

@@ -44,7 +44,7 @@ async function call(method: string, path: string, payload?: unknown, e: Env = en
   );
   return { status: res.status, body: (await res.json()) as Body };
 }
-/** The club as the app holds it once its pages are read: the bootstrap and every page's parts (#178). */
+/** The club as the app holds it once its pages are read: the bootstrap and every page's parts. */
 const boot = async () =>
   wholeClub(
     (await call("GET", "/api/bootstrap")).body,
@@ -69,7 +69,7 @@ describe("opening the app", () => {
     ]);
     expect(b.venues).toEqual([
       expect.objectContaining({ name: "Battersea Sports Centre", mapUrl: "https://maps.app.goo.gl/w5GZTqQF9Qekgeaa6" }),
-      // Where the Kumite goes afterwards (ADR 0074)
+      // Where the Kumite goes afterwards (apps/team/worker/tournaments/README.md)
       expect.objectContaining({ name: "The Anchor", mapUrl: "https://maps.app.goo.gl/GhKGiPB1vKnpV6HB7" }),
     ]);
     const dates = ahead(b).map((s: { heldOn: string }) => s.heldOn);
@@ -147,7 +147,7 @@ describe("the schedule", () => {
       { name: "  ", about: "an empty row is dropped" },
     ];
     expect((await call("PUT", `/api/tournament-types/${kumite.id}`, { ...kumite, awards })).status).toBe(200);
-    // Saved without saying how each is decided: the old guess from its name is written in, once (ADR 0044)
+    // Saved without saying how each is decided: the old guess from its name is written in, once (apps/team/worker/tournaments/README.md)
     expect((await boot()).tournamentTypes[0].awards).toEqual([
       { ...awards[0], decidedBy: { kind: "stat", stat: "table" } },
       { ...awards[1], decidedBy: { kind: "live", options: [] } },
@@ -310,7 +310,7 @@ describe("the schedule", () => {
     expect(saved.teams).toMatchObject([
       {
         name: "Clapham Crushers",
-        // A logo this small comes as itself (#177); a bigger one, at its own address (#175, editions.use-cases)
+        // A logo this small comes as itself; a bigger one, at its own address (editions.use-cases)
         logo,
         captainName: "Jo Outsider",
         contact: "jo@example.com",
@@ -644,7 +644,7 @@ describe("teams, quips, profiles and attendance", () => {
   };
   const friday = async () => ahead(await boot())[0];
 
-  it("an admin publishes Friday's teams; everyone sees them, and someone dropping out stays on theirs until a team maker decides (ADR 0076)", async () => {
+  it("an admin publishes Friday's teams; everyone sees them, and someone dropping out stays on theirs until a team maker decides", async () => {
     const { dana, alt, reg } = await ids();
     const s = await friday();
     for (const m of [alt, reg]) await call("POST", `/api/sessions/${s.id}/players`, { memberId: m, in: true });

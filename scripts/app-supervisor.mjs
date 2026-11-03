@@ -1,15 +1,6 @@
-// The show supervisor (ADR 0115, docs/development.md#worktrees): the one process that runs every checkout's apps. Started by
-// `npm run app` (or npm run dev / team / studio) when it isn't running; never by hand.
-//
-// It holds the user's ports (website 4500, team app 4510, Studio 4520) as a switch: each request, hot reload's
-// websocket included, goes to the app of whichever checkout is shown, so showing another one is instant. Every app is
-// its own child, a session of its own on a free private port, and only this process stops one, the whole session at
-// once, so nothing it started outlives it:
-// - it stops them all when it's stopped (`npm run app down`, TERM, INT, HUP or a crash);
-// - started again after being killed outright, it first stops whatever its last run left;
-// - an app whose checkout is gone stops, and so does a branch's app nobody has shown or asked for in IDLE_MS
-//   (main's never, nor the one shown);
-// - an app that crashes starts again, waiting longer each time; one that stops answering for STUCK_MS too.
+// The show supervisor (ADR 0115, docs/development.md#worktrees): the one process that runs every checkout's apps,
+// started by `npm run app` when it isn't running, never by hand. It holds the user's ports (4500, 4510, 4520) as a
+// switch to whichever checkout is shown, and runs each app as a child session of its own, so nothing outlives it.
 import { spawn } from "node:child_process";
 import {
   closeSync,
@@ -53,7 +44,7 @@ import { holdingPage, panelPage } from "./lib/show.pages.mjs";
 import { SERVICES, checkouts, freePorts, mainCheckout, publicPorts } from "./lib/worktrees.mjs";
 
 const START_MS = 180_000;
-const STUCK_MS = 45_000;
+const STUCK_MS = 45_000; // an app that stops answering this long starts again, as a crashed one does
 const MAX_CRASHES = 5;
 const main = mainCheckout(import.meta.dirname);
 const paths = showPaths(main);
@@ -162,7 +153,7 @@ function reconnect() {
   }
 }
 
-// The Secrets page (/__secrets, #149): hands a value to Bitwarden from this process, then restarts what reads them
+// The Secrets page (/__secrets): hands a value to Bitwarden from this process, then restarts what reads them
 const secrets = secretsPage({
   bitwarden: {
     list: () => (ensureToken(), listSecrets()),
@@ -196,7 +187,8 @@ function launch(app) {
   const argv = secrets ? [process.execPath, join(import.meta.dirname, "env-pull.mjs"), "--", ...cmd] : cmd;
   const state = localState({ dir: app.dir, main, ownDb: options.get(app.dir)?.ownDb });
   if (!state && app.dir !== main) {
-    // Its own copy: main's data and sign-ins to start from, then the branch's own `npm run db:rebuild:local`
+    // Its own copy: main's data and sign-ins to start from, then the branch's own `npm run db:rebuild:local` (after launch,
+    // `npm run db:migrate:local`)
     const own = join(app.dir, "apps", "web", ".wrangler", "state");
     const mains = join(main, "apps", "web", ".wrangler", "state");
     if (!existsSync(own) && existsSync(mains)) cpSync(mains, own, { recursive: true });
@@ -375,7 +367,7 @@ function serveSwitch(service) {
     if (!t.up) return socket.destroy();
     forwardUpgrade(req, socket, head, t.port);
   });
-  server.requestTimeout = 0; // live streams (SSE, ADR 0072) stay open
+  server.requestTimeout = 0; // live streams (SSE, ADR 0053) stay open
   server.on("error", (e) => {
     log(`can't hold ${PORTS[service]} for the ${label}: ${e.message}`);
     void shutdown("a port is taken");
@@ -527,7 +519,7 @@ for (const p of procs()) {
     await stopTree(p.pid, 2000);
   }
 }
-// A dev server started by hand on one of the ports is taken over, as starting one always did (ADR 0022)
+// A dev server started by hand on one of the ports is taken over (ADR 0022)
 for (const port of Object.values(PORTS)) await stopDevServerOn(port).catch((e) => log(e.message));
 
 for (const service of Object.keys(SERVICES)) listening.push(serveSwitch(service));

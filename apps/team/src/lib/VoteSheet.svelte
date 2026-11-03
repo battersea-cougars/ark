@@ -1,5 +1,5 @@
 <script lang="ts">
-  // The ballot (ADR 0044): one sheet, each voted award, its line, and who you can vote for, a row each; a vote cast
+  // The ballot (apps/team/worker/tournaments/README.md): one sheet, each voted award, its line, and who you can vote for, a row each; a vote cast
   // is yours to see, and only yours. Cast, you're taken on to the awards' own page, to wait for the reveal there.
   // Opened from the awards' card at the after-party and from the awards' page.
   import { castVotes } from "../app/backend.svelte";
@@ -10,7 +10,7 @@
   import PeopleChoice from "./PeopleChoice.svelte";
   import Sheet from "./Sheet.svelte";
   import type { Ballot } from "./afters";
-  import { goesByOf } from "./names";
+  import { nameOfMember } from "./names";
 
   let {
     type,
@@ -40,7 +40,7 @@
       busy = false;
     }
   }
-  const nameOf = (id: number | null) => goesByOf(PLAYERS.find((p) => p.id === id));
+  const nameOf = (id: number | null) => nameOfMember(id, (i) => PLAYERS.find((p) => p.id === i));
 </script>
 
 <Sheet bind:open title="Cast your vote" sub="One each, secret. Voting closes when the awards are confirmed." tall lazy>

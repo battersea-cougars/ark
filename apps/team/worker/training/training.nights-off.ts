@@ -1,9 +1,5 @@
-// Why a training night is off (#186, ADR 0122): called off by hand from its own page (`called_off_at`), or off for a
-// tournament on its day (`training_session_offs`: the clash sheet's Cancel, a training skipping its night). The two
-// are kept apart, and the night is off (`cancelled_at`, which everything else reads) while either holds: a Kumite
-// deleted or moved off its day takes its reason away, and the night comes back unless another still keeps it off.
-// It's back on, from the night's page, takes every reason away: the admin's Keep both. A night whose register's
-// closed is the record (lib/register-closes.ts): it stays as it was.
+// Why a training night is off (apps/team/worker/training/README.md): called off by hand, or off for a tournament on its
+// day. The reasons are kept apart, and the night is off (`cancelled_at`) while either holds.
 import { syncSeries } from "@cougars/shared/agenda";
 import { all, batch, first, run, statement } from "@cougars/shared/d1";
 import { registerClosed } from "../../src/lib/register-closes";
@@ -78,7 +74,7 @@ export const offOnItsDays = (db: D1Database, tournamentId: number) =>
 
 /**
  * After a tournament's saved: the nights it keeps off are those on its day(s) now, in one round trip (a save's D1
- * budget, ADR 0121). One it kept off on a day it's left is free of it, and back on unless something else keeps it
+ * budget, ADR 0003). One it kept off on a day it's left is free of it, and back on unless something else keeps it
  * off (called off by hand, or another tournament), and unless its register's closed; a night already off on its new
  * day is off for it too.
  */
@@ -117,7 +113,7 @@ export const nightsOffFor = async (db: D1Database, tournamentId: number) =>
 
 /**
  * Each night off while anything keeps it off, on when nothing does; one whose register's closed stays as it was.
- * Their trainings' agenda rows follow (ADR 0042), which the clash question reads.
+ * Their trainings' agenda rows follow (ADR 0016), which the clash question reads.
  */
 export async function settle(db: D1Database, ids: number[], now: string) {
   if (!ids.length) return;

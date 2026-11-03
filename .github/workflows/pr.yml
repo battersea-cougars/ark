@@ -13,7 +13,7 @@ concurrency:
   group: pr-${{ github.ref }}
   cancel-in-progress: true
 
-# No secrets here: the site builds from fallback content without Sanity.
+# No secrets here: the site reads dev Sanity's public dataset, and builds from its fallbacks (fallback.ts) when it can't.
 # Only what the change can reach (scripts/ci/pr-plan.mjs, the tiers of `npm run merge:check`, ADR 0115): docs alone, a
 # format check of those files; code, lint, knip and the tests, then the checks and builds of the apps it reaches (the
 # website's also the team app's, which imports it; anything outside the apps, every one). One job, so its name stays
@@ -24,7 +24,7 @@ jobs:
     steps:
       # A PR is checked out as a merge commit: its first parent is the base. The whole history, so the secrets scan sees
       # every commit the PR brings, not only its last
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - uses: ./.github/actions/setup
@@ -34,23 +34,27 @@ jobs:
         run: npm run secrets:scan -- --since HEAD^1
       - id: plan
         run: node scripts/ci/pr-plan.mjs HEAD^1
+      # Every Markdown link, every feature notes line's test and every ADR cited resolves (ADR 0001), whatever changed:
+      # a renamed test or a deleted doc breaks a link elsewhere
+      - name: Links
+        run: npm run links
       - name: Format (docs)
         if: steps.plan.outputs.tier == 'docs'
         run: git diff --name-only --no-renames --diff-filter=d HEAD^1 HEAD | xargs -r npx prettier --check --ignore-unknown
       - if: steps.plan.outputs.lint == 'true'
         run: npm run lint
-      # Unused files, exports, types and dependencies fail it (ADR 0125; what's ignored, and why, is in knip.jsonc)
+      # Unused files, exports, types and dependencies fail it (ADR 0105; what's ignored, and why, is in knip.jsonc)
       - name: Unused code (knip)
         if: steps.plan.outputs.knip == 'true'
         run: npm run knip
-      # The files past the size prompts (ADR 0125): a report, never a failure
+      # The files past the size prompts (ADR 0105): a report, never a failure
       - if: steps.plan.outputs.lint == 'true'
         run: npm run sizes
       - if: steps.plan.outputs.test == 'true'
         run: npm test
       - if: steps.plan.outputs.checkWeb == 'true'
         run: npm run check -w @cougars/web
-      # The team app's pages (svelte-check) and its Worker (tsc)
+      # Types: TypeScript 7 for the .ts and .svelte files, TypeScript 6 (astro check) for .astro (ADR 0105)
       - if: steps.plan.outputs.checkTeam == 'true'
         run: npm run check -w @cougars/team
       - if: steps.plan.outputs.buildWeb == 'true'
@@ -59,3 +63,22 @@ jobs:
         run: npm run build -w @cougars/team
       - if: steps.plan.outputs.buildStudio == 'true'
         run: npm run build -w @cougars/studio
+
+  # A fresh clone runs after `npm ci` with no secrets, no vault and no .env: the local D1 built and seeded, the apps
+  # built, the website and team app started, signed in and showing the made-up club (scripts/ci/fresh-clone.mjs). A
+  # real `npm ci`, not the cached tree, so an install script left out of allowScripts shows here.
+  fresh-clone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - id: plan
+        run: node scripts/ci/pr-plan.mjs HEAD^1
+      - if: steps.plan.outputs.lint == 'true'
+        run: npm ci
+      - if: steps.plan.outputs.lint == 'true'
+        run: node scripts/ci/fresh-clone.mjs

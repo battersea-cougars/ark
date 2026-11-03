@@ -1,7 +1,6 @@
-// Friday sign-up opening, everyone at once (docs/load-testing.md). A real D1 runs each statement, and each batch,
-// atomically, but two requests' statements interleave between their awaits; the fake D1 interleaves them the same way
-// (`interleave`, a seed each run), so a decision counted in one statement and written in the next is caught. Driven
-// through the real Worker handlers, each person signed in as themselves (ADR 0031).
+// Friday sign-up opening, everyone at once (docs/load-testing.md): the fake D1 interleaves requests' statements
+// between their awaits as a real one does (`interleave`, a seed each run). Driven through the real Worker handlers
+// (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
@@ -209,6 +208,27 @@ describe("Friday sign-up opens: everyone taps In at once", () => {
     expect(night.waitlist).toEqual([]);
   });
 
+  it.each(SEEDS)(
+    "two people tap the last place at once: one has it, the other is first to wait, both told (seed %i)",
+    async (seed) => {
+      const f = await friday();
+      await f.inTurn(skaters.slice(0, 19).map((e) => [e, "in"]));
+      w.db.interleave(seed);
+      const replies = await f.atOnce([
+        [skaters[19], "in"],
+        [skaters[20], "in"],
+      ]);
+      w.db.interleave(null);
+      expect(replies.map((r) => r.status)).toEqual([200, 200]);
+      const night = await f.seen();
+      const two = [f.id(skaters[19]), f.id(skaters[20])];
+      expect(night.going).toHaveLength(20);
+      expect(two.filter((m) => night.going.includes(m))).toHaveLength(1);
+      expect(night.waitlist).toEqual(two.filter((m) => !night.going.includes(m)));
+      expect(f.rows().every((r) => r.n === 1)).toBe(true);
+    },
+  );
+
   it.each(SEEDS)("out twice at once lets exactly one waiting in (seed %i)", async (seed) => {
     const f = await friday();
     await f.inTurn(skaters.slice(0, 23).map((e) => [e, "in"]));
@@ -221,5 +241,58 @@ describe("Friday sign-up opens: everyone taps In at once", () => {
     const night = await f.seen();
     expect(night.going).toHaveLength(20);
     expect(night.waitlist).toEqual(skaters.slice(21, 23).map(f.id));
+  });
+});
+
+describe("a club event's last place, tapped at once", () => {
+  /** A curry night with room for one, made by Dana; each member's phone signed in. */
+  async function curry() {
+    const dana = await w.signedIn("dana@example.com");
+    const made = await dana.call("POST", "/api/club-events", {
+      title: "Curry night",
+      startsAt: "2026-10-24T19:00:00.000Z",
+      endsAt: "2026-10-24T22:00:00.000Z",
+      venue: "",
+      signup: true,
+      capacity: 1,
+    });
+    expect(made.status).toBeLessThan(300);
+    const seen = async () => ((await dana.club()).body as Json).clubEvents[0];
+    const { id } = await seen();
+    const phones = await Promise.all(skaters.slice(0, 3).map((e) => w.signedIn(e)));
+    const tap = (i: number, answer: "in" | "out") =>
+      phones[i].call("POST", `/api/club-events/${id}/answer`, { answer }, tapAt());
+    const rows = () =>
+      w.db.raw
+        .prepare("SELECT member_id m, COUNT(*) n FROM club_event_entries WHERE event_id = ? GROUP BY member_id")
+        .all(id) as { m: number; n: number }[];
+    return { seen, tap, rows };
+  }
+
+  it.each(SEEDS)("two members for the one place: one in, one waiting, nobody twice (seed %i)", async (seed) => {
+    const c = await curry();
+    w.db.interleave(seed);
+    const replies = await Promise.all([c.tap(0, "in"), c.tap(1, "in"), c.tap(1, "in")]);
+    w.db.interleave(null);
+    expect(replies.map((r) => r.status)).toEqual([200, 200, 200]);
+    const night = await c.seen();
+    expect(night.going).toHaveLength(1);
+    expect(night.waitlist).toHaveLength(1);
+    expect(c.rows().every((r) => r.n === 1)).toBe(true);
+  });
+
+  it.each(SEEDS)("the one going drops out as another taps in: exactly one has the place (seed %i)", async (seed) => {
+    const c = await curry();
+    await c.tap(0, "in");
+    await c.tap(1, "in");
+    const [first, waiting] = [(await c.seen()).going[0], (await c.seen()).waitlist[0]];
+    w.db.interleave(seed);
+    await Promise.all([c.tap(0, "out"), c.tap(2, "in")]);
+    w.db.interleave(null);
+    const night = await c.seen();
+    // The one who was waiting has it, whichever landed first; the newcomer waits behind
+    expect(night.going).toEqual([waiting]);
+    expect(night.waitlist).toHaveLength(1);
+    expect(night.waitlist).not.toContain(first);
   });
 });

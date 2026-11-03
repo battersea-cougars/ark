@@ -1,6 +1,6 @@
-// Tournament results on the website (ADR 0100): what the team app recorded, worked out at build time from the club
+// Tournament results on the website (ADR 0016): what the team app recorded, worked out at build time from the club
 // snapshot's rows (scripts/lib/results-sql.mjs). Only a tournament that's public and done (@cougars/shared/results),
-// and only award winners an admin confirmed (ADR 0044). People go by the name they chose, else first name and initial
+// and only award winners an admin confirmed (apps/team/worker/tournaments/README.md). People go by the name they chose, else first name and initial
 // (@cougars/shared/names): no full name leaves this module.
 import { onTheWebsite, publicName, shortOnTheWebsite } from "@cougars/shared/names";
 import { champion, isDone, table } from "@cougars/shared/results";
@@ -44,7 +44,7 @@ export interface PublishedGame {
   away: string;
   homeGoals: number;
   awayGoals: number;
-  /** Penalty minutes a side (ADR 0061). */
+  /** Penalty minutes a side (apps/team/worker/tournaments/README.md). */
   homePim: number;
   awayPim: number;
 }
@@ -161,7 +161,7 @@ export interface ResultRows {
     teamId: number | null;
     memberName: string | null;
     memberWebName: string | null;
-    /** The judges' call's name on the night (ADR 0044); null for every other award. */
+    /** The judges' call's name on the night (apps/team/worker/tournaments/README.md); null for every other award. */
     title?: string | null;
   }[];
 }
@@ -213,7 +213,7 @@ export function editionsFrom(rows: ResultRows | null): PublishedEdition[] {
       about?: string;
       decidedBy?: { kind: string; stat?: string };
     }[];
-    // The champions' award: the one the table decides (ADR 0044), else (saved before it said how) by its name
+    // The champions' award: the one the table decides (apps/team/worker/tournaments/README.md), else (saved before it said how) by its name
     const champs = list.find(isChampions)?.name ?? "Champions";
     const confirmed = winners.find((w) => w.award === champs && w.teamId)?.teamId ?? null;
     const championId = confirmed ?? champion(teamIds, games, points);

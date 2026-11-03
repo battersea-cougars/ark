@@ -1,8 +1,6 @@
-// Who's signed in, and who they're viewing the app as. Real sessions are ADR 0023; viewing as a member is
-// ADR 0024: an admin sees exactly what a member sees, read-only. The server keeps it, on the sign-in, and answers as
-// the member (the bootstrap's viewingAs and actions); starting and ending are backend.svelte.ts's viewAs. An everyday
-// role is ADR 0024 too: someone with more than Member can run the app as a lesser role, and switch up to their full
-// role until they switch back or close the app.
+// Who's signed in, and who they're viewing the app as (ADR 0023, ADR 0024). The server keeps both on the sign-in;
+// starting and ending a view is backend.svelte.ts's viewAs. An everyday role runs the app as a lesser role, switching
+// up to the full one until they switch back or close the app.
 import type { Action } from "../access/actions";
 import { ACTIONS, EVERYDAY_ROLE, PLAYERS, REAL_ID, VIEWING_AS, type Player } from "./data";
 import { db } from "./store.svelte";

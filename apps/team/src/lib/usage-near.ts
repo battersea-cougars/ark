@@ -1,10 +1,9 @@
-// The admins' one line about the club's free limits (ADR 0059, #148): when the hourly check found any at 70% or more
-// (they come with the club, the bootstrap's forAdmins), Home's For admins says the nearest, opening the Usage page;
-// 90% and over is hot (its icon in red, colour as an accent). All fine, nothing.
+// The admins' one line about the club's free limits (apps/team/worker/settings/README.md): when the hourly check found
+// any at 70% or more, Home's For admins says the nearest, opening the Usage page. All fine: nothing.
 import { formatDayDate, formatTime } from "./dates";
 import type { FeedItem } from "./home-feed";
 
-/** A free limit at 70% or more, nearest first, as the worker says it (worker/settings/usage.levels.ts). */
+/** A free limit at 70% or more, nearest first, as the worker says it (worker/settings/usage.levels.ts), with the club for admins (the bootstrap's forAdmins). */
 export interface UsageLevel {
   id: string;
   label: string;
@@ -14,7 +13,7 @@ export interface UsageLevel {
   resetsAt: string;
 }
 
-/** From here a limit is nearly spent: said louder. */
+/** From here a limit is nearly spent: said louder (its icon in red, colour as an accent). */
 const NEARLY_SPENT_AT = 90;
 
 /** The nearest limit as a line, "Database rows read at 74% of today's free limit", or none when all's fine. */

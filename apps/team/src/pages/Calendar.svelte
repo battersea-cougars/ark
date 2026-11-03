@@ -19,7 +19,7 @@
   import { granted, impersonating, realGranted } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
   import EventCard from "../lib/EventCard.svelte";
-  import { londonISO, londonTime, londonToday } from "../lib/dates";
+  import { londonISO, londonNextDay, londonTime, londonToday } from "../lib/dates";
   import type { Bookable, OneOff } from "../demo/model";
   import PlacePicker from "../lib/PlacePicker.svelte";
   import ManageMenu from "../lib/ManageMenu.svelte";
@@ -150,8 +150,8 @@
     if (!draft.title || !draft.date) return;
     const startsAt = londonISO(draft.date, draft.start);
     let endsAt = londonISO(draft.date, draft.end || draft.start);
-    // Ends after midnight: the next day
-    if (endsAt < startsAt) endsAt = new Date(Date.parse(endsAt) + 24 * 3600_000).toISOString();
+    // Ends after midnight: that time the next day, on London's clock (25 hours on when the clocks go back)
+    if (endsAt < startsAt) endsAt = londonNextDay(endsAt);
     const body: ClubEventBody = {
       title: draft.title,
       startsAt,
@@ -164,7 +164,7 @@
       signup: draft.signup,
       capacity: editing?.capacity ?? null,
     };
-    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (ADR 0122)
+    // Over something already on (Friday Training)? Asked first; closing the question saves nothing (apps/team/worker/calendar/README.md)
     const window = eventWindow({ id: editing?.id, startsAt, endsAt }, editing ?? undefined);
     const chosen = window ? await clashSheet?.ask(window, draft.title) : [];
     if (chosen === null) return;
@@ -192,7 +192,7 @@
   >
     {#snippet actions()}
       <!-- New event: in the toolbar row on desktop, the bar on a phone, in words there too (no floating buttons:
-           ADR 0084) -->
+           ADR 0009) -->
       {#if kinds.length}
         <button class="btn sm primary keep-label" aria-haspopup="dialog" onclick={newEvent}>
           <Icon name="plus" size={16} />New event
@@ -288,7 +288,7 @@
   <TrainingEditorPanel open="new" onclose={() => (newTraining = false)} oncreated={() => (newTraining = false)} />
 {/if}
 {#if can(perms, "manage:Tournament")}<TournamentEditorPanel closeOnCreate />{/if}
-<!-- A one-off over something already on: asked before it's saved (ADR 0122) -->
+<!-- A one-off over something already on: asked before it's saved (apps/team/worker/calendar/README.md) -->
 <ClashSheet bind:this={clashSheet} />
 
 <style>

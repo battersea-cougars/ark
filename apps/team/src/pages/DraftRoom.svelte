@@ -1,9 +1,7 @@
 <script lang="ts">
-  // The draft room (ADR 0060): the draft, the whole screen, for its captains and whoever runs it while it's open. A
-  // focus page, so the app's rail, dock and tabs go (Shell); no header or track either, just a slim bar: the mark,
-  // Draft room, whose turn, Manage the draft for whoever runs it, full screen on and off, and the way out. Out by ✕
-  // or Back (Escape only leaves full screen); shown out to the page once the draft closes (the teams set slide
-  // in there) or steps back, or if it isn't yours. The draft itself is the page's own (Draft), live as it is there.
+  // The draft room (apps/team/worker/tournaments/README.md): the draft (Draft), full screen, for its captains and
+  // whoever runs it while it's open, under a slim bar instead of the app's rail, dock and tabs. It shows you out to the
+  // page once the draft closes or steps back, or if it isn't yours.
   import { onDestroy, untrack } from "svelte";
   import Draft from "./Draft.svelte";
   import Icon from "../app/shell/Icon.svelte";

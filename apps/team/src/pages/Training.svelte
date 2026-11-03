@@ -1,7 +1,7 @@
 <script lang="ts">
   // A training series' next session. Before the teams: who's in, in order, and your answer. Once there are teams,
-  // they're the page: anyone who signed up after them first (an admin slots them in or remakes them), then the
-  // teams, then sign-up. A team maker's changes to the teams are saved as they're made (ADR 0076). Ratings drive the teams but only admins see them (read:Rating), as in the old app.
+  // they're the page: anyone who signed up after them first, then the teams, then sign-up. A team maker's changes are
+  // saved as they're made (apps/team/worker/training/README.md). Ratings drive the teams; only admins see them.
   import { portal } from "../lib/overlay";
   import { goesBy, shortName } from "../lib/names";
   import SearchField from "../lib/SearchField.svelte";
@@ -56,7 +56,7 @@
   // or the night at the page's address, its date (/training/friday/2026-10-30)
   const nights = $derived(seriesNights(series, londonEvening(), nightOn(router.path, series.slug)));
   const session = $derived(nights.shown);
-  // Its register closes at 6am the morning after (lib/register-closes.ts, #11): from then who came is the record, so
+  // Its register closes at 6am the morning after (lib/register-closes.ts): from then who came is the record, so
   // nothing that changes it is offered (the server refuses it too)
   const closed = $derived(!!session && registerClosed(session.heldOn));
   const offBefore = $derived(nights.off.filter((n) => n !== session));
@@ -72,7 +72,7 @@
   // Who's said they're out, in the order they said it
   const outs = $derived(next.out ?? []);
   // Nobody's answered at all: no tabs and no empty table, but a line on the page, and when sign-up isn't open yet,
-  // when it opens (ADR 0030)
+  // when it opens (apps/team/worker/training/README.md)
   const nobody = $derived(!next.going.length && !next.waitlist.length && !outs.length);
   const opensOn = $derived(session ? nightOpensOn(session.heldOn, series.signupOpensDays) : null);
   const notOpen = $derived(!!session && !!opensOn && !nightOpen(session.heldOn, series.signupOpensDays, londonToday()));
@@ -85,7 +85,7 @@
     const lines = db.quips.filter((q) => q.kind === "empty" && q.text.trim());
     slackers = { night, text: pick(lines)?.text ?? SLACKERS };
   });
-  // Quarterly skaters: above those paying as they go, in and waiting (ADR 0131), badged so the order reads; and those
+  // Quarterly skaters: above those paying as they go, in and waiting (apps/team/worker/training/README.md), badged so the order reads; and those
   // who said they're out, for whoever sees who's out
   const ahead = $derived(new Set(session?.quarterly ?? []));
   // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
@@ -120,7 +120,7 @@
     }
   }
 
-  // The team maker lets someone waiting in, over the limit (ADR 0076): in at once here, in their place once it's saved
+  // The team maker lets someone waiting in, over the limit (apps/team/worker/training/README.md): in at once here, in their place once it's saved
   function admit(id: number) {
     const s = session;
     if (!s || !s.waitlist.includes(id)) return;
@@ -173,7 +173,7 @@
   // Signed up after the teams were made: still in, waiting to be slotted onto a team.
   const unplaced = $derived(teams ? next.going.filter((id) => !onTeam.has(id)) : []);
   // Said they're out since the teams were made: still on a published team until a team maker remakes the teams or
-  // keeps them as they are (ADR 0076)
+  // keeps them as they are (apps/team/worker/training/README.md)
   const left = $derived(teams ? [...onTeam].filter((id) => !next.going.includes(id)) : []);
   const hasLeft = (id: number) => left.includes(id);
   // The teams without them: where keeping, slotting in and moving start from
@@ -185,7 +185,7 @@
   const spaces = $derived(places.skaters);
   const keeperSpaces = $derived(places.keepers);
 
-  // Every change to the teams is saved as it's made, and everyone sees it (ADR 0076): no draft to publish, so
+  // Every change to the teams is saved as it's made, and everyone sees it (apps/team/worker/training/README.md): no draft to publish, so
   // nothing waits on a button scrolled out of sight
   function commit(list: Team[], done?: string) {
     db.teams[next.id] = list;
@@ -280,7 +280,7 @@
   };
   // A team maker moves a player between teams, or onto one from Not on a team (from ""); it's saved there and then
   const arranging = $derived(can(perms, "generate:Teams") && can(perms, "publish:Teams"));
-  // Who's in, out and waiting, and the teams, live (ADR 0072): made, moved or cleared, everyone on the page sees it
+  // Who's in, out and waiting, and the teams, live (ADR 0053): made, moved or cleared, everyone on the page sees it
   // without a refresh. Not for a team maker once the teams are out (a refresh mid-drag would upset them): what they
   // see is what they've just saved. A boolean, so a change to the teams doesn't reopen the stream.
   const following = $derived(!ordered || !arranging);
@@ -438,7 +438,7 @@
     run();
   }
   // Cancel this night (ADR 0065): asked first, saying who hears it's off; then the night's own cancel, as the
-  // training editor's (ADR 0030). The page moves on to the next night, this one struck through above it.
+  // training editor's (apps/team/worker/training/README.md). The page moves on to the next night, this one struck through above it.
   let cancelAsk = $state(false);
   const cancelDay = $derived(session ? formatDayDate(sessionBookable(session).startsAt) : "");
   function callOff() {
@@ -505,7 +505,7 @@
   >
 {/snippet}
 
-<!-- A Quarterly Member: ahead in the queue (ADR 0131), said in a word at every width -->
+<!-- A Quarterly Member: ahead in the queue (apps/team/worker/training/README.md), said in a word at every width -->
 {#snippet quarterlyBadge()}
   <span class="badge plan" title="Quarterly Member: ahead in the queue"
     >Quarterly<span class="sr-only"> Member, ahead in the queue</span></span
@@ -1209,7 +1209,7 @@
     color: var(--fg-muted);
     line-height: 1.5;
   }
-  /* The armed "are you sure": the one red fill (ADR 0084) */
+  /* The armed "are you sure": the one red fill (ADR 0009) */
   .clear-yes {
     background: var(--red);
     color: var(--on-red);

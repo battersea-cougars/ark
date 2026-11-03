@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // A made-up past for a local club (scripts/lib/history.mjs): years of played Kumites and a year of training nights for
-// its real local members, so History's pages, past Kumites read on demand and the dues ledger have weight to them.
-// Local only: a local D1 (through wrangler, --local) or a SQLite file, never dev's or production's.
+// its real local members. Local only: a local D1 (through wrangler) or a SQLite file, never dev's or production's.
 //   npm run seed:history                        the checkout the show switch is showing (4510), if it has its own D1
 //   npm run seed:history -- --remove            takes all of it away again
 //   --kumites N (30)  --weeks N (52)  --seed N (1)

@@ -1,12 +1,7 @@
 <script lang="ts">
-  // Where a tournament is on its way (ADR 0074): its statuses along one line, like a progress bar, the line filled
-  // from the start to the status it's at and faint after it. Each status a node on it (done: a tick; where it is: lit,
-  // pulsing while the Kumite runs; ahead: hollow) with its name under it as a badge (done quiet, ahead faint). Fill,
-  // tick and size say it without the colour. Sign-up open, Draft open, Teams set, Fixtures set, KUMITE!, then the
-  // after-party (The Anchor; teams that enter skip the draft); which and where: lib/tournament-front.ts.
-  // It's the tournament page's navigation too: a status it's reached opens its view (the one it's at, the page
-  // itself), and the one being looked at (`viewing`) has its badge brought forward, the header stamp's red, bigger
-  // (transform only). Badge forward: what you're looking at; lit node and fill: where it is. Always the same size.
+  // Where a tournament is on its way (apps/team/worker/tournaments/README.md, lib/tournament-front.ts): its statuses as
+  // nodes on one line, filled to where it is. It's the tournament page's navigation too: a reached status opens its view,
+  // and the one being looked at (`viewing`) has its badge brought forward. Always the same size.
   import type { Tournament, TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import { untrack } from "svelte";
@@ -53,7 +48,7 @@
     });
   });
   // The Kumite running, from its first match started till the last is played: its node pulses, as the Live dot does,
-  // between matches too. Its start time gone by with nothing started isn't running: it's still next (#182)
+  // between matches too. Its start time gone by with nothing started isn't running: it's still next (its status decides, not the clock)
   const live = $derived(steps.some((s) => s.status === "day" && s.state === "now") && editionState(t) === "live");
 </script>
 

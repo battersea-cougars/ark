@@ -1,15 +1,12 @@
-// The app's own brake (ADR 0055). The club's Cloudflare allowance is free and daily (Worker requests, D1 reads), and
-// a request our Worker refuses still counts, so the cheapest protection is the app itself not running away:
-//
-//   - Background checks for others' changes wait after a failure: 10 s, doubling each time, up to 5 minutes. A
-//     success puts them back. A refusal about the request itself (403, 409…) isn't the server failing.
-//   - One tab makes at most `perDay` calls a day (UTC, as Cloudflare counts): a loop can't spend the club's day.
-//   - Cloudflare's error 1027 means the day's Worker requests are used up: nothing is sent until they reset at
-//     midnight UTC, and the app says when that is. Any other 429 that isn't ours (ours say why, as JSON), such as
-//     a bot challenge or a platform blip, only slows the background checks for a minute.
+// The app's own brake (ADR 0055): the club's Cloudflare allowance is free and daily, and a request our Worker refuses
+// still counts, so the app itself mustn't run away.
 
 import { londonClock } from "../lib/dates";
 
+/**
+ * Background checks for others' changes wait after a failure: 10 s, doubling each time, up to 5 minutes. A success
+ * puts them back. A refusal about the request itself (403, 409…) isn't the server failing.
+ */
 const FIRST_WAIT_MS = 10_000;
 const MAX_WAIT_MS = 5 * 60_000;
 /** Our own per-minute limit (worker/api/api.limits.ts): try again once the minute's up. */
@@ -27,6 +24,7 @@ export class Brake {
   private day = -1;
   private calls = 0;
 
+  /** `perDay`: one tab's calls a day at most (UTC, as Cloudflare counts), so a loop can't spend the club's day. */
   constructor({ now = Date.now, perDay = 3000 }: { now?: () => number; perDay?: number } = {}) {
     this.now = now;
     this.perDay = perDay;
@@ -53,7 +51,11 @@ export class Brake {
     return day !== this.day || this.calls < this.perDay;
   }
 
-  /** The server answered: its status, whether the body was ours (JSON), and whether it was Cloudflare's 1027. */
+  /**
+   * The server answered: its status, whether the body was ours (JSON), and whether it was Cloudflare's 1027. 1027 means
+   * the day's Worker requests are used up: nothing is sent until midnight UTC. Any other 429 (ours, or a bot challenge
+   * or platform blip) only slows the background checks for a minute.
+   */
   answered(status: number, ours: boolean, dailyLimit = false) {
     const t = this.now();
     if (dailyLimit) {

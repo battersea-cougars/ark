@@ -31,27 +31,27 @@ export const db = $state({
   tournamentTypes: structuredClone(TOURNAMENT_TYPES),
   tournaments: structuredClone(TOURNAMENTS),
   oneOffs: structuredClone(ONE_OFFS),
-  /** What's on from today, from the server (ADR 0042). */
+  /** What's on from today, from the server (ADR 0016). */
   agenda: structuredClone(AGENDA),
   roles: structuredClone(ROLES),
   members: structuredClone(MEMBERS),
-  /** The quarterly rate, from each date (ADR 0007). */
+  /** The quarterly rate, from each date (apps/team/worker/dues/README.md). */
   fees: structuredClone(SUBSCRIPTION_FEES),
   quips: structuredClone(QUIPS),
-  /** Home's announcements (#85). */
+  /** Home's announcements. */
   announcements: structuredClone(ANNOUNCEMENTS),
-  /** How often live pages check for updates (ADR 0072), and the club's bank details (ADR 0007). */
+  /** How often live pages check for updates (ADR 0053), and the club's bank details (apps/team/worker/dues/README.md). */
   settings: structuredClone(SETTINGS),
   /** Published teams, by session id. */
   teams: structuredClone(TEAMS) as Record<number, Team[]>,
-  /** Your own charges with something left to pay (ADR 0007, #177): a ledger is read a page at a time (app/ledger). */
+  /** Your own charges with something left to pay (apps/team/worker/dues/README.md): a ledger is read a page at a time (app/ledger). */
   charges: structuredClone(CHARGES),
   /** What each owes, by age, and their credit: yours, or everyone's for who sees Unpaid fees. */
   dues: structuredClone(DUES),
   /** What your phone tells you, a choice per topic (ADR 0108). */
   notifications: structuredClone(NOTIFICATIONS),
-  /** When each member was last reminded of what they owe (ADR 0007). */
+  /** When each member was last reminded of what they owe (apps/team/worker/dues/README.md). */
   reminders: structuredClone(REMINDERS),
-  /** Home's For admins: the free limits getting close (ADR 0059). */
+  /** Home's For admins: the free limits getting close (ADR 0003). */
   forAdmins: structuredClone(FOR_ADMINS),
 });

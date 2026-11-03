@@ -1,5 +1,5 @@
-// The club, read: the bootstrap (everything the app shows, ADR 0053), the live stream of what changed (ADR 0072), and
-// the parts a change named, for a live page to catch up on without reading the whole club (#112).
+// The club, read (ADR 0053): the bootstrap, the live stream of what changed, and the parts a change named, for a live
+// page to catch up on without reading the whole club.
 import { type Route } from "./api.route";
 import { CORE, SLICES, slices, versionsOf, type Slice } from "./api.slices";
 import { devToolsHere } from "../settings/devtools";
@@ -17,15 +17,15 @@ export const CLUB_ROUTES: Route[] = [
     method: "GET",
     path: /^\/api\/live$/,
     action: "authenticated",
-    // Changes as they happen, as a stream (ADR 0072): only the names of the parts that changed, from the live hub
-    // Each closed when its sign-in ends (#72): the signed-in member's, whoever they're viewing as (ADR 0024)
+    // Changes as they happen, as a stream (ADR 0053): only the names of the parts that changed, from the live hub
+    // Each closed when its sign-in ends: the signed-in member's, whoever they're viewing as (ADR 0024)
     handle: async (c) => liveStream(c.env, { memberId: c.viewedBy ?? c.memberId, sessionId: c.sessionId }),
   },
   {
     method: "GET",
     path: /^\/api\/bootstrap$/,
     action: "authenticated",
-    // Opening the app: the core (#178), who you are, the club's settings and menus and what Home needs; each page
+    // Opening the app: the core, who you are, the club's settings and menus and what Home needs; each page
     // reads its own (/api/slices). Or a 304 when nothing's changed (ADR 0053).
     handle: async (c) => {
       const db = c.env.DB;
@@ -34,9 +34,9 @@ export const CLUB_ROUTES: Route[] = [
       let at = await dataVersion(db);
       if (at.sessionsMadeOn !== c.today) {
         await ensureSessions(db, c.today);
-        // ...and whatever the new day makes due (ADR 0007), in case the hourly check hasn't run yet
+        // ...and whatever the new day makes due (apps/team/worker/dues/README.md), in case the hourly check hasn't run yet
         await chargeDue(c.env, new Date(c.now));
-        // ...and the nights whose registers have closed, counted into who played them (#177)
+        // ...and the nights whose registers have closed, counted into who played them
         await countPlayed(db, new Date(c.now));
         await sessionsMade(db, c.today);
         at = await dataVersion(db);
@@ -51,9 +51,9 @@ export const CLUB_ROUTES: Route[] = [
         actions: [...c.actions],
         // Dev tools (ADR 0027): outside production, for whoever sets the club's settings
         devTools: devToolsHere(c.env) && (c.actions.has("manage:all") || c.actions.has("manage:Settings")),
-        // Screens on demo data (Upload): on dev and locally to try, never in production (#63)
+        // Screens on demo data (Upload): on dev and locally to try, never in production
         unfinished: devToolsHere(c.env),
-        // The Kumite simulator (ADR 0123): on dev and your own machine only, for whoever runs tournaments
+        // The Kumite simulator (ADR 0010): on dev and your own machine only, for whoever runs tournaments
         simulator: simulatorHere(c.env) && (c.actions.has("manage:all") || c.actions.has("manage:Tournament")),
         ...(await slices(c, CORE, at)),
       });
@@ -65,7 +65,7 @@ export const CLUB_ROUTES: Route[] = [
     path: /^\/api\/slices$/,
     action: "authenticated",
     // Just these parts (`?names=members,pastSessions`), as this member may see them, and the data version they're at
-    // least as new as: what a page reads when it's opened (#178), and a live page when the hub names them (ADR 0072).
+    // least as new as: what a page reads when it's opened, and a live page when the hub names them (ADR 0053).
     // The version is read first, so every change up to it is in what follows. Tagged by the versions of the parts
     // themselves: asked again with its tag while they're unchanged, an empty 304, whatever else has changed.
     handle: async (c) => {

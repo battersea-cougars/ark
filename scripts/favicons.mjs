@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The icons for the website and the team app, the same in both (ADR 0101): the "C" of COUGARS from the logo, white
+// The icons for the website and the team app, the same in both (ADR 0009): the "C" of COUGARS from the logo, white
 // with the logo's black outline, on logo red. Re-run after a change: node scripts/favicons.mjs
 //   favicon.ico            16, 32 and 48 px, for browsers and Google Search (which asks for /favicon.ico)
 //   favicon.png            96 px (Google wants a multiple of 48)
@@ -14,7 +14,7 @@ const apps = ["web", "team"].map((app) => new URL(`../apps/${app}/public/`, impo
 const RED = "#e5131f";
 const BIG = 1024; // drawn once at this size, then scaled down
 
-// The C's white fill, traced from apps/web/src/assets/cougars.png in its pixels (2026-10-09): no font has it, it's
+// The C's white fill, traced from apps/web/src/assets/cougars.png in its pixels: no font has it, it's
 // the logo's own lettering. Its box is x 128–340, y 787–1022.
 const C =
   "M241 789 L340 787 L309 861 L270 861 L282 824 L252 824 Q246 824 244 830 L189 989 L259 987 L241 1022 L138 1022 " +

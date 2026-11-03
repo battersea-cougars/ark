@@ -1,9 +1,8 @@
 <script lang="ts">
-  // A day in an admin form: a button showing "Fri 30 Oct 2026" that opens a month to pick from. The browser's own date
-  // picker can't be themed (and shows mm/dd/yyyy), so it isn't used. Values are plain "YYYY-MM-DD", "" for none; the
-  // pop-over is fixed-position and moved to the page (or the open dialog) like Select's, so panels never clip it.
-  // `required` keeps the form's own check: an invisible input over the button carries the value.
+  // A day in an admin form: a button ("Fri 30 Oct 2026") that opens a month to pick from, as the browser's own picker
+  // can't be themed (and shows mm/dd/yyyy). Values are plain "YYYY-MM-DD", "" for none.
   import { portal } from "./overlay";
+  import { closeOnBack } from "./back";
   import { onMount, tick } from "svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { dayWords, londonToday } from "./dates";
@@ -108,6 +107,12 @@
     void focusDay();
   }
 
+  // Back closes the month first, not the sheet it's in (lib/back.ts)
+  $effect(() => {
+    if (!open) return;
+    return closeOnBack(() => void (open = false));
+  });
+
   function onKey(e: KeyboardEvent) {
     const step: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
     if (e.key === "Escape") {
@@ -162,6 +167,7 @@
   {/if}
 
   {#if open}
+    <!-- Fixed-position and moved to the page (or the open dialog), like Select's menu, so panels never clip it -->
     <div
       bind:this={pop}
       use:portal

@@ -1,12 +1,6 @@
-// The club's videos, read live (docs/adr/0016-photos-and-videos-read-live.md): a new upload or a Studio change shows within
-// minutes, with no rebuild. Two cached reads, merged:
-//   - Sanity: the club's YouTube settings and the `video` documents (overrides and pasted links). Fresh for a
-//     minute, so Studio changes show quickly; Sanity's API CDN is cheap.
-//   - YouTube: the club playlist or channel, without videos still processing (lib/youtube.ts). Fresh for ten
-//     minutes, so a page view almost never costs quota and a video shows within ten minutes of being ready;
-//     if YouTube fails, the last good list is shown for up to a day. An admin's Refresh photos and videos (team app,
-//     Settings → Website) makes the next visit read it again (media-refresh.ts).
-// Never throws. Without an API key, or before the club has a channel, it's the Sanity videos only.
+// The club's videos, read live (ADR 0016): the YouTube playlist or channel (lib/youtube.ts) merged with the Studio's
+// `video` documents (overrides and pasted links), both cached. Never throws: without an API key, or before the club
+// has a channel, it's the Sanity videos only.
 import { cached, type CacheDeps, type CacheOptions } from "./cache";
 import { sanityQuery, type Live, type SanityConfig } from "./sanity-live";
 import { fetchSourceVideos, mergeVideos, sourceKey, videoSource, type VideoSource } from "../youtube";
@@ -28,6 +22,9 @@ export interface VideosConfig {
   refreshedAt?: () => Promise<number>;
 }
 
+// Sanity fresh for a minute, so Studio changes show quickly (its API CDN is cheap). YouTube fresh for ten, so a view
+// almost never costs quota, and the last good list for a day if it fails; Refresh photos and videos (media-refresh.ts)
+// makes the next visit read it again.
 export const SANITY_CACHE = { ttlMs: 60_000, staleMs: 60 * 60_000 };
 export const YOUTUBE_CACHE = { ttlMs: 10 * 60_000, staleMs: 24 * 60 * 60_000 };
 

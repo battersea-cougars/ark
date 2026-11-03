@@ -1,8 +1,5 @@
-// Taking back your Out (ADR 0131): a member who said Out taps it again and they've not answered, as if they never
-// had. Before a night's sign-up opens that's the one thing they can do there, and it puts them back among those told
-// when it opens (ADR 0108). It goes by the rules of answering: not once a tournament's started (tournaments/started.ts),
-// not once a night's over. It only ever takes back their own Out (one guarded statement, ADR 0121): an In is taken
-// back by saying Out, as ever. Driven through the real handlers and the cron in the fake world (ADR 0031).
+// Taking back your Out (apps/team/worker/training/README.md): a member who said Out taps it again and hasn't
+// answered, as if they never had. Driven through the real handlers and the cron in the fake world (ADR 0031).
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOW, testWorld } from "../testing";
 

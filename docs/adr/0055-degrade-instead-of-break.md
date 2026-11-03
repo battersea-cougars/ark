@@ -41,7 +41,7 @@ free rate-limiting rule blocks before the Worker, but only on a custom domain (#
 - The pause is kept in memory and in the Workers Cache API, so every isolate in a data centre sees it. Best effort,
   like the rate limits; it's free.
 - While paused, callers fall back as for any failure: the website shows the last good copy
-  ([0053](0053-live-reads-are-cached.md)) or its empty state; sign-in says "Email isn't sending right now" at once, the
+  ([0053](0053-how-the-team-app-gets-its-data.md)) or its empty state; sign-in says "Email isn't sending right now" at once, the
   same for members and strangers, instead of promising a code that can't come. A pause is logged once
   (`breaker.open`), not on every request.
 
@@ -63,7 +63,7 @@ best effort, not a security boundary).
   | The join form                                          | 5 an hour                  |
 
   A whole squad on the rink's or the pub's wifi shares one address, and every phone on a live page reloads once per
-  change ([0072](0072-live-updates.md)): 80 phones following a game make 80 requests a goal, a draft's 68 about 400
+  change ([0053](0053-how-the-team-app-gets-its-data.md)): 80 phones following a game make 80 requests a goal, a draft's 68 about 400
   a minute. So a signed-in member is counted as themselves, wherever they are (#113), and the address only by a
   ceiling over everyone on it, ten phones' worth of members at their own limit. Everyone else is counted by address
   as before. A request with a session cookie isn't behind the strangers' 600, so one device using it up (a page
@@ -76,7 +76,7 @@ best effort, not a security boundary).
 **What one member can spend** (#73), beyond those limits, because a signed-in member or a stolen session gets past
 the per-address ones:
 
-- **Live streams**: at most 3 per member at the hub ([0072](0072-live-updates.md)); a fourth closes their oldest.
+- **Live streams**: at most 3 per member at the hub ([0053](0053-how-the-team-app-gets-its-data.md)); a fourth closes their oldest.
 - **Refusals** (a request their role can't make, [0024](0024-action-based-authorization.md)): on the audit log at
   most once a minute per member (one statement: a write only when there's none in the last minute, read through the
   `at` index), so looping on an admin route writes at most 1,440 rows a day, not one per request. Every refusal is a
@@ -97,7 +97,7 @@ the per-address ones:
   when it's back in London time ("Back soon"), instead of "Can't reach the club's data".
 - Any other 429 that isn't ours (ours are JSON and say why), such as a challenge, slows background checks for a
   minute, as our own per-minute limit does.
-- How often live pages check, and their push stream, are in [0072](0072-live-updates.md); the brake has the last word
+- How often live pages check, and their push stream, are in [0053](0053-how-the-team-app-gets-its-data.md); the brake has the last word
   over both.
 
 **`astro dev` renders with fallback content** when Sanity can't be read, with a banner saying why. Builds still fail
@@ -121,23 +121,4 @@ loudly, so a broken deploy never replaces the live site; live server routes alre
 - Not atomic: a burst can go slightly over a limit. Cloudflare's own rate limiting would be exact, but its free-plan
   terms haven't been checked; this costs nothing.
 - Still to do: Cloudflare's free rate-limiting rule once there's a custom domain (#57). The daily allowance is watched
-  on the Usage page ([0059](0059-usage-page-and-check.md)).
-
-## History
-
-- 2026-10-07: Sanity, YouTube and Gmail put behind circuit breakers in `shared/breaker.ts` (was 0055).
-- 2026-10-07: Every live route and API rate limited, beyond sign-in and the join form (was 0056).
-- 2026-10-07: The team app's own brake (3,000 calls a tab a day, back-off, error 1027), the Draft page checking every
-  10 seconds on draft day, and fallback content in `astro dev` (was 0058).
-- 2026-10-08: The Draft page's fixed 10 seconds became the admins' live-update setting (ADR 0072).
-- 2026-10-09: Live pages pushed to over SSE; reconnecting goes through the brake (ADR 0072).
-- 2026-10-20: The website's Sanity reads pause until the 1st at 90% of the month's CDN requests, by our own count, so
-  builds keep the rest; a server route falls back to the club facts it last read (ADR 0059).
-- 2026-10-21: What one member can spend: three live streams, a refusal on the record once a minute, and request bodies
-  capped before they're parsed (#73).
-- 2026-10-23: A signed-in member's API requests are counted per member (600 a minute), not per address, so a squad
-  on one wifi following a live game or the draft isn't turned away together; the address keeps a ceiling of 6,000 a
-  minute over everyone, and strangers, sign-in and error reports keep 600 an address (#113).
-- 2026-10-23: A request with a session cookie no longer checks the strangers' 600 an address, which one device could
-  use up for every member on its wifi; a cookie that's nobody's spends 600 an address of its own, still refused
-  before it's looked up (#148).
+  on the Usage page ([0003](0003-free-tiers-only.md)).

@@ -1,5 +1,5 @@
-// London's dates and times as data, the one copy the website, the team app and its Worker all use (#35): which day
-// it is in London, the instant of a London wall-clock time, and the evening a moment belongs to. Words people read
+// London's dates and times as data, the one copy the website, the team app and its Worker all use: which day it is
+// in London, the instant of a London wall-clock time, and the evening a moment belongs to. Words people read
 // ("Fri 9 Oct", "7:30pm") stay in each app's own lib/dates.ts.
 const TZ = "Europe/London";
 
@@ -48,7 +48,16 @@ export function londonISO(date: string, time: string): string {
 }
 
 /**
- * The evening a moment belongs to, as London's date (ADR 0074): from 06:00 it's that day's; before 06:00 it's still
+ * The same London wall-clock time the day after an instant: where a night that ends before it starts (past midnight)
+ * ends. 24 hours on most nights, 25 the night the clocks go back and 23 the night they go forward.
+ */
+export function londonNextDay(iso: string): string {
+  const next = new Date(Date.parse(`${londonDay(iso)}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+  return londonISO(next, londonTime(iso));
+}
+
+/**
+ * The evening a moment belongs to, as London's date (apps/team/worker/tournaments/README.md): from 06:00 it's that day's; before 06:00 it's still
  * the night before's, so a Kumite's after-party runs past midnight till the morning.
  */
 export function londonEvening(now = new Date()): string {

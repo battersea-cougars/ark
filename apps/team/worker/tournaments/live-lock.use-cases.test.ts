@@ -1,8 +1,5 @@
-// Once a tournament's started, a member can't take themselves out (ADR 0074): "once the kumite goes live, the player
-// cannot remove themselves. only the admin can adjust it. it has fees implications" (the user, 2026-10-23). Started
-// is marked live or finished (KUMITE!, The Anchor), or a match being played or played. Their place, and the fee it's
-// charged from the day (ADR 0007), stay as they are; an admin can still take them off. Before then they leave as
-// ever. Driven through the real Worker handlers in the fake world, each person signed in as themselves (ADR 0031).
+// Once a tournament's started, a member can't take themselves out (apps/team/worker/tournaments/README.md); an admin
+// still can. Driven through the real Worker handlers, each person signed in as themselves (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { seeds } from "@cougars/shared/testing/d1-sqlite";
 import { chargeDue } from "../dues/dues";

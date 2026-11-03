@@ -1,26 +1,6 @@
-// Passkeys (ADR 0023): sign in with Face ID, a fingerprint or the device's PIN, with no email, for when Gmail is down
-// or the inbox is on another phone. A signed-in member adds one on the You page; the sign-in page offers it first,
-// and the emailed code stays for a first sign-in, a new phone, or a lost passkey. Verified here with WebCrypto by
-// @simplewebauthn/server (ES256 and RS256): no attestation asked for, user verification required, the signature
-// counter checked and moved on in one statement.
-//
-// The passkey belongs to the team app's own domain, the one this request came to (localhost on your machine, dev's
-// team.cougars-dev.workers.dev, production's team domain from SITE_URL, scripts/ci/target.mjs: production answers on
-// nothing else), and the browser says which page asked (its origin), which must be the same. The store app loads that
-// same address (capacitor.config.ts), and the iPhone checks the domain trusts it (webcredentials, store.links.ts).
-//
-// A challenge is random, stored only as its hash, single-use and lasts five minutes. Adding a passkey: bound to the
-// session that asked. Signing in: bound to the browser that asked, by a nonce cookie of its own, as a code is; it's
-// spent in the statement that claims it, before the signature's checked, so two requests with one challenge make at
-// most one session (ADR 0121).
-import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
-  type AuthenticationResponseJSON,
-  type RegistrationResponseJSON,
-} from "@simplewebauthn/server";
+// Passkeys (ADR 0023): sign in with Face ID, a fingerprint or the device's PIN, with no email. Verified with WebCrypto
+// by @simplewebauthn/server; the emailed code stays for a first sign-in, a new phone or a lost passkey.
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 import { all, first, run } from "@cougars/shared/d1";
 import { HttpError, body, json } from "../api/api.http";
 import { LIMITS, addressOf, enforce } from "../api/api.limits";
@@ -29,6 +9,12 @@ import { addMs, cookie, cookieName, setCookie, sha256, startSession, withCookies
 import { scribe } from "@cougars/shared/scribe";
 
 const log = scribe.logger("auth");
+
+/**
+ * @simplewebauthn/server, loaded when a passkey route needs it: with its certificate parsers it is a fifth of the
+ * Worker, and building them at the top level cost every cold start CPU time, though a passkey is a rare request.
+ */
+const webauthn = () => import("@simplewebauthn/server");
 
 const CHALLENGE_MINUTES = 5;
 /** ES256 (every phone, Mac and security key) and RS256 (Windows Hello). */
@@ -40,7 +26,12 @@ const RP_NAME = "Battersea Cougars";
 const TRY_AGAIN = "That took too long, or this isn't the browser that asked. Try again.";
 const NOT_THAT = "That passkey didn't check out. Try again, or sign in with a code.";
 
-/** The team app's domain and origin, as this request reached it: what a passkey here belongs to. */
+/**
+ * The team app's domain and origin, as this request reached it: what a passkey here belongs to (localhost, dev's
+ * workers.dev address, production's team domain from SITE_URL, scripts/ci/target.mjs). The browser's origin must be
+ * the same. The store app loads that address (capacitor.config.ts), and the iPhone checks the domain trusts it
+ * (webcredentials, store.links.ts).
+ */
 export function relyingParty(request: Request) {
   const url = new URL(request.url);
   return { rpID: url.hostname, origin: url.origin };
@@ -126,6 +117,11 @@ export async function passkeyCount(db: D1Database, memberId: number) {
   return { passkeys: row?.n ?? 0 };
 }
 
+/**
+ * A challenge: random, stored only as its hash, single-use, for five minutes. Adding a passkey binds it to the session
+ * that asked; signing in, to the browser that asked, by a nonce cookie as a code is. It's spent in the statement that
+ * claims it, before the signature's checked, so one challenge makes at most one session (ADR 0003).
+ */
 async function newChallenge(
   env: AuthEnv,
   now: Date,
@@ -194,6 +190,7 @@ export async function registerOptions(
   const userHandle = theirs[0]?.user_handle ?? toB64url(crypto.getRandomValues(new Uint8Array(32)));
   const { rpID } = relyingParty(request);
   const challenge = await newChallenge(env, now, "register", { sessionId: mine.sessionId, userHandle });
+  const { generateRegistrationOptions } = await webauthn();
   const options = await generateRegistrationOptions({
     rpName: RP_NAME,
     rpID,
@@ -226,6 +223,7 @@ export async function register(
   const { rpID, origin } = relyingParty(request);
   let checked;
   try {
+    const { verifyRegistrationResponse } = await webauthn();
     checked = await verifyRegistrationResponse({
       response,
       expectedChallenge: challenge!,
@@ -279,6 +277,7 @@ export async function signInOptions(request: Request, env: AuthEnv, now: Date) {
   await enforce("passkey", addressOf(request), LIMITS.passkey, "Too many tries from here. Wait a few minutes.");
   const nonce = crypto.getRandomValues(new Uint8Array(32));
   const challenge = await newChallenge(env, now, "sign_in", { nonceHash: await sha256(toB64url(nonce)) });
+  const { generateAuthenticationOptions } = await webauthn();
   const options = await generateAuthenticationOptions({
     rpID: relyingParty(request).rpID,
     challenge,
@@ -321,6 +320,7 @@ export async function signIn(request: Request, env: AuthEnv, now: Date) {
   if (handle && handle !== key.user_handle) throw new HttpError(400, NOT_THAT);
   let checked;
   try {
+    const { verifyAuthenticationResponse } = await webauthn();
     checked = await verifyAuthenticationResponse({
       response,
       expectedChallenge: challenge!,

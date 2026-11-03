@@ -37,9 +37,10 @@ describe("signing in with the code", () => {
     expect(boot.status).toBe(200);
     expect(boot.body.members.find((m: { id: number }) => m.id === boot.body.me).name).toBe("Reg Player");
 
-    // Five months on, still in; the session moved on as it was used
-    expect((await phone.club({ now: minutes(150 * 24 * 60) })).status).toBe(200);
-    expect((await phone.club({ now: minutes(300 * 24 * 60) })).status).toBe(200);
+    // Used every couple of months, still in months later; the session moved on as it was used
+    expect((await phone.club({ now: minutes(80 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(160 * 24 * 60) })).status).toBe(200);
+    expect((await phone.club({ now: minutes(240 * 24 * 60) })).status).toBe(200);
   });
 
   it("uses cookies no script or sibling site can touch", async () => {
@@ -60,6 +61,29 @@ describe("signing in with the code", () => {
     const first = await w.ask(phone, "reg@example.com");
     await w.ask(phone, "reg@example.com", minutes(1));
     expect((await verify(phone, first.devCode, minutes(2))).status).toBe(200);
+  });
+
+  it("counts a guess against every code it's checked against, so asking again buys no more guesses (#201)", async () => {
+    const attacker = w.browser();
+    const codes: string[] = [];
+    for (let i = 0; i < 3; i++) codes.push((await w.ask(attacker, "reg@example.com", minutes(i))).devCode);
+    const wrong = ["000000", "111111", "222222", "333333"].find((c) => !codes.includes(c))!;
+    for (let left = 4; left >= 1; left--)
+      expect((await verify(attacker, wrong, minutes(3))).body.error).toContain(`${left} tr`);
+    expect((await verify(attacker, wrong, minutes(3))).body.error).toMatch(/Too many/);
+    // Five guesses spent every code's five tries, the oldest's too
+    expect((await verify(attacker, codes[0], minutes(3))).status).toBe(400);
+    const tries = w.db.raw.prepare("SELECT attempts FROM login_challenges ORDER BY id").all();
+    expect(tries).toEqual([{ attempts: 5 }, { attempts: 5 }, { attempts: 5 }]);
+  });
+
+  it("a right code with two live codes is no wrong try against either", async () => {
+    const phone = w.browser();
+    const first = await w.ask(phone, "reg@example.com");
+    await w.ask(phone, "reg@example.com", minutes(1));
+    expect((await verify(phone, first.devCode, minutes(2))).status).toBe(200);
+    const tries = w.db.raw.prepare("SELECT sum(attempts) AS n FROM login_challenges").get();
+    expect(tries).toEqual({ n: 0 });
   });
 
   it("allows five wrong codes, then wants a new one", async () => {
@@ -169,7 +193,7 @@ describe("signing in with the code", () => {
     expect(email.text).not.toMatch(/https?:/);
     // The HTML version shows the same code, big, split in two for reading, and still has no link
     expect(email.html).toContain(`${code.slice(0, 3)} ${code.slice(3)}`);
-    // ...and the code is never written to a log, in either form, even with no Gmail set up (#74)
+    // ...and the code is never written to a log, in either form, even with no Gmail set up
     const logged = vi.mocked(console.log).mock.calls.map((c) => String(c[0]));
     expect(logged.some((l) => l.includes(code) || l.includes(`${code.slice(0, 3)} ${code.slice(3)}`))).toBe(false);
     expect(logged.some((l) => l.includes("mail.logged") && l.includes("[redacted]"))).toBe(true);

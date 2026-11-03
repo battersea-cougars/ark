@@ -1,4 +1,4 @@
-// Who won, at the edges (ADR 0044): a tie, clearing the list, an award given to a team and a player at once, a team
+// Who won, at the edges (apps/team/worker/tournaments/README.md): a tie, clearing the list, an award given to a team and a player at once, a team
 // that leaves the tournament, and a tournament that isn't there. Driven through the real Worker handlers (ADR 0031).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testWorld } from "../testing";
@@ -88,6 +88,18 @@ describe("who won, at the edges", () => {
     expect((await dana.call("PUT", `/api/tournaments/${id}`, { ...t, teams: [t.teams[1]] })).status).toBe(200);
     expect((await tournament()).teams.map((x: Json) => x.id)).toEqual([bees]);
     expect((await tournament()).winners).toEqual([]);
+  });
+
+  it("two of a tournament's awards can't share a name, whatever the case: refused, and its awards stay as they were", async () => {
+    const { dana, id, t, tournament } = await cup();
+    const twice = [
+      { name: "Top scorer", about: "" },
+      { name: "TOP SCORER", about: "" },
+    ];
+    const res = await dana.call("PUT", `/api/tournaments/${id}`, { ...t, awards: twice });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Two awards can't share a name.");
+    expect((await tournament()).awards.map((a: Json) => a.name)).toEqual(["Champions", "Top scorer"]);
   });
 
   it("winners for a tournament that isn't there is a 404", async () => {

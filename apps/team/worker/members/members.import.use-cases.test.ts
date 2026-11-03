@@ -133,6 +133,12 @@ describe("an admin imports members from a file", () => {
     expect(log.map((e) => e.action)).toContain("members.imported");
   });
 
+  it("nobody in the file is emailed: the admins say when the app's ready", async () => {
+    const dana = await w.signedIn("dana@example.com");
+    expect((await dana.call("POST", "/api/members/import", { file: CSV, apply: true })).status).toBe(200);
+    expect(w.mails).toEqual([]);
+  });
+
   it("only someone who manages members can import", async () => {
     const reg = await w.signedIn("reg@example.com");
     expect((await reg.call("POST", "/api/members/import", { file: CSV })).status).toBe(403);
@@ -165,7 +171,7 @@ describe("an admin imports the club's own spreadsheet", () => {
         cougar: true,
         roles: ["Contributor", "Session lead"],
       }),
-      // A goalie is on the Keeper plan whatever the sheet says: keepers play free (ADR 0007)
+      // A goalie is on the Keeper plan whatever the sheet says: keepers play free (apps/team/worker/dues/README.md)
       expect.objectContaining({ name: "Gil Goalie", plan: "keeper", cougar: false, roles: [] }),
     ]);
   });
