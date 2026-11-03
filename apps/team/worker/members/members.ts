@@ -6,7 +6,7 @@ import { HttpError, bool, int, oneOf, text } from "../api/api.http";
 import { email, giveReference, type AuthEnv } from "../auth/auth";
 import { tellTheyreIn } from "./members.mail";
 import { londonToday } from "@cougars/shared/london";
-import { QUARTER, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
+import { QUARTER, memberExists, nextQuarter, quarterOf, quarterStart } from "../dues/dues";
 
 export interface MemberJson {
   id: number;
@@ -420,7 +420,7 @@ export async function setEverydayRole(
  * same rule as their own: one that can do less than they can; and only for a member the caller may change at all.
  */
 export async function setMemberEverydayRole(db: D1Database, id: number, o: Record<string, unknown>, by: By) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+  await memberExists(db, id);
   await mayChange(db, by.actions, id);
   await setEverydayRole(
     db,
@@ -508,7 +508,7 @@ export const attendanceOn = (db: D1Database, id: number, sessionIds: number[]) =
  * and whether they came. Sessions they never answered are there too (signup null), so an admin can mark them.
  */
 export async function attendanceOf(db: D1Database, id: number, year: string, today: string) {
-  if (!(await first(db, "SELECT 1 FROM members WHERE id = ?", [id]))) throw new HttpError(404, "No such member.");
+  await memberExists(db, id);
   const rows = await all<{
     sessionId: number;
     heldOn: string;
