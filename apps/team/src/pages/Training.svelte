@@ -15,6 +15,7 @@
   import Icon from "../app/shell/Icon.svelte";
   import ManageList, { type ManageItem, type ManageNote } from "../lib/ManageList.svelte";
   import { Arm } from "../lib/arm.svelte";
+  import Confirm from "../lib/Confirm.svelte";
   import EventCard from "../lib/EventCard.svelte";
   import Person from "../lib/Person.svelte";
   import PlayerCard from "../lib/PlayerCard.svelte";
@@ -1032,25 +1033,19 @@
 {/if}
 
 {#if session && !session.cancelledAt && can(perms, "manage:Training")}
-  <Sheet bind:open={cancelAsk} title="Cancel {cancelDay}?">
-    <p class="ask">{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (cancelAsk = false)}>Keep it on</button>
-      <button class="btn clear-yes" type="button" onclick={callOff}>Cancel this night</button>
-    {/snippet}
-  </Sheet>
+  <Drawer short bind:open={cancelAsk} title="Cancel {cancelDay}?">
+    <Confirm cancel="Keep it on" confirm="Cancel this night" kind="danger" oncancel={() => (cancelAsk = false)} onconfirm={callOff}
+      ><p>{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p></Confirm
+    >
+  </Drawer>
 {/if}
 
 {#if maker && teams}
-  <Sheet bind:open={clearAsk} title="Clear the teams?">
-    <p class="ask">
-      Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.
-    </p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (clearAsk = false)}>Keep them</button>
-      <button class="btn clear-yes" type="button" onclick={takeDown}>Clear teams</button>
-    {/snippet}
-  </Sheet>
+  <Drawer short bind:open={clearAsk} title="Clear the teams?">
+    <Confirm cancel="Keep them" confirm="Clear teams" kind="danger" oncancel={() => (clearAsk = false)} onconfirm={takeDown}
+      ><p>Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.</p></Confirm
+    >
+  </Drawer>
 {/if}
 
 {#if arranging && teams}
@@ -1184,19 +1179,6 @@
   }
   .page.has-dock:has(> .hybrid) {
     padding-bottom: calc(var(--s-4) + var(--dock-h));
-  }
-  .ask {
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.5;
-  }
-  /* The armed "are you sure": the one red fill (ADR 0009) */
-  .clear-yes {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .clear-yes:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   /* The make-teams show (lib/shuffle.ts): cards over everything, each placed by its centre on the window's */
   .deck-layer {

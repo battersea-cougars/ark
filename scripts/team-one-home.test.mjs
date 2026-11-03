@@ -68,13 +68,24 @@ const RULES = [
     pattern: /let (?:arming|sure|confirming) = \$state<[^>]*(?:string|"|null)/,
     home: "lib/arm.svelte.ts",
   },
+  {
+    what: "a red yes by hand, `class=\"btn danger\"` (lib/Confirm; an editor's foot: SaveBar, the tournament's Delete)",
+    pattern: /class="btn danger/,
+    home: "lib/Confirm.svelte",
+    allow: ["lib/SaveBar.svelte", "lib/TournamentEditorPanel.svelte"],
+  },
+  {
+    what: "a red fill of its own for a button (app.css .btn.danger)",
+    pattern: /background: var\(--red\);\s*color: var\(--on-red\);\s*\}\s*[^{}]*:hover[^{]*\{\s*background: var\(--red-hot\)/,
+    home: "app.css",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {
   for (const rule of RULES) {
     it(`has no ${rule.what}`, () => {
       const hits = files
-        .filter((f) => f.path !== rule.home && (!rule.only || rule.only.test(f.path)))
+        .filter((f) => f.path !== rule.home && !rule.allow?.includes(f.path) && (!rule.only || rule.only.test(f.path)))
         .filter((f) => rule.pattern.test(f.code))
         .map((f) => f.path);
       expect(hits, `use the one in ${rule.home}`).toEqual([]);

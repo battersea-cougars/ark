@@ -40,6 +40,7 @@
   import { reportUnexpected } from "../app/errors.early";
   import type { Passkey } from "../app/passkeys";
   import Sheet from "./Sheet.svelte";
+  import Confirm from "./Confirm.svelte";
   import RemindReview from "./RemindReview.svelte";
   import MoneyField from "./MoneyField.svelte";
   import DateField from "./DateField.svelte";
@@ -773,15 +774,20 @@
                     onclick={() => (erasing = true)}>Delete their account</button
                   >
                   <Sheet bind:open={erasing} title="Delete {shortName(member.player)}'s account?">
-                    <p class="erase-note">
-                      Only when they've asked. Their name, email, phone and roles go now, and they're signed out
-                      everywhere. What the club must keep (that someone played, payments) stays, about a "Former
-                      member".
-                    </p>
-                    {#snippet footer()}
-                      <button class="btn ghost" type="button" onclick={() => (erasing = false)}>Keep it</button>
-                      <button class="btn danger" type="button" disabled={busy} onclick={erase}>Delete it</button>
-                    {/snippet}
+                    <!-- A short sheet over the member's panel, stacked as its own dialog (ADR 0065) -->
+                    <Confirm
+                      cancel="Keep it"
+                      confirm="Delete it"
+                      kind="danger"
+                      {busy}
+                      oncancel={() => (erasing = false)}
+                      onconfirm={erase}
+                      ><p>
+                        Only when they've asked. Their name, email, phone and roles go now, and they're signed out
+                        everywhere. What the club must keep (that someone played, payments) stays, about a "Former
+                        member".
+                      </p></Confirm
+                    >
                   </Sheet>
                 </div>
               {/if}
@@ -1520,8 +1526,5 @@
   .start,
   .danger {
     justify-self: start;
-  }
-  .erase-note {
-    margin: 0;
   }
 </style>

@@ -15,6 +15,7 @@
   import Sheet from "../lib/Sheet.svelte";
   import ManageList, { type ManageItem, type ManageNote } from "../lib/ManageList.svelte";
   import ManageMenu from "../lib/ManageMenu.svelte";
+  import Confirm from "../lib/Confirm.svelte";
   import { phone } from "../lib/viewport.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
@@ -805,24 +806,27 @@
   <ManageMenu bind:open={manageOpen} title="Manage the scoresheet" sub="Game {game.position}" items={manageItems} />
 
   <!-- Taking someone's sheet: asked first, the yes in red (the one red fill, ADR 0009) -->
-  <Sheet
+  <Drawer
+    short
     bind:open={() => !!asking, (v) => !v && (asking = null)}
     title={asking === "free" ? "Free the scoresheet?" : `Take over Game ${game.position}?`}
   >
-    <p class="ask">
+    <Confirm
+      cancel="Leave it"
+      confirm={asking === "free" ? "Free it" : "Take over"}
+      kind="danger"
+      {busy}
+      oncancel={() => (asking = null)}
+      onconfirm={override}
+      ><p>
       {#if asking === "free"}
         {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
       {:else}
         {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
       {/if}
-    </p>
-    {#snippet footer()}
-      <button class="btn ghost" type="button" onclick={() => (asking = null)}>Leave it</button>
-      <button class="btn yes" type="button" disabled={busy} onclick={override}
-        >{asking === "free" ? "Free it" : "Take over"}</button
-      >
-    {/snippet}
-  </Sheet>
+      </p></Confirm
+    >
+  </Drawer>
 
   <!-- Set the score, in a sheet (a short form, ADR 0065): each side's goals, up and down -->
   <Sheet bind:open={scoring} title="Set the score">
@@ -1265,19 +1269,6 @@
   /* This phone lost the sheet: the words in the club's red, the whistle with them */
   .keep-line .lost {
     color: var(--red-hot);
-  }
-  .ask {
-    margin: 0;
-    color: var(--fg-muted);
-    line-height: 1.5;
-  }
-  /* The armed "are you sure": the one red fill (ADR 0009) */
-  .yes {
-    background: var(--red);
-    color: var(--on-red);
-  }
-  .yes:hover:not(:disabled) {
-    background: var(--red-hot);
   }
   .rec {
     width: 0.5rem;
