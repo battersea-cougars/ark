@@ -822,10 +822,6 @@ A system-user token that reads the club's posts. Never expires; nothing renews i
   reports `instagram.feed_error`.
 - **Changing or revoking it:** **photosreader → Revoke tokens**, then **Generate token** as above,
   `npm run secret:set INSTAGRAM_TOKEN`, and a deploy of each environment. Any admin of the club's portfolio can.
-- **In Bitwarden today (2026-11-02):** besides the plain `INSTAGRAM_TOKEN`, `INSTAGRAM_TOKEN__PRODUCTION` (the
-  system-user token, made 2026-10-30), which wins in production, and `INSTAGRAM_TOKEN_KEY__PRODUCTION`, the sealing key
-  of the old renewing token, read by nothing since. Once the system-user code is live, the plain `INSTAGRAM_TOKEN`
-  should hold the system-user token and both `__PRODUCTION` entries go (one value, as above).
 - **Setting it up from nothing:** the Instagram account a Professional account, in the club's portfolio; a Meta app
   connected to that portfolio (an admin with full control: **Settings → Accounts → Apps → Add**); then the system
   user and its two assets as above. The account's Graph API ID is in `apps/web/src/lib/server/instagram-env.ts`.
@@ -983,9 +979,8 @@ job beside the secrets (a CI job refuses to start while one isn't filled in), un
 | `APP_STORE_CONNECT_ISSUER_ID` | no              | [Its issuer](#app_store_connect_key_id-app_store_connect_issuer_id)                     |
 | `SENTRY_DSN_TEAM`             | no              | [Where the team app's errors go](#sentry_dsn_team)                                      |
 
-A setting wins over a Bitwarden entry of the same name, and `npm run secrets` leaves such an entry out. Bitwarden still
-held old copies of these on 2026-11-02 (`APPLE_TEAM_ID`, `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`,
-`CLOUDFLARE_ACCOUNT_ID__DEV`, `CLOUDFLARE_ACCOUNT_ID__PRODUCTION`, `SENTRY_DSN_TEAM`): read by nothing, to be deleted.
+A setting wins over a Bitwarden entry of the same name, and `npm run secrets` leaves such an entry out, so Bitwarden
+holds no copies of these.
 
 **Elsewhere:**
 
@@ -1087,8 +1082,6 @@ Every name. **Env** is which environment's value it is: _prod_ (`NAME__PRODUCTIO
 | [`SANITY_CONTENT_TOKEN__DEV`](#sanity_content_token__dev) (not set yet)                                       | Sanity     | dev  | yes                              | Website words, until launch               |
 | [`GITHUB_APP_PRIVATE_KEY`](#github_app_private_key)                                                           | GitHub     | both | yes                              | Team app: website rebuilds                |
 | [`INSTAGRAM_TOKEN`](#instagram_token)                                                                         | Instagram  | both | yes                              | Website: photos                           |
-| [`INSTAGRAM_TOKEN__PRODUCTION`](#instagram_token) (to fold into the plain one)                                | Instagram  | prod | yes                              | Website: photos, in production            |
-| [`INSTAGRAM_TOKEN_KEY__PRODUCTION`](#instagram_token) (to delete)                                             | Instagram  | prod | yes                              | Nothing (the old token's sealing key)     |
 | [`VAPID_PRIVATE_KEY`](#vapid_private_key)                                                                     | Web Push   | both | yes                              | Team app: browser notifications           |
 | [`BACKUP_KEY__PRODUCTION`](#backup_key__production)                                                           | Us         | prod | yes                              | Database backups                          |
 | [`BACKUP_KEY`](#backup_key)                                                                                   | Us         | dev  | yes                              | Database backups                          |
