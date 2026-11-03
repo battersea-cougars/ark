@@ -7,7 +7,7 @@
   import SearchField from "../lib/SearchField.svelte";
   import PageHeader from "../lib/PageHeader.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player } from "../demo/data";
+  import { POSITION_ICONS, POSITIONS, TEAM_NAMES, TEAM_ORDER, type Plan, type Player, playerOf } from "../demo/data";
   import { rosterGroups } from "../lib/roster-groups";
   import { nextUp, placesLeft } from "../lib/places";
   import { granted, me } from "../demo/session.svelte";
@@ -94,7 +94,7 @@
   // Their plan, for grouping the lists (lib/roster-groups.ts): keepers by their position, skaters as the session says
   const planIn = (id: number): Plan =>
     byId(id).position === "G" ? "Keeper" : ahead.has(id) ? "Subscription" : "Pay as you go";
-  const byId = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
+  const byId = (id: number): Player => playerOf(id)!;
 
   let registering = $state(false);
   // The card that's been picked up, and where it lies on the page
@@ -480,7 +480,8 @@
         sub: "Its days, times, place and fee, for every session.",
         run: () => (settingsOpen = true),
       });
-    if (closed) items.push({ note: `The register closed ${registerClosesOn(session!.heldOn)} morning: who came is the record.` });
+    if (closed)
+      items.push({ note: `The register closed ${registerClosesOn(session!.heldOn)} morning: who came is the record.` });
     if (session && !closed && can(perms, "record:Attendance"))
       items.push({
         icon: "userPlus",
@@ -1010,7 +1011,6 @@
   {/if}
 </div>
 
-
 {#if canManage}
   <Drawer
     bind:open={manageOpen}
@@ -1034,7 +1034,12 @@
 
 {#if session && !session.cancelledAt && can(perms, "manage:Training")}
   <Drawer short bind:open={cancelAsk} title="Cancel {cancelDay}?">
-    <Confirm cancel="Keep it on" confirm="Cancel this night" kind="danger" oncancel={() => (cancelAsk = false)} onconfirm={callOff}
+    <Confirm
+      cancel="Keep it on"
+      confirm="Cancel this night"
+      kind="danger"
+      oncancel={() => (cancelAsk = false)}
+      onconfirm={callOff}
       ><p>{offWords(signedUp(session))} Nobody's charged for it, and you can put it back on from here.</p></Confirm
     >
   </Drawer>
@@ -1042,8 +1047,15 @@
 
 {#if maker && teams}
   <Drawer short bind:open={clearAsk} title="Clear the teams?">
-    <Confirm cancel="Keep them" confirm="Clear teams" kind="danger" oncancel={() => (clearAsk = false)} onconfirm={takeDown}
-      ><p>Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.</p></Confirm
+    <Confirm
+      cancel="Keep them"
+      confirm="Clear teams"
+      kind="danger"
+      oncancel={() => (clearAsk = false)}
+      onconfirm={takeDown}
+      ><p>
+        Everyone goes back to Who's in, on no team, and everyone sees it straight away. Who's in stays as it is.
+      </p></Confirm
     >
   </Drawer>
 {/if}

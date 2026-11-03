@@ -3,7 +3,7 @@
   // on it (lib/VoteSheet) and whoever runs it confirms them; then where the reveal's at. Always the way to the awards'
   // own page (pages/Awards).
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { enterAwards } from "./AwardsDrawer.svelte";
@@ -15,7 +15,7 @@
 
   const reveal = $derived(revealOf(t));
   const href = $derived(`/tournaments/${type.slug}/awards`);
-  const positionOf = (id: number) => PLAYERS.find((p) => p.id === id)?.position;
+  const positionOf = (id: number) => playerOf(id)?.position;
   const toConfirm = $derived(toConfirmOf(t, { positionOf }));
   const ballot = $derived(ballotOf(t, me().id, { positionOf }));
   const left = $derived(ballot.filter((b) => b.mine === null));

@@ -3,7 +3,7 @@
   // its own points for a win, draw and loss; the champions marked once it's decided. On the board, on a past one's
   // page (History), and at the after-party in its final order.
   import { nameOfTeam, teamNamesOf } from "./names";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
   import { teamHref, teamTone } from "./team-tones";
   import TeamCrest from "./TeamCrest.svelte";
@@ -30,10 +30,10 @@
   const champ = $derived(championOf(tournament));
   const teamName = (id: number) => {
     const t = teams.find((x) => x.id === id);
-    return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));
+    return nameOfTeam(t, teams, playerOf);
   };
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 <!-- A row a team: the whole row is the way to it (its name the link, its hit area the row), the chevron at the row's

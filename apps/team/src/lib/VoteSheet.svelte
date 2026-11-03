@@ -5,7 +5,7 @@
   import { castVotes } from "../app/backend.svelte";
   import { navigate } from "../app/router.svelte";
   import Icon from "../app/shell/Icon.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
   import PeopleChoice from "./PeopleChoice.svelte";
   import Sheet from "./Sheet.svelte";
@@ -40,7 +40,7 @@
       busy = false;
     }
   }
-  const nameOf = (id: number | null) => nameOfMember(id, (i) => PLAYERS.find((p) => p.id === i));
+  const nameOf = (id: number | null) => nameOfMember(id, playerOf);
 </script>
 
 <Sheet bind:open title="Cast your vote" sub="One each, secret. Voting closes when the awards are confirmed." tall lazy>

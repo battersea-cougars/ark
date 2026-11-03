@@ -10,7 +10,7 @@
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
   import { can } from "../access/actions";
   import { granted } from "../demo/session.svelte";
-  import { PLAYERS, referenceFor } from "../demo/data";
+  import { referenceFor, playerOf } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { BUCKETS, agedOf } from "../lib/dues";
   import { londonToday, pounds } from "../lib/dates";
@@ -27,7 +27,7 @@
   const rows = $derived(
     agedOf(db.dues).map((r) => ({
       ...r,
-      player: PLAYERS.find((p) => p.id === r.memberId) ?? { id: r.memberId, name: SOMEONE_WHO_LEFT },
+      player: playerOf(r.memberId) ?? { id: r.memberId, name: SOMEONE_WHO_LEFT },
       reference: referenceFor(r.memberId),
     })),
   );

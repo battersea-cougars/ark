@@ -84,6 +84,11 @@ const RULES = [
     pattern: /win: \w+\.pointsWin|b\.position > a\.position|seed \? ordinal\(seed\)/,
     home: "lib/fixtures.ts",
   },
+  {
+    what: "a member looked up by hand, `PLAYERS.find(…)` (demo/data.ts playerOf)",
+    pattern: /PLAYERS\.find\(/,
+    home: "demo/data.ts",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

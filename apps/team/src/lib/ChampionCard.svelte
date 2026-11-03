@@ -3,7 +3,7 @@
   // The tournament's champions, once it's decided (lib/edition.ts championOf: the final's winner, or the top of the
   // table without playoffs). Not a card: the crest big, the trophy, the name in the display face, and how they won
   // it, on the page itself. The crest and name lead to the team.
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
@@ -21,7 +21,7 @@
   const team = $derived(index >= 0 ? teams[index] : undefined);
   const nameOf = (id: number | null) => {
     const t = teams.find((x) => x.id === id);
-    return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));
+    return nameOfTeam(t, teams, playerOf);
   };
   // How they won it: the final's score, or their points at the top of the table
   const how = $derived.by(() => {
@@ -31,7 +31,7 @@
     return top ? `Top of the table, ${top.pts} points from ${top.p}` : "";
   });
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 {#if team && winnerId}

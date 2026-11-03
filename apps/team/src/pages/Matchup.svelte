@@ -9,7 +9,7 @@
   import { goesByOf, nameOfTeam, teamNamesOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { db } from "../demo/store.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { editionPath } from "../lib/edition-address";
@@ -40,7 +40,7 @@
   // Back to its edition's page (lib/edition-address.ts): the one on now's, else the past one's, named
   const onNow = $derived(!!tournament && tournament.id === currentTournament(typeId)?.id);
   const teams = $derived(tournament?.teams ?? []);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, byId);
 

@@ -23,7 +23,7 @@
   import { canEnterRoom, canFullScreen, leaveFullScreen, roomTurn, toggleFullScreen } from "../lib/draft-room";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
   import { editionPath } from "../lib/edition-address";
   import { goBack, navigate } from "../app/router.svelte";
@@ -36,7 +36,7 @@
   const base = $derived(tournament ? editionPath(type.slug, tournament.id) : `/tournaments/${type.slug}`);
   const inRoom = $derived(canEnterRoom(tournament, me().id, can(granted(), "run:Draft")));
   const teams = $derived(tournament?.teams ?? []);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const nameOf = (i: number) => nameOfTeam(teams[i], teams, byId);
   const dataTurn = $derived(tournament && inRoom ? roomTurn(tournament, me().id, nameOf) : null);
   // The team the light's on, as the draft's timeline shows it (lib/draft-sequence.ts): the bar changes with the light,

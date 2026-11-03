@@ -5,7 +5,7 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { answerFor } from "../app/backend.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { tournamentBookable } from "../demo/schedule.svelte";
   import { formatDayDate, timeRange } from "./dates";
   import { fighterLabel, fighterNo, fighterOf } from "./fighters";
@@ -25,7 +25,7 @@
   // Started (apps/team/worker/tournaments/README.md): your place is an admin's to change, so no Punk out (the server refuses it too)
   const started = $derived(hasStarted(t));
   const face = $derived(!fighter ? "sealed" : fighter.is === "declined" ? "declined" : "pass");
-  const name = $derived(PLAYERS.find((p) => p.id === id)?.name ?? "");
+  const name = $derived(playerOf(id)?.name ?? "");
   const event = $derived(tournamentBookable(t));
   const day = $derived(
     event.season

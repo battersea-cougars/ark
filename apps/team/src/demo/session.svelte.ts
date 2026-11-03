@@ -2,7 +2,7 @@
 // starting and ending a view is backend.svelte.ts's viewAs. An everyday role runs the app as a lesser role, switching
 // up to the full one until they switch back or close the app.
 import type { Action } from "../access/actions";
-import { ACTIONS, EVERYDAY_ROLE, PLAYERS, REAL_ID, VIEWING_AS, type Player } from "./data";
+import { ACTIONS, EVERYDAY_ROLE, REAL_ID, VIEWING_AS, playerOf, type Player } from "./data";
 import { db } from "./store.svelte";
 
 // Switched up to your full role: this tab only, so the app always opens in your everyday role
@@ -30,7 +30,7 @@ export function startSession() {
   session.everyday = EVERYDAY_ROLE;
 }
 
-const player = (id: number): Player => PLAYERS.find((p) => p.id === id)!;
+const player = (id: number): Player => playerOf(id)!;
 
 /** Who you are. */
 export const realMember = (): Player => player(REAL_ID);

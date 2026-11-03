@@ -5,7 +5,7 @@
   import { clock } from "./dates";
   import { nameOfTeam, teamNamesOf } from "./names";
   import type { Tournament, TournamentGame } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { matchTime, placeLabel, recordsOf } from "./fixtures";
   import TeamCrest from "./TeamCrest.svelte";
   import RollNumber from "./RollNumber.svelte";
@@ -43,7 +43,7 @@
   const teams = $derived(tournament.teams);
   const teamName = (id: number) => {
     const t = teams.find((x) => x.id === id);
-    return nameOfTeam(t, teams, (id) => PLAYERS.find((p) => p.id === id));
+    return nameOfTeam(t, teams, playerOf);
   };
   const logoOf = (id: number) => teams.find((x) => x.id === id)?.logo ?? null;
   const toneOf = (id: number) => teamTone(teams.findIndex((x) => x.id === id));
@@ -69,7 +69,7 @@
   // A live game's clock ticks here
   $effect(() => (live ? ticking() : undefined));
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 {#snippet side(id: number | null, seed: number | null)}

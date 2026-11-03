@@ -5,7 +5,7 @@
   import type { Tournament } from "../demo/model";
   import { impersonating, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { answerFor } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import { signupOpen } from "./signup";
@@ -45,9 +45,7 @@
   const quip = untrack(() => pick(db.quips.filter((q) => q.kind === (inIt ? "in" : "out") && q.text.trim()))?.text);
   // Your team, if you're on one: off it while the draft's open; after that (or a captain), it's an admin's to change
   const team = $derived(t.teams.find((x) => x.captainMemberId === id || x.players.some((p) => p.memberId === id)));
-  const teamName = $derived(
-    team ? nameOfTeam(team, t.teams, (pid) => (pid ? PLAYERS.find((p) => p.id === pid) : undefined)) : "",
-  );
+  const teamName = $derived(team ? nameOfTeam(team, t.teams, playerOf) : "");
   const consequence = $derived.by(() => {
     if (!team) return "";
     if (team.captainMemberId !== id && t.draftState === "open") return `You'll come off ${teamName}`;

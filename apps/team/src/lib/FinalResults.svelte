@@ -3,7 +3,7 @@
   // track (played, won, drawn, lost, goal difference, points), the champions first; then the day's results, one line
   // a match, the score in the middle. Brass on the carbon: the page round it sets --brass and --brass-ink.
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import Kanji from "./Kanji.svelte";
   import BoardTable from "./BoardTable.svelte";
   import { finalOrder } from "./afters";
@@ -13,7 +13,7 @@
   let { type, tournament: t }: { type: TournamentType; tournament: Tournament } = $props();
 
   const teams = $derived(t.teams);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const teamIndex = (id: number | null) => teams.findIndex((x) => x.id === id);
   const teamName = (id: number | null) => nameOfTeam(teams[teamIndex(id)], teams, byId);
   const standings = $derived(finalOrder(t));

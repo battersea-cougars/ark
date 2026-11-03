@@ -10,7 +10,7 @@
   // Confirming a tournament's awards (apps/team/worker/tournaments/README.md), the after-party's step before the reveal:
   // each decided as it says (lib/awards.ts), a vote counted by the Worker (how many voted shows, never who for), a tie
   // or the judges' call chosen here. Confirming closes voting and sets every winner.
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { db } from "../demo/store.svelte";
   import { setWinners } from "../app/backend.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -28,7 +28,7 @@
   const tournament = $derived(db.tournaments.find((t) => t.id === editing.id));
   const teams = $derived(tournament?.teams ?? []);
   const awards = $derived(tournament?.awards ?? []);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const teamIndex = (id: number | null) => teams.findIndex((t) => t.id === id);
   const teamName = (id: number | null) => {
     const t = teams[teamIndex(id)];

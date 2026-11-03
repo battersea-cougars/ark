@@ -2,7 +2,7 @@
   // You're on Team X (apps/team/worker/tournaments/README.md): the lead of a tournament's front page once the teams are set. Its crest, its name big,
   // its captain and your teammates, on the page (not a card); a tap opens the team.
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import { nameOfMember, nameOfPlayer, nameOfTeam, teamNamesOf } from "./names";
   import { teamHref, teamTone } from "./team-tones";
@@ -12,7 +12,7 @@
   let { type, tournament: t, index }: { type: TournamentType; tournament: Tournament; index: number } = $props();
 
   const team = $derived(t.teams[index]);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const name = $derived(nameOfTeam(team, t.teams, byId));
   const captain = $derived(
     team.captainMemberId === me().id

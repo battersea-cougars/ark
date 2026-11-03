@@ -25,7 +25,7 @@
   import { nameOfTeam } from "../lib/names";
   import { can } from "../access/actions";
   import { granted, me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import {
     currentTournament,
     pastTournaments,
@@ -105,7 +105,7 @@
   const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
   const kumite = $derived(!!kanjiFor(type, "onTheMat"));
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
+  const teamName = (i: number) => nameOfTeam(teams[i], teams, playerOf);
   const manage = $derived(can(perms, "manage:Tournament"));
   const today = $derived(londonToday());
 

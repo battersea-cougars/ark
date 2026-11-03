@@ -9,7 +9,7 @@
   import { rosterOf } from "../lib/team-roster";
   import EmptyState from "../lib/EmptyState.svelte";
   import { db } from "../demo/store.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { can } from "../access/actions";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -49,7 +49,7 @@
       !can(granted(), "manage:Tournament"),
   );
   const team = $derived(index >= 0 ? teams[index] : undefined);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   // Its squad, captain first: someone who's left keeps their place (lib/team-roster.ts)
   const squad = $derived(team ? rosterOf(team, byId) : []);
   const captain = $derived(squad.find((r) => r.captain));

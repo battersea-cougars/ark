@@ -9,7 +9,7 @@
   import PickLog from "./PickLog.svelte";
   import AnswerMenu from "./AnswerMenu.svelte";
   import { goesByOf, nameOfTeam } from "./names";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import Icon from "../app/shell/Icon.svelte";
   import PageHeader from "./PageHeader.svelte";
   import { editTournament } from "./tournament-panel.svelte";
@@ -208,7 +208,7 @@
   // rink), a side drawer on a desktop. The next one isn't here: it's the front page's own button once nothing's on
   const adds = $derived(offer && can(granted(), "update:Event"));
   let drafter = $state<ReturnType<typeof DraftJobs>>();
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   // The series' history's own (a past one recorded; on dev, one on a past day), with nothing on too (apps/team/worker/tournaments/README.md)
   let recorder = $state<ReturnType<typeof PastKumiteRecord>>();
   let pastDay = $state<ReturnType<typeof PastDayPlay>>();
@@ -471,9 +471,7 @@
     teamId={myTeam.id}
     name={myTeam.name}
     logo={myTeam.logo}
-    fallback={nameOfTeam({ ...myTeam, name: "" }, tournament.teams, (id) =>
-      id ? PLAYERS.find((p) => p.id === id) : undefined,
-    )}
+    fallback={nameOfTeam({ ...myTeam, name: "" }, tournament.teams, (id) => playerOf(id))}
     bind:open={lookOpen}
   />
 {/if}

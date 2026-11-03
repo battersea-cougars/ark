@@ -5,7 +5,7 @@
   import BurnReveal from "./BurnReveal.svelte";
   import { prefersReducedMotion } from "../app/motion";
   import type { Tournament } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { me } from "../demo/session.svelte";
   import { nameOfPlayer, nameOfTeam, shortNameOf } from "./names";
   import Sheet from "./Sheet.svelte";
@@ -29,7 +29,7 @@
     burning?: number | null;
   } = $props();
 
-  const byId = (id: number) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number) => playerOf(id);
   const teamName = (i: number) => nameOfTeam(t.teams[i], t.teams, (id) => (id ? byId(id) : undefined));
   // A pick someone made for the captain (whoever runs the draft) says who
   const pickerOf = (p: { pickedBy?: number | null }, team: number) =>

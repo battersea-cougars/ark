@@ -3,7 +3,7 @@
   // reveal, when the winner rolls in and the hanko lands; the champions' card is the bigger finale. `beat` is what's
   // playing (lib/afters beatOf), its timing lib/award-reveal.css; `small` is the grid's size down.
   import type { Tournament, TournamentType } from "../demo/model";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { revealOf } from "./afters";
   import BoardWords from "./BoardWords.svelte";
   import HankoPress from "./HankoPress.svelte";
@@ -51,7 +51,7 @@
   } = $props();
 
   const teams = $derived(t.teams);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const teamIndex = (id: number | null) => teams.findIndex((x) => x.id === id);
   const teamName = (id: number | null) => nameOfTeam(teams[teamIndex(id)], teams, byId);
   const teamOf = (memberId: number | null) =>

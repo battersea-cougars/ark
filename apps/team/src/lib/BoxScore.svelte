@@ -6,12 +6,12 @@
   import { nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
   import { boxScore } from "./periods";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentGame } from "../demo/model";
 
   let { tournament, game }: { tournament: Tournament; game: TournamentGame } = $props();
 
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const sides = $derived([game.homeTeamId, game.awayTeamId].filter((t): t is number => t !== null));
   const box = $derived(boxScore(game.goals ?? [], sides, tournament.periods ?? 1));
   const totals = $derived(box.rows.map((r) => r.total));

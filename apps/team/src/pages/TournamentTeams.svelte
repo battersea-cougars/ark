@@ -7,7 +7,7 @@
   import { nameOfTeam, teamNamesOf } from "../lib/names";
   import { rosterOf } from "../lib/team-roster";
   import { me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { typeById } from "../demo/schedule.svelte";
   import type { Tournament } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
@@ -26,7 +26,7 @@
 
   const type = $derived(typeById(typeId)!);
   const teams = $derived(tournament?.teams ?? []);
-  const teamName = (i: number) => nameOfTeam(teams[i], teams, (id) => PLAYERS.find((p) => p.id === id));
+  const teamName = (i: number) => nameOfTeam(teams[i], teams, playerOf);
   const isMine = (i: number) =>
     teams[i].captainMemberId === me().id || teams[i].players.some((p) => p.memberId === me().id);
   // Yours first
@@ -38,9 +38,9 @@
   const played = $derived((tournament?.games ?? []).some((g) => g.homeGoals !== null));
   // A team's squad, its captain first then the players in the order they were picked (the pick quietly beside them);
   // someone who's left keeps their place (lib/team-roster.ts)
-  const squadOf = (i: number) => rosterOf(teams[i], (id) => PLAYERS.find((p) => p.id === id));
+  const squadOf = (i: number) => rosterOf(teams[i], playerOf);
   // The tournament's team names, which its crests are told apart among (@cougars/shared/team-initials)
-  const crestNames = $derived(teamNamesOf(teams, (id) => PLAYERS.find((p) => p.id === id)));
+  const crestNames = $derived(teamNamesOf(teams, playerOf));
 </script>
 
 <div class="teams-view">

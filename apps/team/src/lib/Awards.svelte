@@ -4,7 +4,7 @@
   // until an admin confirms them (here, or in Manage: AwardsDrawer).
   import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { can } from "../access/actions";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament } from "../demo/model";
   import { granted } from "../demo/session.svelte";
   import Icon from "../app/shell/Icon.svelte";
@@ -24,7 +24,7 @@
   const admin = $derived(can(granted(), "manage:Tournament"));
   const teams = $derived(tournament.teams);
   const awards = $derived(tournament.awards ?? []);
-  const byId = (id: number | null) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number | null) => playerOf(id);
   const teamIndex = (id: number | null) => teams.findIndex((t) => t.id === id);
   const teamName = (id: number | null) => {
     const t = teams[teamIndex(id)];

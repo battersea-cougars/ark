@@ -11,7 +11,7 @@
   import { mmss } from "./game-clock.svelte";
   import { kanjiFor } from "./motif";
   import { prefersReducedMotion } from "../app/motion";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import type { Tournament, TournamentGame, TournamentType } from "../demo/model";
 
   let {
@@ -39,7 +39,7 @@
   } = $props();
 
   const teams = $derived(tournament.teams);
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (teamId: number | null) => nameOfTeam(teams[indexOf(teamId)], teams, byId);
   const crestNames = $derived(teamNamesOf(teams, byId));

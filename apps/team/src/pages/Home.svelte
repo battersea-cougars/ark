@@ -7,7 +7,7 @@
   import { untrack } from "svelte";
   import { nameOfTeam, shortName, shortNameOf, teamNamesOf } from "../lib/names";
   import { can } from "../access/actions";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { owedBy, unpaidCharges } from "../demo/dues.svelte";
   import { granted, me } from "../demo/session.svelte";
   import { db } from "../demo/store.svelte";
@@ -177,7 +177,7 @@
     );
     await loadBreakGlass();
   }
-  const nameOf = (id: number) => shortNameOf(PLAYERS.find((p) => p.id === id)) || "An admin";
+  const nameOf = (id: number) => shortNameOf(playerOf(id)) || "An admin";
 
   // What you owe (apps/team/worker/dues/README.md): at Home's foot, with Settle up opening your tab, while you owe anything. What's overdue
   // (a charge whose day has passed, lib/dues.ts) is also a loud icon in the hello, opening the same tab
@@ -348,7 +348,7 @@
   // Your next match, as the lead says it: its card (when, where), you, them (a playoff's place until the
   // table fills it), which game, where
   function matchOf({ type, t, game, teamId }: Fight) {
-    const person = (id: number | null) => PLAYERS.find((p) => p.id === id);
+    const person = (id: number | null) => playerOf(id);
     const side = (id: number | null, seed: number | null) => {
       const i = t.teams.findIndex((x) => x.id === id);
       return {
@@ -518,7 +518,7 @@
     ids
       .filter((id) => id !== who.id)
       .slice(0, 3)
-      .map((id) => shortNameOf(PLAYERS.find((p) => p.id === id)))
+      .map((id) => shortNameOf(playerOf(id)))
       .join(", ");
 </script>
 

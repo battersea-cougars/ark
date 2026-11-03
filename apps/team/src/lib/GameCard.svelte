@@ -8,7 +8,7 @@
   import GameHead from "./GameHead.svelte";
   import { kanjiFor } from "./motif";
   import { me } from "../demo/session.svelte";
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { goesBy, nameOfTeam } from "./names";
   import Icon from "../app/shell/Icon.svelte";
   import InkStamp from "./InkStamp.svelte";
@@ -32,7 +32,7 @@
   // Who's scoring it, until it's over: whoever else holds the sheet (yours is the red whistle, not said twice)
   const scorer = $derived.by(() => {
     if (g.status === "done" || !g.keeperId || keeping) return "";
-    const p = PLAYERS.find((x) => x.id === g.keeperId);
+    const p = playerOf(g.keeperId);
     return p ? goesBy(p) : "";
   });
   const playoff = $derived(g.stage === "playoff");
@@ -64,7 +64,7 @@
     return nameOfTeam(
       teams.find((t) => t.id === id),
       teams,
-      (pid) => PLAYERS.find((p) => p.id === pid),
+      playerOf,
     );
   });
 </script>

@@ -7,7 +7,7 @@
   import SearchField from "../lib/SearchField.svelte";
   import EmptyState from "../lib/EmptyState.svelte";
   import { can } from "../access/actions";
-  import { PLAYERS, type Player, type Position } from "../demo/data";
+  import { type Player, type Position, playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import Icon from "../app/shell/Icon.svelte";
   import PlayerCardZoom from "../lib/PlayerCardZoom.svelte";
@@ -71,7 +71,7 @@
 
   const perms = $derived(granted());
   const type = $derived(typeById(typeId)!);
-  const byId = (id: number) => PLAYERS.find((p) => p.id === id);
+  const byId = (id: number) => playerOf(id);
   const firstName = (id: number | null) => (id ? shortNameOf(byId(id)) : "");
   const ratings = $derived(can(perms, "read:Rating"));
 

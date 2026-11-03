@@ -1,7 +1,7 @@
 <script lang="ts">
   // The leaderboards (lib/leaders.ts): points, goals, assists and penalty minutes over one tournament's games or every
   // edition's (History), a tab a board; on a tournament's own board, each player's team under their name.
-  import { PLAYERS } from "../demo/data";
+  import { playerOf } from "../demo/data";
   import { LEADER_STATS, leaders, ranked, type LeaderRow, type LeaderStat } from "./leaders";
   import type { Tournament, TournamentGame } from "../demo/model";
   import { nameOfMember, nameOfTeam } from "./names";
@@ -22,7 +22,7 @@
 
   let stat = $state<LeaderStat>("points");
   const rows = $derived(counted ? ranked(counted, stat) : leaders(games, stat));
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const teams = $derived(tournament?.teams ?? []);
   const teamOf = (memberId: number) => {
     const t = teams.find((x) => x.captainMemberId === memberId || x.players.some((p) => p.memberId === memberId));
