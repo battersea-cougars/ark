@@ -7,7 +7,7 @@
   import type { Tournament, TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { championOf } from "./edition";
+  import { championOf, wonTheFinal } from "./edition";
   import { finalOf, pointsOf, table, teamIdsOf } from "./fixtures";
   import { teamHref, teamTone } from "./team-tones";
   import Kanji from "./Kanji.svelte";
@@ -26,11 +26,7 @@
   // How they won it: the final's score, or their points at the top of the table
   const how = $derived.by(() => {
     const f = finalOf(tournament);
-    if (f) {
-      const home = f.homeTeamId === winnerId;
-      const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
-      return `Beat ${nameOf(home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
-    }
+    if (f) return wonTheFinal(f, winnerId, nameOf);
     const top = table(teamIdsOf(tournament), tournament.games ?? [], pointsOf(tournament))[0];
     return top ? `Top of the table, ${top.pts} points from ${top.p}` : "";
   });

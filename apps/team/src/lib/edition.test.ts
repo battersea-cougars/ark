@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tournament } from "../demo/model";
-import { countdownOf, editionState, editionWhen, stageOf } from "./edition";
+import { countdownOf, editionState, editionWhen, stageOf, wonTheFinal } from "./edition";
 import { game } from "./kumite.testing";
 
 const cup = (o: Partial<Tournament> = {}) =>
@@ -78,5 +78,14 @@ describe("countdownOf: how far off the day is, in the header", () => {
   });
   it("a day gone by: nothing", () => {
     expect(countdownOf("2026-10-21", TODAY)).toBeNull();
+  });
+});
+
+describe("wonTheFinal: how the champions won it, in a line", () => {
+  const names: Record<number, string> = { 1: "Team Sam", 2: "Team Jo" };
+  const final = { homeTeamId: 1, awayTeamId: 2, homeGoals: 1, awayGoals: 3 };
+  it("from the champions' side, home or away", () => {
+    expect(wonTheFinal(final, 2, (id) => names[id!])).toBe("Beat Team Sam 3–1 in the final");
+    expect(wonTheFinal({ ...final, homeGoals: 4 }, 1, (id) => names[id!])).toBe("Beat Team Jo 4–3 in the final");
   });
 });

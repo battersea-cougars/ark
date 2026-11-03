@@ -11,6 +11,17 @@ export type EditionState = "live" | "done" | "open" | "planned";
 
 export { championOf } from "./fixtures";
 
+/** How the champions won the final, in a line: "Beat Team Sam 3–1 in the final". */
+export function wonTheFinal(
+  final: { homeTeamId: number | null; awayTeamId: number | null; homeGoals: number | null; awayGoals: number | null },
+  championId: number | null,
+  nameOf: (teamId: number | null) => string,
+) {
+  const home = final.homeTeamId === championId;
+  const [us, them] = home ? [final.homeGoals, final.awayGoals] : [final.awayGoals, final.homeGoals];
+  return `Beat ${nameOf(home ? final.awayTeamId : final.homeTeamId)} ${us}–${them} in the final`;
+}
+
 /**
  * Where it stands, by its games more than its settings: under way once a game's being scored or has a result, done
  * once every game's played (or an admin marked it finished). Before then, sign-up open or coming up, as of `today`

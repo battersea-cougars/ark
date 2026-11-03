@@ -7,7 +7,7 @@
   import type { TournamentType } from "../demo/model";
   import Icon from "../app/shell/Icon.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { atAfters, editionWhen } from "./edition";
+  import { atAfters, editionWhen, wonTheFinal } from "./edition";
   import { teamTone } from "./team-tones";
   import { editionPath } from "./edition-address";
   import { pastList, type EditionSummary } from "../app/history.svelte";
@@ -38,11 +38,7 @@
   // How it ended, in a line: the final, else the top of the table
   const summary = (t: EditionSummary) => {
     const f = t.final;
-    if (t.champion && f) {
-      const home = f.homeTeamId === t.champion;
-      const [us, them] = home ? [f.homeGoals, f.awayGoals] : [f.awayGoals, f.homeGoals];
-      return `Beat ${nameOf(t, home ? f.awayTeamId : f.homeTeamId)} ${us}–${them} in the final`;
-    }
+    if (t.champion && f) return wonTheFinal(f, t.champion, (id) => nameOf(t, id));
     return t.champion ? "Top of the table" : `${t.games} matches`;
   };
 </script>
