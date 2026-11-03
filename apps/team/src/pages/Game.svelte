@@ -16,11 +16,10 @@
   import ManageList, { type ManageItem, type ManageNote } from "../lib/ManageList.svelte";
   import ManageMenu from "../lib/ManageMenu.svelte";
   import Confirm from "../lib/Confirm.svelte";
-  import { phone } from "../lib/viewport.svelte";
   import TeamCrest from "../lib/TeamCrest.svelte";
   import RollNumber from "../lib/RollNumber.svelte";
   import SealResult from "../lib/SealResult.svelte";
-  import { PLAYERS, type Player } from "../demo/data";
+  import { type Player, playerOf } from "../demo/data";
   import { granted, me } from "../demo/session.svelte";
   import { goBack, navigate, router } from "../app/router.svelte";
   import { currentTournament, typeById } from "../demo/schedule.svelte";
@@ -71,7 +70,7 @@
   );
   const teams = $derived(tournament?.teams ?? []);
   const game = $derived(tournament?.games?.find((g) => g.id === gameId));
-  const byId = (id: number | null) => (id ? PLAYERS.find((p) => p.id === id) : undefined);
+  const byId = (id: number | null) => playerOf(id);
   const indexOf = (teamId: number | null) => teams.findIndex((t) => t.id === teamId);
   const teamName = (teamId: number | null) => {
     const t = teams[indexOf(teamId)];
@@ -819,11 +818,11 @@
       oncancel={() => (asking = null)}
       onconfirm={override}
       ><p>
-      {#if asking === "free"}
-        {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
-      {:else}
-        {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
-      {/if}
+        {#if asking === "free"}
+          {askedOf} stops scoring straight away. The clock and the goals stay as they are, and anyone can take it on.
+        {:else}
+          {askedOf}'s phone stops scoring the moment you tap. The clock and the goals carry on from here, on yours.
+        {/if}
       </p></Confirm
     >
   </Drawer>
