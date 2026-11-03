@@ -47,4 +47,4 @@ export const kanjiFor = (type: Pick<TournamentType, "slug"> | undefined, key: Mo
 
 /** The Kumite is invitation-only, as in Bloodsport: its sign-up is an invitation you accept or decline, its players
  * are fighters with a number (lib/KumiteInvite), and Home and its notification say so. Every other series asks plainly. */
-export const invitationOnly = isKumite;
+export const invitationOnly = (type: Pick<TournamentType, "slug"> | undefined) => isKumite(type);
