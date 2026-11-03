@@ -99,6 +99,11 @@ const RULES = [
     pattern: /@keyframes (?:pulse|rise|menu-in|fade-in|fade-out) \{/,
     home: "app.css",
   },
+  {
+    what: 'a "is it the Kumite?" of its own (lib/motif.ts isKumite)',
+    pattern: /slug === "kumite"|!!kanjiFor\(/,
+    home: "lib/motif.ts",
+  },
 ];
 
 describe("the team app keeps one home for each look and word", () => {

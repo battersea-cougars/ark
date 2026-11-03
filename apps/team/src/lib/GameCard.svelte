@@ -6,7 +6,7 @@
   import { typeById } from "../demo/schedule.svelte";
   import FixtureRow from "./FixtureRow.svelte";
   import GameHead from "./GameHead.svelte";
-  import { kanjiFor } from "./motif";
+  import { isKumite, kanjiFor } from "./motif";
   import { me } from "../demo/session.svelte";
   import { playerOf } from "../demo/data";
   import { goesBy, nameOfTeam } from "./names";
@@ -89,7 +89,7 @@
             tone={yours ? "red" : "faint"}
             kanji={kanjiFor(type, "next")}
             icon={yours ? "user" : undefined}
-            text={type?.slug === "kumite" ? "You are next!" : "Up next"}
+            text={isKumite(type) ? "You are next!" : "Up next"}
             tilt={yours ? -5 : -3}
             land={yours || arriving()}
           /></span

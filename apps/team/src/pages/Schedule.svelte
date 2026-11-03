@@ -14,6 +14,7 @@
   import { prefersReducedMotion } from "../app/motion";
   import { backOut } from "svelte/easing";
   import DraftStep from "../lib/DraftStep.svelte";
+  import { isKumite } from "../lib/motif";
 
   let {
     typeId,
@@ -75,7 +76,7 @@
     {/snippet}
   </DraftStep>
 {:else}
-  <EmptyState icon={type.slug === "kumite" ? "gong" : "calendar"} title="No fixtures yet">
+  <EmptyState icon={isKumite(type) ? "gong" : "calendar"} title="No fixtures yet">
     They're made once the teams are in: a round robin, {gameLength(tournament ?? type)}{then}.
   </EmptyState>
 {/if}

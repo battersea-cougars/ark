@@ -8,7 +8,7 @@
   import BoardWords from "./BoardWords.svelte";
   import HankoPress from "./HankoPress.svelte";
   import TeamCrest from "./TeamCrest.svelte";
-  import { kanjiFor } from "./motif";
+  import { isKumite, kanjiFor } from "./motif";
   import { nameOfMember, nameOfTeam, teamNamesOf } from "./names";
   import { teamTone } from "./team-tones";
 
@@ -58,7 +58,7 @@
     teams.find((x) => x.captainMemberId === memberId || x.players.some((p) => p.memberId === memberId))?.id ?? null;
   const crestNames = $derived(teamNamesOf(teams, byId));
   const won = $derived((t.winners ?? []).filter((w) => w.award === award.name));
-  const kumite = $derived(!!kanjiFor(type, "awards"));
+  const kumite = $derived(isKumite(type));
   const mark = $derived(kanjiFor(type, finale ? "champions" : "awards"));
   const revealing = $derived(beat === "reveal" && face === "up");
   const sealMark = $derived(kanjiFor(type, "awardSealed"));

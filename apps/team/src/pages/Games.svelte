@@ -39,7 +39,7 @@
   import { closeSignup } from "../app/backend.svelte";
   import { signupOpen } from "../lib/signup";
   import Kanji from "../lib/Kanji.svelte";
-  import { kanjiFor } from "../lib/motif";
+  import { isKumite, kanjiFor } from "../lib/motif";
   import TournamentHead from "../lib/TournamentHead.svelte";
   import PastEditions from "../lib/PastEditions.svelte";
   import AllTimeLeaders from "../lib/AllTimeLeaders.svelte";
@@ -103,7 +103,7 @@
   );
   // Its after-party's evening (lib/edition.ts atAfters): The Anchor; any other day, a past one's results
   const tonight = $derived(!!tournament && atAfters(tournament, londonEvening()));
-  const kumite = $derived(!!kanjiFor(type, "onTheMat"));
+  const kumite = $derived(isKumite(type));
   const teams = $derived(tournament?.teams ?? []);
   const teamName = (i: number) => nameOfTeam(teams[i], teams, playerOf);
   const manage = $derived(can(perms, "manage:Tournament"));
