@@ -15,7 +15,8 @@ export interface CspViolation {
   source: string | null;
 }
 
-const EXTENSION = /^(chrome|moz|safari-web|ms-browser)-extension:/;
+// A whole URL, or the scheme alone: Chrome reports an extension's eval with just `chrome-extension`
+const EXTENSION = /^(chrome|moz|safari-web|ms-browser)-extension(:|$)/;
 
 const str = (v: unknown, max = 500) => (typeof v === "string" && v ? mask(v.slice(0, max)) : null);
 

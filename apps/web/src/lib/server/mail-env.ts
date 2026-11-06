@@ -1,5 +1,5 @@
-// Email settings for the Worker (packages/shared/email.ts): SITE_ENV (a wrangler var, "production" only on release),
-// the Gmail secrets (deploy.yml) or the token an admin reconnected in the team app (packages/shared/gmail-token.ts),
+// Email settings for the Worker (packages/shared/email.ts): SITE_ENV (on the deployed Worker, scripts/ci/target.mjs;
+// "production" only on release, unset on a laptop), the Gmail secrets (deploy.yml) or the token an admin reconnected in the team app (packages/shared/gmail-token.ts),
 // and the club's inbox from the Studio. Each send is written down for the team app's Settings → Email.
 import { env } from "cloudflare:workers";
 import {
@@ -20,7 +20,7 @@ import { getClub } from "../sanity/content";
 export const clubInbox = async () => (await getClub()).contactEmail.trim().toLowerCase() || null;
 
 export const mailConfig = async (club: string | null): Promise<MailConfig> => ({
-  siteEnv: env.SITE_ENV,
+  siteEnv: (env as { SITE_ENV?: string }).SITE_ENV,
   gmail:
     (
       await gmailCredentials({

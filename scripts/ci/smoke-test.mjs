@@ -24,8 +24,10 @@ const checks = [
     async () => {
       for (const path of ["/", "/videos/"]) {
         const res = await get(path);
-        if (!res.headers.get("content-security-policy")?.includes("script-src 'self'"))
-          throw new Error(`${path} has no content security policy`);
+        const policy = res.headers.get("content-security-policy");
+        if (!policy?.includes("script-src 'self'")) throw new Error(`${path} has no content security policy`);
+        if (process.env.SITE_ENV === "production" && policy.includes("picsum"))
+          throw new Error(`${path} has dev's content security policy`);
         if (!res.headers.get("strict-transport-security")) throw new Error(`${path} has no HSTS`);
       }
     },

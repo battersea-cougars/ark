@@ -27,7 +27,7 @@ export const sanityBuildCount = (): AstroIntegration => ({
       // Only CI has the account's token (deploy.yml); a local build reads the dev project and is only said
       if (!process.env.CI) return logger.info(`Sanity requests: ${said}. Not counted: a local build (ADR 0003).`);
       try {
-        const query = await remoteD1(String(process.env.SITE_ENV) === "production" ? "production" : "dev");
+        const query = await remoteD1(process.env.SITE_ENV === "production" ? "production" : "dev");
         await query(ADD_SQL, [JSON.stringify(rows)]);
         logger.info(`Sanity requests: ${said}, counted.`);
       } catch (error) {
