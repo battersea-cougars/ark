@@ -3,9 +3,8 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { unstable_readConfig } from "wrangler";
 import { parseHeadersFile } from "@cougars/shared/testing/headers-file";
 import { csp, siteHeaders } from "./headers";
 import { securityHeaders } from "./headers.integration";
@@ -58,8 +57,7 @@ describe("the website's security headers", () => {
   });
 
   it("follow the deploy's SITE_ENV: the adapter copies wrangler.jsonc's vars over it during the build, so it has none", () => {
-    const config = fileURLToPath(new URL("../../../wrangler.jsonc", import.meta.url));
-    expect(unstable_readConfig({ config }, { hideWarnings: true }).vars).not.toHaveProperty("SITE_ENV");
+    expect(readFileSync(new URL("../../../wrangler.jsonc", import.meta.url), "utf8")).not.toMatch(/"SITE_ENV"\s*:/);
   });
 
   it("keep what the adapter wrote there first (the long Cache-Control on /_astro/*)", () => {
