@@ -56,6 +56,10 @@ describe("the website's security headers", () => {
     expect(built(undefined)).toEqual({ "/*": siteHeaders("dev") });
   });
 
+  it("follow the deploy's SITE_ENV: the adapter copies wrangler.jsonc's vars over it during the build, so it has none", () => {
+    expect(readFileSync(new URL("../../../wrangler.jsonc", import.meta.url), "utf8")).not.toMatch(/"SITE_ENV"\s*:/);
+  });
+
   it("keep what the adapter wrote there first (the long Cache-Control on /_astro/*)", () => {
     const adapters = "/_astro/*\n  Cache-Control: public, max-age=31536000, immutable\n";
     expect(built("production", adapters)).toEqual({

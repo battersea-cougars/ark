@@ -54,6 +54,31 @@ describe("a browser reports that the policy refused something", () => {
     ).toEqual([]);
   });
 
+  it("is ignored when the browser names only the extension's scheme, as Chrome does for an extension's eval", () => {
+    const body = {
+      "csp-report": {
+        "document-uri": `${SITE}/`,
+        "blocked-uri": "eval",
+        "effective-directive": "script-src",
+        "source-file": "chrome-extension",
+        "line-number": 3,
+      },
+    };
+    expect(cspViolations(body, SITE)).toEqual([]);
+  });
+
+  it("is kept when a script of ours only has extension in its name", () => {
+    const body = {
+      "csp-report": {
+        "document-uri": `${SITE}/`,
+        "blocked-uri": "eval",
+        "effective-directive": "script-src",
+        "source-file": `${SITE}/_astro/chrome-extension.js`,
+      },
+    };
+    expect(cspViolations(body, SITE)).toHaveLength(1);
+  });
+
   it("is ignored when it isn't a report at all", () => {
     expect(cspViolations(null, SITE)).toEqual([]);
     expect(cspViolations("nonsense", SITE)).toEqual([]);

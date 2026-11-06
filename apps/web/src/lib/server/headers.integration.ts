@@ -10,8 +10,7 @@ export const securityHeaders = (): AstroIntegration => ({
   name: "cougars:security-headers",
   hooks: {
     "astro:build:done": ({ dir, logger }) => {
-      // String(): wrangler types reads SITE_ENV as always "dev", its value in wrangler.jsonc
-      const siteEnv = String(process.env.SITE_ENV) === "production" ? "production" : "dev";
+      const siteEnv = process.env.SITE_ENV === "production" ? "production" : "dev";
       const file = new URL("_headers", dir);
       const there = existsSync(file) ? readFileSync(file, "utf8") : "";
       writeFileSync(file, headersFile(siteEnv) + (there && `\n${there}`));

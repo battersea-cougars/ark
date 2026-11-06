@@ -1,7 +1,7 @@
 # 0027. Email goes through the Gmail API, reaching only the safe inbox outside production; Turnstile guards what anyone can do signed out
 
 - **Status:** Accepted
-- **Date:** 2026-10-06 · updated 2026-11-02
+- **Date:** 2026-10-06 · updated 2026-11-06
 - **Merges:** 0028, 0077
 
 ## Context
@@ -67,8 +67,8 @@ with their own inbox, and changing a secret to fix that needs a deploy each time
 
 **Who receives it** (`safeMail`, run on every send)
 
-- Production means `SITE_ENV` is exactly `production`, set only by `target.mjs` on `release`; `wrangler.jsonc`
-  defaults to `dev`, and unset is not production ([0010](0010-environments-and-deploys.md)). In production real
+- Production means `SITE_ENV` is exactly `production`, set only by `target.mjs` on `release`; dev's deploys
+  say `dev`, a laptop leaves it unset, and unset is not production ([0010](0010-environments-and-deploys.md)). In production real
   recipients always get their email.
 - Anywhere else, an email goes to its real recipients only when **every one** of them is allowed. Otherwise the whole
   email goes to one safe address: `MAIL_SAFE_TO`, or the sending account itself (dev sends to the developer account). Either way
