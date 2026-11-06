@@ -1,7 +1,7 @@
 # 0010. Two environments on two Cloudflare accounts and two Sanity projects; `main` deploys dev, `release` production
 
 - **Status:** Accepted
-- **Date:** 2026-10-05 · updated 2026-11-02
+- **Date:** 2026-10-05 · updated 2026-11-06
 - **Merges:** 0005, 0013, 0017, 0075, 0123
 
 ## Context
@@ -68,8 +68,8 @@ be checked before it goes live. Ark deploys `main` to dev and production from a 
   list nothing of their own.
 - **Never deploy production by hand.** Going live is on purpose: a pull request from `main` into `release`, merged
   once its PR checks pass (a merge commit, so `release` keeps `main`'s commits as they are). Work reaches `main` by
-  pull request too. GitHub enforces it: `release` takes changes only through a pull request whose checks pass
-  (a ruleset, `scripts/branch-rules.mjs`), the `production` environment accepts deployments from
+  pull request too, squashed to one commit. GitHub enforces it: `main` takes changes only through a squashed pull
+  request, `release` only through a merged one whose checks pass (rulesets, `scripts/branch-rules.mjs`), the `production` environment accepts deployments from
   `release` only, and the `preview` environment holds only the dev Bitwarden token ([ADR 0002](0002-secrets-in-bitwarden.md)).
   `scripts/ci/target.mjs` points a build at one environment; only CI runs it for production.
 - A scheduled or dispatched rebuild runs on the default branch, so its only job starts the workflow again on `release`.
