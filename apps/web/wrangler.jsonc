@@ -9,10 +9,8 @@
   "observability": { "enabled": true },
   // Daily, 03:17 UTC: delete enquiries past 12 months (ADR 0029). Free (cron triggers: 5 per account).
   "triggers": { "crons": ["17 3 * * *"] },
-  "vars": {
-    // Only scripts/ci/target.mjs sets "production" (on release); anything else never emails a real person.
-    "SITE_ENV": "dev",
-  },
+  // No SITE_ENV in "vars": the Cloudflare adapter copies them over the build's own SITE_ENV (deploy.yml), and pages and
+  // headers would be built as dev's. scripts/ci/target.mjs puts it on the deployed Worker; unset, nobody gets a real email.
   "d1_databases": [
     {
       "binding": "DB",
