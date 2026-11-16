@@ -44,6 +44,11 @@ RUN curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dea
     && apt-get install -y --no-install-recommends google-cloud-cli \
     && rm -rf /var/lib/apt/lists/*
 
+# The libraries Playwright's WebKit (scripts/small-screens.mjs) and Chromium (the journeys) need. Only the libraries:
+# post-start.sh fetches the browsers at package-lock's Playwright version, so a Playwright update needs no rebuild.
+RUN npx -y playwright@1.64.1 install-deps webkit chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 ARG USERNAME=node
 
 RUN \
