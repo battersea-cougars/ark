@@ -9,7 +9,7 @@
 //                                  [--browser webkit|chromium]
 //
 // Needs Playwright (npx playwright install webkit); set PLAYWRIGHT_DIR to a node_modules that has it if it isn't here.
-// Where WebKit can't run (the devcontainer lacks its host libraries), it says so and uses Chromium as a phone instead.
+// The devcontainer has WebKit; where WebKit can't run (a machine without it), it says so and uses Chromium as a phone.
 import { createRequire } from "node:module";
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";

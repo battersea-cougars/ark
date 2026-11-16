@@ -93,6 +93,11 @@ if [ ! -d "$ROOT/node_modules" ] || [ "$ROOT/package-lock.json" -nt "$ROOT/node_
 fi
 
 # Local D1 (apps/web/.wrangler): rebuilt from db/schema.sql, keeping its data, until launch; after it, migrated (ADR 0050).
+# Playwright's browsers (the image has their libraries): WebKit for the small-screens check, Chromium for the journeys.
+# At package-lock's version; once there, this is a no-op.
+(cd "$ROOT" && npx --no-install playwright install webkit chromium >/dev/null) ||
+  echo "Playwright browsers not installed; run: npx playwright install webkit chromium"
+
 db_step=db:rebuild:local
 if ls "$ROOT"/db/migrations/*.sql >/dev/null 2>&1; then db_step=db:migrate:local; fi
 (cd "$ROOT" && npm run --silent "$db_step" >/dev/null) || echo "Local D1 update failed; run: npm run $db_step"
