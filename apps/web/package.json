@@ -9,14 +9,14 @@
     "check": "astro check --tsconfig tsconfig.astro.json && node ../../node_modules/@typescript/native/bin/tsc -p ."
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^14.4.2",
-    "@astrojs/sitemap": "^3.7.4",
+    "@astrojs/cloudflare": "^14.4.9",
+    "@astrojs/sitemap": "^3.7.6",
     "@cougars/shared": "*",
     "@portabletext/to-html": "^6.0.0",
     "@portabletext/types": "^4.0.2",
-    "@sanity/image-url": "^2.1.1",
-    "@sentry/cloudflare": "^11.9.0",
-    "astro": "^7.3.5",
+    "@sanity/image-url": "^2.2.0",
+    "@sentry/cloudflare": "^11.16.0",
+    "astro": "^7.4.13",
     "satori": "0.63.2",
     "sharp": "^0.35.5"
   },
